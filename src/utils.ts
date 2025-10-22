@@ -1,4 +1,5 @@
-import { HomeAssistant } from './types';
+import { HomeAssistant, NinaWarning, DwdWarning } from './types';
+import { localize } from './localize';
 
 /**
  * Dispatches a custom event with an optional detail value.
@@ -19,33 +20,52 @@ export const fireEvent = <T>(
   node.dispatchEvent(event);
 };
 
-/**
- * Formats a date string or object into a locale-aware string.
- * If the date is today, only the time is shown.
- * @param date The date to format.
- * @param hass The Home Assistant object, used for locale and language settings.
- * @returns A formatted date string.
- */
-export function formatDate(date: string | Date, hass: HomeAssistant): string {
-  const dateObj = new Date(date);
-  const today = new Date();
-  const isToday =
-    dateObj.getDate() === today.getDate() &&
-    dateObj.getMonth() === today.getMonth() &&
-    dateObj.getFullYear() === today.getFullYear();
+export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistant): string {
+  try {
+    const startStr = 'start' in warning ? warning.start : '';
+    const endStr = 'expires' in warning ? warning.expires : warning.end;
 
-  const options: Intl.DateTimeFormatOptions = {
-    hour: 'numeric',
-    minute: '2-digit',
-  };
+    if (!startStr) return localize(hass, 'card.time_unknown');
 
-  if (!isToday) {
-    Object.assign(options, { year: 'numeric', month: 'short', day: '2-digit' });
+    const start = new Date(startStr);
+    const now = new Date();
+
+    const timeFormat: Intl.DateTimeFormatOptions = {
+      hour: 'numeric',
+      minute: 'numeric',
+    };
+
+    const getDayString = (date: Date): string => {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const checkDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+      if (checkDay.getTime() === today.getTime()) {
+        return localize(hass, 'card.today');
+      }
+      if (checkDay.getTime() === tomorrow.getTime()) {
+        return localize(hass, 'card.tomorrow');
+      }
+      return new Intl.DateTimeFormat(hass.locale.language, { weekday: 'short' }).format(date);
+    };
+
+    const formattedStartTime = new Intl.DateTimeFormat(hass.locale.language, timeFormat).format(start);
+    const startDayString = getDayString(start);
+
+    if (!endStr) return `${startDayString}, ${formattedStartTime}`;
+
+    const end = new Date(endStr);
+    const formattedEndTime = new Intl.DateTimeFormat(hass.locale.language, timeFormat).format(end);
+    const endDayString = getDayString(end);
+
+    // If start and end are on the same day, just show times
+    if (startDayString === endDayString) {
+      return `${startDayString}, ${formattedStartTime} - ${formattedEndTime}`;
+    }
+
+    return `${startDayString}, ${formattedStartTime} - ${endDayString}, ${formattedEndTime}`;
+  } catch (e) {
+    console.error('Error formatting time:', e);
+    return localize(hass, 'card.time_invalid');
   }
-
-  if (hass.locale?.time_format === '12') {
-    options.hour12 = true;
-  }
-
-  return dateObj.toLocaleString(hass.language, options);
 }

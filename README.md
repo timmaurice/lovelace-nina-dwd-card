@@ -14,6 +14,7 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Displays current and advance warnings from NINA and DWD integrations.
 - Consolidates warnings from multiple NINA binary sensors and DWD sensors into a single card.
 - Color-coded headlines based on warning severity/level.
+- Intelligently deduplicates warnings, prioritizing the original DWD alert over NINA rebroadcasts.
 - Formats warning start and end times for readability.
 - Shows a "No Warnings" message when no active warnings are present.
 - Displays sender information for NINA warnings.
@@ -49,7 +50,7 @@ This card is available in the [Home Assistant Community Store (HACS)](https://ha
 <details>
 <summary>Manual Installation</summary>
 
-1.  Download the `tankerkoenig-card.js` file from the latest release.
+1.  Download the `nina-dwd-card.js` file from the latest release.
 2.  Place the `nina-dwd-card.js` file in your `config/www` directory.
 3.  Add the resource reference to your Lovelace configuration under `Settings` -> `Dashboards` -> `...` -> `Resources`.
     - URL: `/local/nina-dwd-card.js`
@@ -61,14 +62,15 @@ You can now add the card to your dashboard.
 
 ## Configuration
 
-| Name                 | Type   | Default      | Description                                                                                            |
-| -------------------- | ------ | ------------ | ------------------------------------------------------------------------------------------------------ |
-| `type`               | string | **Required** | `custom:nina-dwd-card`                                                                                 |
-| `title`              | string | `(none)`     | The title of the card.                                                                                 |
-| `nina_entity_prefix` | string | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                        |
-| `nina_entity_count`  | number | `5`          | The number of NINA binary sensors to check for each warning area (e.g., `_1`, `_2`, ..., `_5`).        |
-| `dwd_device`         | string | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
-| `dwd_map_land`       | string | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
+| Name                       | Type    | Default      | Description                                                                                            |
+| -------------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+| `type`                     | string  | **Required** | `custom:nina-dwd-card`                                                                                 |
+| `title`                    | string  | `(none)`     | The title of the card.                                                                                 |
+| `nina_entity_prefix`       | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                        |
+| `nina_entity_count`        | number  | `5`          | The number of NINA binary sensors to check for each warning area (e.g., `_1`, `_2`, ..., `_5`).        |
+| `dwd_device`               | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
+| `dwd_map_land`             | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
+| `hide_no_warnings_message` | boolean | `false`      | Hides the "No Warnings" message when there are no active warnings.                                     |
 
 ### Examples
 
@@ -79,6 +81,7 @@ nina_entity_prefix: binary_sensor.warning_berlin
 nina_entity_count: 5
 dwd_device: 1234567890abcdef1234567890abcdef # Device ID for "Berlin"
 dwd_map_land: bbb # For Berlin, Brandenburg
+hide_no_warnings_message: true
 ```
 
 ## Development
@@ -89,8 +92,8 @@ dwd_map_land: bbb # For Berlin, Brandenburg
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/timmaurice/lovelace-tankerkoenig-card.git
-    cd lovelace-tankerkoenig-card
+    git clone https://github.com/timmaurice/lovelace-nina-dwd-card.git
+    cd lovelace-nina-dwd-card
     ```
 
 2.  **Install dependencies:**
@@ -99,21 +102,21 @@ dwd_map_land: bbb # For Berlin, Brandenburg
     npm install
     ```
 
-3.  **Start the development server:**
+3.  **Build the card:**
     This command will build for changes in the `src` directory and rebuild the card.
 
     ```bash
     npm run build
     ```
 
-4.  In your Home Assistant instance, you will need to configure Lovelace to use the local development version of the card from `dist/tankerkoenig-card.js`.
+4.  In your Home Assistant instance, you will need to configure Lovelace to use the local development version of the card from `dist/nina-dwd-card.js`.
 </details>
 
 ---
 
-For further assistance or to [report issues](https://github.com/timmaurice/lovelace-tankerkoenig-card/issues), please visit the [GitHub repository](https://github.com/timmaurice/lovelace-tankerkoenig-card).
+For further assistance or to [report issues](https://github.com/timmaurice/lovelace-nina-dwd-card/issues), please visit the [GitHub repository](https://github.com/timmaurice/lovelace-nina-dwd-card).
 
-![Star History Chart](https://api.star-history.com/svg?repos=timmaurice/lovelace-tankerkoenig-card&type=Date)
+![Star History Chart](https://api.star-history.com/svg?repos=timmaurice/lovelace-nina-dwd-card&type=Date)
 
 ## ☕ Support My Work
 

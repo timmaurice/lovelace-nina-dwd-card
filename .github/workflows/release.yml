@@ -31,5 +31,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/tankerkoenig-card.js
+            dist/nina-dwd-card.js
           draft: true

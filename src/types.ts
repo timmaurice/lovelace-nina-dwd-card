@@ -32,14 +32,34 @@ declare global {
   }
 }
 
+export interface NinaWarning {
+  headline: string;
+  description: string;
+  sender: string;
+  entity_id: string;
+  severity: 'Minor' | 'Moderate' | 'Severe' | 'Extreme' | 'Unknown';
+  start: string;
+  instruction?: string;
+  expires: string;
+}
+
+export interface DwdWarning {
+  headline: string;
+  description: string;
+  entity_id: string;
+  level: number;
+  start: string;
+  end: string;
+  instruction?: string;
+}
+
 export interface NinaDwdCardConfig extends LovelaceCardConfig {
   title?: string;
   nina_entity_prefix?: string;
   nina_entity_count?: number;
-  dwd_current_entity?: string;
-  dwd_advance_entity?: string;
   dwd_device?: string;
   dwd_map_land?: string;
+  hide_no_warnings_message?: boolean;
 }
 
 export interface HomeAssistant {

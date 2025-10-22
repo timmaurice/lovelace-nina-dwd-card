@@ -10,6 +10,7 @@
     "nina_entity_count": "Anzahl der NINA-Entitäten",
     "dwd_device": "DWD Warnungs-Gerät",
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
+    "hide_no_warnings_message": "'Keine Warnungen'-Nachricht ausblenden",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",
       "bay": "Bayern",
@@ -27,6 +28,10 @@
   },
   "card": {
     "no_warnings": "Keine Warnungen",
-    "recommended_actions": "Handlungsempfehlungen"
+    "recommended_actions": "Handlungsempfehlungen",
+    "today": "Heute",
+    "tomorrow": "Morgen",
+    "time_unknown": "Zeit unbekannt",
+    "time_invalid": "Zeit ungültig"
   }
 }

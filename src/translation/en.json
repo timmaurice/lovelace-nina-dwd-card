@@ -10,6 +10,7 @@
     "nina_entity_count": "NINA Entity Count",
     "dwd_device": "DWD Warnings Device",
     "dwd_map_land": "DWD Warning Map (State)",
+    "hide_no_warnings_message": "Hide 'No Warnings' message",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",
       "bay": "Bavaria",
@@ -27,6 +28,10 @@
   },
   "card": {
     "no_warnings": "No Warnings",
-    "recommended_actions": "Recommended Actions"
+    "recommended_actions": "Recommended Actions",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "time_unknown": "Time unknown",
+    "time_invalid": "Time invalid"
   }
 }

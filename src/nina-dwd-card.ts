@@ -1,30 +1,9 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig } from './types';
-import { fireEvent } from './utils';
+import { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
+import { fireEvent, formatTime } from './utils';
 import { localize } from './localize';
 import cardStyles from './styles/card.styles.scss';
-
-interface NinaWarning {
-  headline: string;
-  description: string;
-  sender: string;
-  entity_id: string;
-  severity: 'Minor' | 'Moderate' | 'Severe' | 'Extreme' | 'Unknown';
-  start: string;
-  instruction?: string;
-  expires: string;
-}
-
-interface DwdWarning {
-  headline: string;
-  description: string;
-  entity_id: string;
-  level: number;
-  start: string;
-  end: string;
-  instruction?: string;
-}
 
 const NINA_LEVEL_COLORS: Record<NinaWarning['severity'], string> = {
   Minor: '#ffeb3b',
@@ -138,46 +117,48 @@ export class NinaDwdCard extends LitElement {
       <ha-card .header=${this._config.title}>
         <div class="card-content">
           <div class="warnings-container">
-            ${allWarnings.length === 0
-              ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">No Warnings</div>`
-              : allWarnings.map(
-                  (warning, index) => html`
-                    ${index > 0 ? html`<hr />` : ''}
-                    <div class="warning">
-                      ${'level' in warning && mapUrl
-                        ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
-                        : ''}
-                      <div
-                        class="headline"
-                        style="color: ${'severity' in warning
-                          ? NINA_LEVEL_COLORS[warning.severity]
-                          : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
-                      >
-                        ${warning.headline}
-                      </div>
-                      <div class="time">${this._formatTime(warning)}</div>
-                      <div class="description">${warning.description}</div>
-                      ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
-                      ${'instruction' in warning && warning.instruction
-                        ? html` <ha-expansion-panel outlined>
-                            <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                            <div class="instruction">${warning.instruction}</div>
-                          </ha-expansion-panel>`
-                        : ''}
-                      <div class="footer">
-                        <div class="sender">
-                          ${'sender' in warning && warning.sender ? `Source: ${warning.sender}` : ''}
+            ${allWarnings.length === 0 && this._config.hide_no_warnings_message
+              ? ''
+              : allWarnings.length === 0
+                ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">No Warnings</div>`
+                : allWarnings.map(
+                    (warning, index) => html`
+                      ${index > 0 ? html`<hr />` : ''}
+                      <div class="warning">
+                        ${'level' in warning && mapUrl
+                          ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
+                          : ''}
+                        <div
+                          class="headline"
+                          style="color: ${'severity' in warning
+                            ? NINA_LEVEL_COLORS[warning.severity]
+                            : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
+                        >
+                          ${warning.headline}
                         </div>
-                        <ha-icon-button
-                          class="info-button"
-                          .label=${`More info for ${warning.headline}`}
-                          @click=${() => this._handleMoreInfo(warning.entity_id)}
-                          ><ha-icon icon="mdi:information-outline"></ha-icon
-                        ></ha-icon-button>
+                        <div class="time">${formatTime(warning, this.hass)}</div>
+                        <div class="description">${warning.description}</div>
+                        ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
+                        ${'instruction' in warning && warning.instruction
+                          ? html` <ha-expansion-panel outlined>
+                              <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
+                              <div class="instruction">${warning.instruction}</div>
+                            </ha-expansion-panel>`
+                          : ''}
+                        <div class="footer">
+                          <div class="sender">
+                            ${'sender' in warning && warning.sender ? `Source: ${warning.sender}` : ''}
+                          </div>
+                          <ha-icon-button
+                            class="info-button"
+                            .label=${`More info for ${warning.headline}`}
+                            @click=${() => this._handleMoreInfo(warning.entity_id)}
+                            ><ha-icon icon="mdi:information-outline"></ha-icon
+                          ></ha-icon-button>
+                        </div>
                       </div>
-                    </div>
-                  `,
-                )}
+                    `,
+                  )}
           </div>
         </div>
       </ha-card>
@@ -252,41 +233,6 @@ export class NinaDwdCard extends LitElement {
 
   private _handleMoreInfo(entityId: string): void {
     fireEvent(this, 'hass-more-info', { entityId });
-  }
-
-  private _formatTime(warning: NinaWarning | DwdWarning): string {
-    try {
-      const startStr = 'start' in warning ? warning.start : '';
-      const endStr = 'expires' in warning ? warning.expires : warning.end;
-
-      if (!startStr) return 'Time unknown';
-
-      const start = new Date(startStr);
-      const options: Intl.DateTimeFormatOptions = {
-        weekday: 'short',
-        hour: 'numeric',
-        minute: 'numeric',
-      };
-      const formattedStart = new Intl.DateTimeFormat(this.hass.locale.language, options).format(start);
-
-      if (!endStr) return formattedStart;
-
-      const end = new Date(endStr);
-      const formattedEnd = new Intl.DateTimeFormat(this.hass.locale.language, options).format(end);
-
-      // If start and end are on the same day, just show times
-      if (start.toDateString() === end.toDateString()) {
-        return `${formattedStart} - ${new Intl.DateTimeFormat(this.hass.locale.language, {
-          hour: 'numeric',
-          minute: 'numeric',
-        }).format(end)}`;
-      }
-
-      return `${formattedStart} - ${formattedEnd}`;
-    } catch (e) {
-      console.error('Error formatting time:', e);
-      return 'Time invalid';
-    }
   }
 
   static styles = css`

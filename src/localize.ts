@@ -8,7 +8,7 @@ const _translations = {
   en,
 };
 
-export const translations: { [key: string]: TranslationObject } = _translations;
+export const translations: { [key: string]: typeof en } = _translations;
 
 export interface TranslationObject {
   [key: string]: string | TranslationObject;

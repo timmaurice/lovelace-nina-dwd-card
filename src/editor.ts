@@ -29,6 +29,10 @@ const SCHEMA = [
     name: 'dwd_map_land',
     selector: { select: { mode: 'dropdown' } },
   },
+  {
+    name: 'hide_no_warnings_message',
+    selector: { boolean: {} },
+  },
 ];
 
 @customElement('nina-dwd-card-editor')
@@ -44,16 +48,9 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     if (!this.hass || !this._config) return;
     const newConfig = { ...this._config, ...ev.detail.value } as NinaDwdCardConfig;
 
-    // If dwd_device was changed (selected or cleared)
-    if (ev.detail.value.dwd_device !== undefined) {
-      if (ev.detail.value.dwd_device) {
-        // If a dwd_device is selected, remove the old entity keys.
-        delete newConfig.dwd_current_entity;
-        delete newConfig.dwd_advance_entity;
-      } else {
-        // If dwd_device is cleared, also remove the map setting.
-        delete newConfig.dwd_map_land;
-      }
+    // If dwd_device is being cleared, also remove the map setting.
+    if (!newConfig.dwd_device) {
+      delete newConfig.dwd_map_land;
     }
 
     fireEvent(this, 'config-changed', { config: newConfig });
