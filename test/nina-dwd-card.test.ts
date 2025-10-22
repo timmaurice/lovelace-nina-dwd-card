@@ -69,6 +69,16 @@ describe('NinaDwdCard', () => {
       expect(noWarnings?.textContent).toBe('No Warnings');
     });
 
+    it("should not render 'No Warnings' when hide_no_warnings_message is true", async () => {
+      config.hide_no_warnings_message = true;
+      // The default config has no active warnings
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+      const noWarnings = element.shadowRoot?.querySelector('.no-warnings');
+      expect(noWarnings).toBeNull();
+    });
+
     it('should render a NINA warning', async () => {
       hass.states['binary_sensor.nina_warnung_1'] = {
         state: 'on',
