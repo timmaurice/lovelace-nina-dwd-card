@@ -40,6 +40,6 @@
     "sass": "^1.93.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.2",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.1"
   }
 }
