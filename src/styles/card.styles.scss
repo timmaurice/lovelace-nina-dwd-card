@@ -1,0 +1,93 @@
+:host ::slotted(.card-content),
+.card-content {
+  padding: 16px;
+}
+
+.no-warnings {
+  font-weight: bold;
+}
+
+.warning {
+  padding: 8px 0;
+}
+
+.headline {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.time {
+  color: var(--secondary-text-color);
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.description {
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.sender {
+  color: var(--secondary-text-color);
+  font-size: 0.8em;
+  font-style: italic;
+}
+
+.footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.info-button {
+  --mdc-icon-button-size: 36px;
+  color: var(--secondary-text-color);
+
+  &:hover {
+    color: var(--primary-text-color);
+  }
+}
+
+ha-expansion-panel {
+  --expansion-panel-content-padding: 0 12px;
+  --expansion-panel-header-padding: 8px 12px;
+  margin-top: 12px;
+}
+
+.instruction {
+  white-space: pre-wrap;
+}
+
+.clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.warnings-container::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.map-image {
+  border-radius: var(--ha-card-border-radius, 4px); /* Apply border-radius */
+  float: right; /* Float the image to the right */
+  margin-left: 16px; /* Space between image and text */
+  margin-bottom: 8px; /* Space below the image */
+  max-width: 40%; /* Make the image smaller */
+  min-width: 120px; /* Ensure a minimum size */
+  shape-outside: margin-box; /* Allow text to flow around the image's shape */
+}
+
+ha-icon {
+  transform: translateY(-4px);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--divider-color);
+  margin: 8px 0;
+}

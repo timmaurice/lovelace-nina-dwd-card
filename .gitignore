@@ -1,0 +1,10 @@
+# Dependencies
+/node_modules
+
+# Lockfiles for other package managers
+bun.lock
+yarn.lock
+
+.DS_Store
+
+*.bak

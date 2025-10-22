@@ -1,0 +1,21 @@
+{
+  "cSpell.words": [
+    "Agip",
+    "Automatenstation",
+    "Avia",
+    "citi",
+    "dimgray",
+    "Esso",
+    "Globus",
+    "HACS",
+    "hacsfiles",
+    "hass",
+    "Hornbach",
+    "Joiss",
+    "Minera",
+    "Raiffeisen",
+    "tankerkoenig",
+    "Tankerkönig"
+  ],
+  "cSpell.ignorePaths": [".github/**", "node_modules/**", "dist/**"]
+}

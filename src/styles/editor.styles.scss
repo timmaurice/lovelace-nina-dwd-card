@@ -1,0 +1,33 @@
+.card-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group {
+  padding-bottom: 16px;
+}
+
+.group-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.group > ha-textfield {
+  width: 100%;
+}
+
+.group > ha-select {
+  display: block;
+  width: 100%;
+}
+
+.entity-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+
+  ha-entity-picker {
+    flex-grow: 1;
+  }
+}

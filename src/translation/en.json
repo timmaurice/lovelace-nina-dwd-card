@@ -1,0 +1,32 @@
+{
+  "editor": {
+    "remove": "Remove",
+    "groups": {
+      "clear": "Clear",
+      "core": "Core Configuration"
+    },
+    "title": "Title (Optional)",
+    "nina_entity_prefix": "NINA Warning Area",
+    "nina_entity_count": "NINA Entity Count",
+    "dwd_device": "DWD Warnings Device",
+    "dwd_map_land": "DWD Warning Map (State)",
+    "dwd_map_land_options": {
+      "baw": "Baden-Württemberg",
+      "bay": "Bavaria",
+      "bbb": "Berlin, Brandenburg",
+      "hes": "Hesse",
+      "mvp": "Mecklenburg-Western Pomerania",
+      "nib": "Lower Saxony, Bremen",
+      "nrw": "North Rhine-Westphalia",
+      "rps": "Rhineland-Palatinate, Saarland",
+      "sac": "Saxony",
+      "saa": "Saxony-Anhalt",
+      "shh": "Schleswig-Holstein, Hamburg",
+      "thu": "Thuringia"
+    }
+  },
+  "card": {
+    "no_warnings": "No Warnings",
+    "recommended_actions": "Recommended Actions"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "editor": {
+    "remove": "Entfernen",
+    "groups": {
+      "clear": "Leeren",
+      "core": "Grundeinstellungen"
+    },
+    "title": "Titel (Optional)",
+    "nina_entity_prefix": "NINA Warngebiet",
+    "nina_entity_count": "Anzahl der NINA-Entitäten",
+    "dwd_device": "DWD Warnungs-Gerät",
+    "dwd_map_land": "DWD Warnkarte (Bundesland)",
+    "dwd_map_land_options": {
+      "baw": "Baden-Württemberg",
+      "bay": "Bayern",
+      "bbb": "Berlin, Brandenburg",
+      "hes": "Hessen",
+      "mvp": "Mecklenburg-Vorpommern",
+      "nib": "Niedersachsen, Bremen",
+      "nrw": "Nordrhein-Westfalen",
+      "rps": "Rheinland-Pfalz, Saarland",
+      "sac": "Sachsen",
+      "saa": "Sachsen-Anhalt",
+      "shh": "Schleswig-Holstein, Hamburg",
+      "thu": "Thüringen"
+    }
+  },
+  "card": {
+    "no_warnings": "Keine Warnungen",
+    "recommended_actions": "Handlungsempfehlungen"
+  }
+}
