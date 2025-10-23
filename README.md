@@ -15,6 +15,7 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Consolidates warnings from multiple NINA binary sensors and DWD sensors into a single card.
 - Color-coded headlines based on warning severity/level.
 - Intelligently deduplicates warnings, prioritizing the original DWD alert over NINA rebroadcasts.
+- Automatically sorts warnings by severity, displaying the most critical alerts first.
 - Formats warning start and end times for readability.
 - Shows a "No Warnings" message when no active warnings are present.
 - Displays sender information for NINA warnings.
@@ -69,7 +70,7 @@ You can now add the card to your dashboard.
 | `type`                  | string  | **Required** | `custom:nina-dwd-card`                                                                                 |
 | `title`                 | string  | `(none)`     | The title of the card.                                                                                 |
 | `nina_entity_prefix`    | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                        |
-| `nina_entity_count`     | number  | `5`          | The number of NINA binary sensors to check for each warning area (e.g., `_1`, `_2`, ..., `_5`).        |
+| `max_warnings`          | number  | `5`          | The maximum number of warnings to display on the card.                                                 |
 | `dwd_device`            | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
 | `dwd_map_land`          | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
 | `hide_when_no_warnings` | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.        |
@@ -80,7 +81,7 @@ You can now add the card to your dashboard.
 type: custom:nina-dwd-card
 title: Warnings
 nina_entity_prefix: binary_sensor.warning_berlin
-nina_entity_count: 5
+max_warnings: 3
 dwd_device: 1234567890abcdef1234567890abcdef # Device ID for "Berlin"
 dwd_map_land: bbb # For Berlin, Brandenburg
 hide_when_no_warnings: true

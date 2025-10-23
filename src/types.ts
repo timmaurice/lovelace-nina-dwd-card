@@ -52,7 +52,7 @@ export interface DwdWarning {
 export interface NinaDwdCardConfig extends LovelaceCardConfig {
   title?: string;
   nina_entity_prefix?: string;
-  nina_entity_count?: number;
+  max_warnings?: number;
   dwd_device?: string;
   dwd_map_land?: string;
   hide_when_no_warnings?: boolean;

@@ -3,7 +3,7 @@
     "groups": { "core": "Core Configuration" },
     "title": "Title (Optional)",
     "nina_entity_prefix": "NINA Warning Area",
-    "nina_entity_count": "NINA Entity Count",
+    "max_warnings": "Max Number of Warnings",
     "dwd_device": "DWD Warnings Device",
     "dwd_map_land": "DWD Warning Map (State)",
     "hide_when_no_warnings": "Hide card when no warnings",

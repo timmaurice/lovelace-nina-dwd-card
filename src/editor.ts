@@ -7,7 +7,7 @@ import editorStyles from './styles/editor.styles.scss';
 
 const SCHEMA = [
   {
-    name: 'nina_entity_count',
+    name: 'max_warnings',
     selector: {
       number: {
         min: 1,

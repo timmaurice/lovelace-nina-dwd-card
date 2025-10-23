@@ -3,7 +3,7 @@
     "groups": { "core": "Grundeinstellungen" },
     "title": "Titel (Optional)",
     "nina_entity_prefix": "NINA Warngebiet",
-    "nina_entity_count": "Anzahl der NINA-Entitäten",
+    "max_warnings": "Maximale Anzahl an Warnungen",
     "dwd_device": "DWD Warnungs-Gerät",
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
     "hide_when_no_warnings": "Karte ausblenden, wenn keine Warnungen vorliegen",

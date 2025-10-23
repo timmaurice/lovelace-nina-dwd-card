@@ -1,6 +1,7 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { fireEvent, formatTime } from './utils';
 import { localize } from './localize';
 import cardStyles from './styles/card.styles.scss';
@@ -37,7 +38,7 @@ export class NinaDwdCard extends LitElement {
       title: 'Warnings',
       type: 'custom:nina-dwd-card',
       nina_entity_prefix: '',
-      nina_entity_count: 5,
+      max_warnings: 5,
       dwd_device: '',
     };
   }
@@ -51,7 +52,7 @@ export class NinaDwdCard extends LitElement {
     }
 
     this._config = {
-      nina_entity_count: 5,
+      max_warnings: 5,
       ...config,
     };
   }
@@ -125,6 +126,12 @@ export class NinaDwdCard extends LitElement {
 
     const allWarnings = Array.from(deduplicatedWarnings.values());
 
+    let sortedWarnings = [...allWarnings].sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a));
+
+    if (this._config.max_warnings) {
+      sortedWarnings = sortedWarnings.slice(0, this._config.max_warnings);
+    }
+
     const editMode = this._editMode;
     const isHidden = allWarnings.length === 0 && this._config.hide_when_no_warnings;
 
@@ -132,15 +139,15 @@ export class NinaDwdCard extends LitElement {
       return html``; // Hide card completely in view mode
     }
 
-    const firstDwdIndex = allWarnings.findIndex((w) => 'level' in w);
+    const firstDwdIndex = sortedWarnings.findIndex((w) => 'level' in w);
 
     return html`
       <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
         <div class="card-content">
           <div class="warnings-container">
-            ${allWarnings.length === 0
+            ${sortedWarnings.length === 0
               ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">No Warnings</div>`
-              : allWarnings.map(
+              : sortedWarnings.map(
                   (warning, index) => html`
                     ${index > 0 ? html`<hr />` : ''}
                     <div class="warning">
@@ -153,10 +160,10 @@ export class NinaDwdCard extends LitElement {
                           ? NINA_LEVEL_COLORS[warning.severity]
                           : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
                       >
-                        ${warning.headline}
+                        <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${warning.headline}
                       </div>
                       <div class="time">${formatTime(warning, this.hass)}</div>
-                      <div class="description">${warning.description}</div>
+                      <div class="description">${unsafeHTML(warning.description)}</div>
                       ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
                       ${isHidden && editMode
                         ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
@@ -194,7 +201,8 @@ export class NinaDwdCard extends LitElement {
     const warnings: NinaWarning[] = [];
     if (!this._config.nina_entity_prefix) return warnings;
 
-    for (let i = 1; i <= (this._config.nina_entity_count ?? 5); i++) {
+    // Check a fixed number of NINA entities. The total number of warnings is limited later.
+    for (let i = 1; i <= 10; i++) {
       const entityId = `${this._config.nina_entity_prefix}_${i}`;
       const stateObj = this.hass.states[entityId];
 
@@ -258,6 +266,26 @@ export class NinaDwdCard extends LitElement {
 
   private _handleMoreInfo(entityId: string): void {
     fireEvent(this, 'hass-more-info', { entityId });
+  }
+
+  private _getSeverityScore(warning: NinaWarning | DwdWarning): number {
+    if ('severity' in warning) {
+      // NINA severity
+      switch (warning.severity) {
+        case 'Extreme':
+          return 4;
+        case 'Severe':
+          return 3;
+        case 'Moderate':
+          return 2;
+        case 'Minor':
+          return 1;
+        default:
+          return 0; // 'Unknown'
+      }
+    }
+    // DWD level
+    return 'level' in warning ? warning.level : 0;
   }
 
   static styles = css`

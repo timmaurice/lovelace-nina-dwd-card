@@ -12,9 +12,15 @@
 }
 
 .headline {
+  align-items: center;
+  display: flex;
+  gap: 8px;
   font-size: 1.1em;
   font-weight: bold;
   margin-bottom: 4px;
+  ha-icon {
+    flex-shrink: 0;
+  }
 }
 
 .time {
@@ -54,6 +60,10 @@ ha-expansion-panel {
   --expansion-panel-content-padding: 0 12px;
   --expansion-panel-header-padding: 8px 12px;
   margin-top: 12px;
+
+  &[expanded] .instruction {
+    padding: 12px 0;
+  }
 }
 
 .instruction {
@@ -82,8 +92,8 @@ ha-expansion-panel {
   shape-outside: margin-box; /* Allow text to flow around the image's shape */
 }
 
-ha-icon {
-  transform: translateY(-4px);
+.info-button ha-icon {
+  transform: translateY(-4px); /* Fine-tune vertical alignment of info icon */
 }
 
 hr {

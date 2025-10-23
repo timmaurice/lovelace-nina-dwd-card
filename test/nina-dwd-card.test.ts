@@ -6,27 +6,29 @@ import { HomeAssistant, NinaDwdCardConfig, HaCard } from '../src/types';
 // Mock console.info
 vi.spyOn(console, 'info').mockImplementation(() => undefined);
 
+const createMockHass = (): HomeAssistant =>
+  ({
+    localize: (key: string, placeholders?: Record<string, string>) => {
+      if (key === 'card.source' && placeholders?.sender) {
+        return `Source: ${placeholders.sender}`;
+      }
+      return key;
+    },
+    language: 'en',
+    locale: { language: 'en', number_format: 'comma_decimal', time_format: '24' },
+    states: {},
+    entities: {},
+    devices: {},
+    callWS: vi.fn(),
+  }) as unknown as HomeAssistant;
+
 describe('NinaDwdCard', () => {
   let element: NinaDwdCard;
   let hass: HomeAssistant;
   let config: NinaDwdCardConfig;
 
   beforeEach(() => {
-    // A more realistic mock for localize that handles placeholders
-    hass = {
-      localize: (key: string, placeholders?: Record<string, string>) => {
-        if (key === 'card.source' && placeholders?.sender) {
-          return `Source: ${placeholders.sender}`;
-        }
-        return key;
-      },
-      language: 'en',
-      locale: { language: 'en', number_format: 'comma_decimal', time_format: '24' },
-      states: {},
-      entities: {},
-      devices: {},
-      callWS: vi.fn(),
-    } as unknown as HomeAssistant;
+    hass = createMockHass();
 
     config = {
       type: 'custom:nina-dwd-card',
@@ -238,6 +240,43 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
       expect(warnings?.[0].querySelector('.sender')?.textContent).toContain('Civil Protection');
+    });
+  });
+
+  describe('Sorting', () => {
+    it('should sort warnings by severity', async () => {
+      // Minor NINA warning
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { headline: 'Minor Warning', severity: 'Minor', start: new Date().toISOString() },
+      };
+      // Severe DWD warning
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Severe Warning',
+          warning_1_level: 3,
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      // Extreme NINA warning
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: { headline: 'Extreme Warning', severity: 'Extreme', start: new Date().toISOString() },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const headlines = element.shadowRoot?.querySelectorAll('.headline');
+      expect(headlines?.[0].textContent?.trim()).toBe('Extreme Warning');
+      expect(headlines?.[1].textContent?.trim()).toBe('Severe Warning');
+      expect(headlines?.[2].textContent?.trim()).toBe('Minor Warning');
     });
   });
 });
