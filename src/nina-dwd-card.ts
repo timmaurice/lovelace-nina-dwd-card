@@ -25,6 +25,7 @@ const DWD_LEVEL_COLORS: Record<number, string> = {
 export class NinaDwdCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config!: NinaDwdCardConfig;
+  @state() private _editMode = false;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -55,6 +56,15 @@ export class NinaDwdCard extends LitElement {
     };
   }
 
+  /**
+   * Called by Home Assistant when the card is in edit mode.
+   * @param editMode True if the card is in edit mode.
+   */
+  public set editMode(editMode: boolean) {
+    this._editMode = editMode;
+    this.requestUpdate();
+  }
+
   protected render(): TemplateResult {
     if (!this._config || !this.hass) {
       return html``;
@@ -79,7 +89,9 @@ export class NinaDwdCard extends LitElement {
       ninaWarnings = ninaWarnings.filter((warning) => warning.sender !== 'Deutscher Wetterdienst');
     }
 
-    const uniqueWarnings = new Map<string, NinaWarning | DwdWarning>();
+    const allWarningsRaw = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
+
+    const deduplicatedWarnings = new Map<string, NinaWarning | DwdWarning>();
     const getWarningKey = (headline: string, start: string | undefined): string => {
       if (!start) {
         // Create a unique key for warnings without a start time to prevent them from being deduplicated
@@ -95,11 +107,11 @@ export class NinaDwdCard extends LitElement {
     };
 
     // Prioritize NINA warnings. If a DWD warning with the same key appears, it will be ignored.
-    for (const warning of [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]) {
+    for (const warning of allWarningsRaw) {
       if (warning.headline && warning.start) {
         const key = getWarningKey(warning.headline, warning.start);
-        if (!uniqueWarnings.has(key)) {
-          uniqueWarnings.set(key, warning);
+        if (!deduplicatedWarnings.has(key)) {
+          deduplicatedWarnings.set(key, warning);
         }
       }
     }
@@ -111,54 +123,67 @@ export class NinaDwdCard extends LitElement {
       mapUrl += `?${new Date().getTime()}`;
     }
 
-    const allWarnings = Array.from(uniqueWarnings.values());
+    const allWarnings = Array.from(deduplicatedWarnings.values());
+
+    const editMode = this._editMode;
+    const isHidden = allWarnings.length === 0 && this._config.hide_when_no_warnings;
+
+    if (isHidden && !editMode) {
+      return html``; // Hide card completely in view mode
+    }
+
+    const firstDwdIndex = allWarnings.findIndex((w) => 'level' in w);
 
     return html`
-      <ha-card .header=${this._config.title}>
+      <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
         <div class="card-content">
           <div class="warnings-container">
-            ${allWarnings.length === 0 && this._config.hide_no_warnings_message
-              ? ''
-              : allWarnings.length === 0
-                ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">No Warnings</div>`
-                : allWarnings.map(
-                    (warning, index) => html`
-                      ${index > 0 ? html`<hr />` : ''}
-                      <div class="warning">
-                        ${'level' in warning && mapUrl
-                          ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
-                          : ''}
-                        <div
-                          class="headline"
-                          style="color: ${'severity' in warning
-                            ? NINA_LEVEL_COLORS[warning.severity]
-                            : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
-                        >
-                          ${warning.headline}
-                        </div>
-                        <div class="time">${formatTime(warning, this.hass)}</div>
-                        <div class="description">${warning.description}</div>
-                        ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
-                        ${'instruction' in warning && warning.instruction
+            ${allWarnings.length === 0
+              ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">No Warnings</div>`
+              : allWarnings.map(
+                  (warning, index) => html`
+                    ${index > 0 ? html`<hr />` : ''}
+                    <div class="warning">
+                      ${'level' in warning && mapUrl && index === firstDwdIndex
+                        ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
+                        : ''}
+                      <div
+                        class="headline"
+                        style="color: ${'severity' in warning
+                          ? NINA_LEVEL_COLORS[warning.severity]
+                          : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
+                      >
+                        ${warning.headline}
+                      </div>
+                      <div class="time">${formatTime(warning, this.hass)}</div>
+                      <div class="description">${warning.description}</div>
+                      ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
+                      ${isHidden && editMode
+                        ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
+                        : 'instruction' in warning && warning.instruction
                           ? html` <ha-expansion-panel outlined>
                               <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
                               <div class="instruction">${warning.instruction}</div>
                             </ha-expansion-panel>`
                           : ''}
-                        <div class="footer">
-                          <div class="sender">
-                            ${'sender' in warning && warning.sender ? `Source: ${warning.sender}` : ''}
-                          </div>
-                          <ha-icon-button
-                            class="info-button"
-                            .label=${`More info for ${warning.headline}`}
-                            @click=${() => this._handleMoreInfo(warning.entity_id)}
-                            ><ha-icon icon="mdi:information-outline"></ha-icon
-                          ></ha-icon-button>
+                      <div class="footer">
+                        <div class="sender">
+                          ${'sender' in warning && warning.sender
+                            ? localize(this.hass, 'card.source', { sender: warning.sender })
+                            : 'level' in warning
+                              ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
+                              : ''}
                         </div>
+                        <ha-icon-button
+                          class="info-button"
+                          .label=${`More info for ${warning.headline}`}
+                          @click=${() => this._handleMoreInfo(warning.entity_id)}
+                          ><ha-icon icon="mdi:information-outline"></ha-icon
+                        ></ha-icon-button>
                       </div>
-                    `,
-                  )}
+                    </div>
+                  `,
+                )}
           </div>
         </div>
       </ha-card>

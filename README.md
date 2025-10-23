@@ -39,6 +39,8 @@ If you would like to contribute a new translation:
 
 </details>
 
+![NINA and DWD Warnings Card Screenshot](https://raw.githubusercontent.com/timmaurice/lovelace-nina-dwd-card/main/image.png)
+
 ## Installation
 
 ### HACS (Recommended)
@@ -62,15 +64,15 @@ You can now add the card to your dashboard.
 
 ## Configuration
 
-| Name                       | Type    | Default      | Description                                                                                            |
-| -------------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------ |
-| `type`                     | string  | **Required** | `custom:nina-dwd-card`                                                                                 |
-| `title`                    | string  | `(none)`     | The title of the card.                                                                                 |
-| `nina_entity_prefix`       | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                        |
-| `nina_entity_count`        | number  | `5`          | The number of NINA binary sensors to check for each warning area (e.g., `_1`, `_2`, ..., `_5`).        |
-| `dwd_device`               | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
-| `dwd_map_land`             | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
-| `hide_no_warnings_message` | boolean | `false`      | Hides the "No Warnings" message when there are no active warnings.                                     |
+| Name                    | Type    | Default      | Description                                                                                            |
+| ----------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+| `type`                  | string  | **Required** | `custom:nina-dwd-card`                                                                                 |
+| `title`                 | string  | `(none)`     | The title of the card.                                                                                 |
+| `nina_entity_prefix`    | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                        |
+| `nina_entity_count`     | number  | `5`          | The number of NINA binary sensors to check for each warning area (e.g., `_1`, `_2`, ..., `_5`).        |
+| `dwd_device`            | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
+| `dwd_map_land`          | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
+| `hide_when_no_warnings` | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.        |
 
 ### Examples
 
@@ -81,7 +83,7 @@ nina_entity_prefix: binary_sensor.warning_berlin
 nina_entity_count: 5
 dwd_device: 1234567890abcdef1234567890abcdef # Device ID for "Berlin"
 dwd_map_land: bbb # For Berlin, Brandenburg
-hide_no_warnings_message: true
+hide_when_no_warnings: true
 ```
 
 ## Development

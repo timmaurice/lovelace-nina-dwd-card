@@ -30,7 +30,7 @@ const SCHEMA = [
     selector: { select: { mode: 'dropdown' } },
   },
   {
-    name: 'hide_no_warnings_message',
+    name: 'hide_when_no_warnings',
     selector: { boolean: {} },
   },
 ];
@@ -122,6 +122,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               .configValue=${'nina_entity_prefix'}
               @selected=${this._ninaPrefixChanged}
               @closed=${(ev: Event) => ev.stopPropagation()}
+              clearable
               fixedMenuPosition
               naturalMenuWidth
             >
@@ -149,7 +150,13 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
   private _ninaPrefixChanged(ev: CustomEvent): void {
     ev.stopPropagation();
     const target = ev.target as HTMLSelectElement;
-    this._valueChanged({ detail: { value: { nina_entity_prefix: target.value } } });
+    const newConfig = { ...this._config };
+    if (target.value) {
+      newConfig.nina_entity_prefix = target.value;
+    } else {
+      delete newConfig.nina_entity_prefix;
+    }
+    fireEvent(this, 'config-changed', { config: newConfig });
   }
 
   static styles = css`

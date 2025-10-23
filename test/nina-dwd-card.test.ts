@@ -12,8 +12,14 @@ describe('NinaDwdCard', () => {
   let config: NinaDwdCardConfig;
 
   beforeEach(() => {
+    // A more realistic mock for localize that handles placeholders
     hass = {
-      localize: (key: string) => key,
+      localize: (key: string, placeholders?: Record<string, string>) => {
+        if (key === 'card.source' && placeholders?.sender) {
+          return `Source: ${placeholders.sender}`;
+        }
+        return key;
+      },
       language: 'en',
       locale: { language: 'en', number_format: 'comma_decimal', time_format: '24' },
       states: {},
@@ -69,14 +75,27 @@ describe('NinaDwdCard', () => {
       expect(noWarnings?.textContent).toBe('No Warnings');
     });
 
-    it("should not render 'No Warnings' when hide_no_warnings_message is true", async () => {
-      config.hide_no_warnings_message = true;
+    it('should not render anything when hide_when_no_warnings is true and there are no warnings', async () => {
+      config.hide_when_no_warnings = true;
       // The default config has no active warnings
       element.hass = hass;
       element.setConfig(config);
       await element.updateComplete;
-      const noWarnings = element.shadowRoot?.querySelector('.no-warnings');
-      expect(noWarnings).toBeNull();
+      // The card itself should be empty
+      expect(element.shadowRoot?.querySelector('ha-card')).toBeNull();
+    });
+
+    it('should render with reduced opacity in edit mode when it would otherwise be hidden', async () => {
+      config.hide_when_no_warnings = true;
+      element.editMode = true; // Set edit mode directly
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const card = element.shadowRoot?.querySelector<HaCard>('ha-card');
+      expect(card).not.toBeNull();
+      expect(card?.style.opacity).toBe('0.5');
     });
 
     it('should render a NINA warning', async () => {
@@ -120,7 +139,7 @@ describe('NinaDwdCard', () => {
       const warning = element.shadowRoot?.querySelector('.warning');
       expect(warning).not.toBeNull();
       expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('DWD Test Warning');
-      expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('');
+      expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('Source: Deutscher Wetterdienst');
     });
 
     it('should render the DWD map when configured', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "nina-dwd-card",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Home Assistant Lovelace card for NINA and DWD warnings.",
   "homepage": "https://github.com/timmaurice/lovelace-nina-dwd-card#readme",
   "bugs": {

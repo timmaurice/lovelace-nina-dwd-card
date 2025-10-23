@@ -1,4 +1,14 @@
 {
-  "cSpell.words": ["HACS", "hacsfiles", "hass"],
-  "cSpell.ignorePaths": [".github/**", "node_modules/**", "dist/**"]
+  "cSpell.words": [
+    "Deutscher",
+    "HACS",
+    "hacsfiles",
+    "hass",
+    "STURMBÖEN",
+    "Thuringia",
+    "warnung",
+    "Wetterdienst",
+    "Württemberg"
+  ],
+  "cSpell.ignorePaths": [".github/**", "node_modules/**", "dist/**", "de.json"]
 }

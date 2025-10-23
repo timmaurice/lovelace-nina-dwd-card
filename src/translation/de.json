@@ -1,16 +1,12 @@
 {
   "editor": {
-    "remove": "Entfernen",
-    "groups": {
-      "clear": "Leeren",
-      "core": "Grundeinstellungen"
-    },
+    "groups": { "core": "Grundeinstellungen" },
     "title": "Titel (Optional)",
     "nina_entity_prefix": "NINA Warngebiet",
     "nina_entity_count": "Anzahl der NINA-Entitäten",
     "dwd_device": "DWD Warnungs-Gerät",
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
-    "hide_no_warnings_message": "'Keine Warnungen'-Nachricht ausblenden",
+    "hide_when_no_warnings": "Karte ausblenden, wenn keine Warnungen vorliegen",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",
       "bay": "Bayern",
@@ -29,9 +25,12 @@
   "card": {
     "no_warnings": "Keine Warnungen",
     "recommended_actions": "Handlungsempfehlungen",
+    "hidden_in_view_mode": "Die Karte wird im Ansichtsmodus ausgeblendet, wenn keine Warnungen vorliegen.",
     "today": "Heute",
+    "yesterday": "Gestern",
     "tomorrow": "Morgen",
     "time_unknown": "Zeit unbekannt",
-    "time_invalid": "Zeit ungültig"
+    "time_invalid": "Zeit ungültig",
+    "source": "Quelle: {sender}"
   }
 }

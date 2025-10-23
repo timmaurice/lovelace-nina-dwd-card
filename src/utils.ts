@@ -38,10 +38,14 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
     const getDayString = (date: Date): string => {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
       const checkDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
       if (checkDay.getTime() === today.getTime()) {
         return localize(hass, 'card.today');
+      }
+      if (checkDay.getTime() === yesterday.getTime()) {
+        return localize(hass, 'card.yesterday');
       }
       if (checkDay.getTime() === tomorrow.getTime()) {
         return localize(hass, 'card.tomorrow');

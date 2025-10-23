@@ -1,16 +1,12 @@
 {
   "editor": {
-    "remove": "Remove",
-    "groups": {
-      "clear": "Clear",
-      "core": "Core Configuration"
-    },
+    "groups": { "core": "Core Configuration" },
     "title": "Title (Optional)",
     "nina_entity_prefix": "NINA Warning Area",
     "nina_entity_count": "NINA Entity Count",
     "dwd_device": "DWD Warnings Device",
     "dwd_map_land": "DWD Warning Map (State)",
-    "hide_no_warnings_message": "Hide 'No Warnings' message",
+    "hide_when_no_warnings": "Hide card when no warnings",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",
       "bay": "Bavaria",
@@ -29,9 +25,12 @@
   "card": {
     "no_warnings": "No Warnings",
     "recommended_actions": "Recommended Actions",
+    "hidden_in_view_mode": "Card is hidden in view mode when there are no warnings.",
     "today": "Today",
+    "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
     "time_unknown": "Time unknown",
-    "time_invalid": "Time invalid"
+    "time_invalid": "Time invalid",
+    "source": "Source: {sender}"
   }
 }

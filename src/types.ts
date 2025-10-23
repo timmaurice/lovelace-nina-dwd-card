@@ -16,10 +16,6 @@ export interface LovelaceCardEditor extends HTMLElement {
   setConfig(config: LovelaceCardConfig): void;
 }
 
-export interface LovelaceCardConstructor extends CustomElementConstructor {
-  getConfigElement?(): Promise<LovelaceCardEditor>;
-}
-
 export interface HaCard extends LovelaceCard {
   header?: string;
 }
@@ -59,7 +55,7 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   nina_entity_count?: number;
   dwd_device?: string;
   dwd_map_land?: string;
-  hide_no_warnings_message?: boolean;
+  hide_when_no_warnings?: boolean;
 }
 
 export interface HomeAssistant {

@@ -21,13 +21,3 @@
   display: block;
   width: 100%;
 }
-
-.entity-row {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-
-  ha-entity-picker {
-    flex-grow: 1;
-  }
-}
