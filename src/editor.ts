@@ -61,22 +61,23 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
       return html``;
     }
 
-    const ninaPrefixes: { label: string; value: string }[] = [
-      ...new Set(
-        Object.keys(this.hass.states)
-          .filter((eid) => {
-            const stateObj = this.hass.states[eid];
-            // Check for a unique attribute like 'sender' to identify NINA entities reliably.
-            return eid.startsWith('binary_sensor.') && stateObj?.attributes.sender && eid.endsWith('_1');
-          })
-          .map((eid) => {
-            const prefix = eid.replace(/_\d+$/, '');
-            const friendlyName = this.hass.states[eid]?.attributes.friendly_name || prefix;
-            const label = friendlyName.replace(/(?:\sWarning)?\s*\d*$/, '').trim();
-            return { label, value: prefix };
-          }),
-      ),
-    ];
+    const ninaPrefixesMap = new Map<string, { label: string; value: string }>();
+    Object.keys(this.hass.states)
+      .filter((eid) => {
+        const entity = this.hass.entities[eid];
+        // Filter for entities from the 'nina' integration.
+        // This is more reliable than checking attributes.
+        return entity?.platform === 'nina';
+      })
+      .forEach((eid) => {
+        const prefix = eid.replace(/_\d+$/, '');
+        if (!ninaPrefixesMap.has(prefix)) {
+          const friendlyName = this.hass.states[eid]?.attributes.friendly_name || prefix;
+          const label = friendlyName.replace(/(?:\sWarning)?\s*\d*$/, '').trim();
+          ninaPrefixesMap.set(prefix, { label, value: prefix });
+        }
+      });
+    const ninaPrefixes = Array.from(ninaPrefixesMap.values());
 
     const lang = this.hass.language || 'en';
     const langOptions = translations[lang]?.editor.dwd_map_land_options || translations.en.editor.dwd_map_land_options;
