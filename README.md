@@ -73,6 +73,7 @@ You can now add the card to your dashboard.
 | `max_warnings`          | number  | `5`          | The maximum number of warnings to display on the card.                                                 |
 | `dwd_device`            | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
 | `dwd_map_land`          | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
+| `hide_footer`           | boolean | `false`      | Hides the footer containing the source and info icon.                                                  |
 | `hide_when_no_warnings` | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.        |
 
 ### Examples
@@ -85,6 +86,7 @@ max_warnings: 3
 dwd_device: 1234567890abcdef1234567890abcdef # Device ID for "Berlin"
 dwd_map_land: bbb # For Berlin, Brandenburg
 hide_when_no_warnings: true
+hide_footer: false
 ```
 
 ## Development

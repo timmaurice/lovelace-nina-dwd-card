@@ -187,6 +187,34 @@ describe('NinaDwdCard', () => {
       expect(expansionPanel).not.toBeNull();
       expect(expansionPanel?.textContent).toContain('Stay inside.');
     });
+
+    it('should show the footer by default and hide it when hide_footer is true', async () => {
+      // Setup a warning to ensure the footer has a chance to render
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'NINA Footer Test',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+
+      // Test default behavior (footer visible)
+      element.setConfig(config);
+      await element.updateComplete;
+      let footer = element.shadowRoot?.querySelector('.footer');
+      expect(footer).not.toBeNull();
+      expect(footer?.querySelector('.sender')?.textContent).toContain('Test Sender');
+
+      // Test with hide_footer: true (footer hidden)
+      const newConfig = { ...config, hide_footer: true };
+      element.setConfig(newConfig);
+      await element.updateComplete;
+      footer = element.shadowRoot?.querySelector('.footer');
+      expect(footer).toBeNull();
+    });
   });
 
   describe('Filtering and Deduplication', () => {

@@ -173,21 +173,23 @@ export class NinaDwdCard extends LitElement {
                               <div class="instruction">${warning.instruction}</div>
                             </ha-expansion-panel>`
                           : ''}
-                      <div class="footer">
-                        <div class="sender">
-                          ${'sender' in warning && warning.sender
-                            ? localize(this.hass, 'card.source', { sender: warning.sender })
-                            : 'level' in warning
-                              ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
-                              : ''}
-                        </div>
-                        <ha-icon-button
-                          class="info-button"
-                          .label=${`More info for ${warning.headline}`}
-                          @click=${() => this._handleMoreInfo(warning.entity_id)}
-                          ><ha-icon icon="mdi:information-outline"></ha-icon
-                        ></ha-icon-button>
-                      </div>
+                      ${!this._config.hide_footer
+                        ? html`<div class="footer">
+                            <div class="sender">
+                              ${'sender' in warning && warning.sender
+                                ? localize(this.hass, 'card.source', { sender: warning.sender })
+                                : 'level' in warning
+                                  ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
+                                  : ''}
+                            </div>
+                            <ha-icon-button
+                              class="info-button"
+                              .label=${`More info for ${warning.headline}`}
+                              @click=${() => this._handleMoreInfo(warning.entity_id)}
+                              ><ha-icon icon="mdi:information-outline"></ha-icon
+                            ></ha-icon-button>
+                          </div>`
+                        : ''}
                     </div>
                   `,
                 )}

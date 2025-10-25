@@ -30,6 +30,10 @@ const SCHEMA = [
     selector: { select: { mode: 'dropdown' } },
   },
   {
+    name: 'hide_footer',
+    selector: { boolean: {} },
+  },
+  {
     name: 'hide_when_no_warnings',
     selector: { boolean: {} },
   },
