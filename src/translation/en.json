@@ -10,6 +10,7 @@
     "hide_on_level_below": "Hide warnings with a level below",
     "hide_instructions": "Hide recommended actions",
     "hide_footer": "Hide footer with source and info icon",
+    "separate_advance_warnings": "Separate current and advance warnings",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",
       "bay": "Bavaria",
@@ -25,13 +26,14 @@
       "thu": "Thuringia"
     },
     "hide_on_level_below_options": {
-      "dont_hide": "Don't hide",
       "moderate": "Moderate",
       "severe": "Severe"
     }
   },
   "card": {
     "no_warnings": "No Warnings",
+    "current_warnings": "Current Warnings",
+    "advance_warnings": "Advance Warnings",
     "recommended_actions": "Recommended Actions",
     "hidden_in_view_mode": "Card is hidden in view mode when there are no warnings.",
     "today": "Today",

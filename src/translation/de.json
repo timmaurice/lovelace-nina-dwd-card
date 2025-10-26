@@ -10,6 +10,7 @@
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",
+    "separate_advance_warnings": "Aktuelle und Vorab-Warnungen trennen",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",
       "bay": "Bayern",
@@ -25,13 +26,14 @@
       "thu": "Thüringen"
     },
     "hide_on_level_below_options": {
-      "dont_hide": "Nicht ausblenden",
       "moderate": "Moderate",
       "severe": "Severe"
     }
   },
   "card": {
     "no_warnings": "Keine Warnungen",
+    "current_warnings": "Aktuelle Warnungen",
+    "advance_warnings": "Vorabwarnungen",
     "recommended_actions": "Handlungsempfehlungen",
     "hidden_in_view_mode": "Die Karte wird im Ansichtsmodus ausgeblendet, wenn keine Warnungen vorliegen.",
     "today": "Heute",

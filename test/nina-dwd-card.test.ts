@@ -307,8 +307,8 @@ describe('NinaDwdCard', () => {
       element.setConfig({ ...config, hide_on_level_below: 2 }); // Hide warnings with level < 2
       await element.updateComplete;
 
-      const renderedHeadlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map(
-        (el) => el.textContent?.trim(),
+      const renderedHeadlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
       );
 
       expect(renderedHeadlines).toHaveLength(2);

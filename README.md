@@ -65,18 +65,19 @@ You can now add the card to your dashboard.
 
 ## Configuration
 
-| Name                    | Type    | Default      | Description                                                                                            |
-| ----------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------ |
-| `type`                  | string  | **Required** | `custom:nina-dwd-card`                                                                                 |
-| `title`                 | string  | `(none)`     | The title of the card.                                                                                 |
-| `nina_entity_prefix`    | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                        |
-| `max_warnings`          | number  | `5`          | The maximum number of warnings to display on the card.                                                 |
-| `dwd_device`            | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it. |
-| `dwd_map_land`          | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                    |
-| `hide_on_level_below`   | number  | `0`          | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate).            |
-| `hide_instructions`     | boolean | `false`      | Hides the recommended actions (instructions) for each warning.                                         |
-| `hide_footer`           | boolean | `false`      | Hides the footer containing the source and info icon.                                                  |
-| `hide_when_no_warnings` | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.        |
+| Name                        | Type    | Default      | Description                                                                                                                           |
+| --------------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                      | string  | **Required** | `custom:nina-dwd-card`                                                                                                                |
+| `title`                     | string  | `(none)`     | The title of the card.                                                                                                                |
+| `nina_entity_prefix`        | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                                                       |
+| `max_warnings`              | number  | `5`          | The maximum number of warnings to display on the card.                                                                                |
+| `dwd_device`                | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it.                                |
+| `dwd_map_land`              | string  | `(none)`     | The German state ("Bundesland") to display the DWD warning map for.                                                                   |
+| `hide_on_level_below`       | number  | `(none)`     | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate). Clear the selection to show all warnings. |
+| `hide_instructions`         | boolean | `false`      | Hides the recommended actions (instructions) for each warning.                                                                        |
+| `hide_footer`               | boolean | `false`      | Hides the footer containing the source and info icon.                                                                                 |
+| `separate_advance_warnings` | boolean | `false`      | Displays current warnings and advance warnings in separate sections.                                                                  |
+| `hide_when_no_warnings`     | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                                       |
 
 ### Examples
 
@@ -87,9 +88,10 @@ nina_entity_prefix: binary_sensor.warning_berlin
 max_warnings: 3
 dwd_device: 1234567890abcdef1234567890abcdef # Device ID for "Berlin"
 dwd_map_land: bbb # For Berlin, Brandenburg
-hide_on_level_below: 2 # Hides warnings with level "Minor" (1)
+hide_on_level_below: 2 # Filters out warnings with level "Minor" (1)
 hide_instructions: false
 hide_footer: false
+separate_advance_warnings: true
 hide_when_no_warnings: true
 ```
 

@@ -95,7 +95,6 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     const langOptions = translations[lang]?.editor.dwd_map_land_options || translations.en.editor.dwd_map_land_options;
 
     const hideLevelOptions = [
-      { value: 0, label: localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.dont_hide') },
       {
         value: 2,
         label: `2 / ${localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.moderate')}`,
@@ -134,6 +133,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
             select: {
               mode: 'dropdown',
               options: hideLevelOptions,
+              clearable: true,
             },
           },
         };

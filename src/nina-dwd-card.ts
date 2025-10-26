@@ -66,12 +66,48 @@ export class NinaDwdCard extends LitElement {
     this.requestUpdate();
   }
 
+  private _processAndRenderWarnings(
+    warnings: (NinaWarning | DwdWarning)[],
+    mapUrl: string | undefined,
+  ): TemplateResult {
+    const firstDwdIndex = warnings.findIndex((w) => 'level' in w);
+
+    return html`${warnings.map(
+      (warning, index) => html`
+        ${index > 0 ? html`<hr />` : ''}
+        <div class="warning">
+          ${'level' in warning && mapUrl && index === firstDwdIndex
+            ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
+            : ''}
+          <div
+            class="headline"
+            style="color: ${'severity' in warning
+              ? NINA_LEVEL_COLORS[warning.severity]
+              : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
+          >
+            <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${warning.headline}
+          </div>
+          <div class="time">${formatTime(warning, this.hass)}</div>
+          <div class="description">${unsafeHTML(warning.description)}</div>
+          ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
+          ${!this._config.hide_instructions && 'instruction' in warning && warning.instruction
+            ? html` <ha-expansion-panel outlined>
+                <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
+                <div class="instruction">${warning.instruction}</div>
+              </ha-expansion-panel>`
+            : ''}
+          ${this._renderFooter(warning)}
+        </div>
+      `,
+    )}`;
+  }
+
   protected render(): TemplateResult {
     if (!this._config || !this.hass) {
       return html``;
     }
 
-    let ninaWarnings = this._getNinaWarnings();
+    const ninaWarnings = this._getNinaWarnings();
     let dwdCurrentWarnings: DwdWarning[] = [];
     let dwdAdvanceWarnings: DwdWarning[] = [];
 
@@ -85,38 +121,6 @@ export class NinaDwdCard extends LitElement {
       }
     }
 
-    // If there are active DWD warnings, filter out any NINA warnings that are from DWD.
-    if (dwdCurrentWarnings.length > 0 || dwdAdvanceWarnings.length > 0) {
-      ninaWarnings = ninaWarnings.filter((warning) => warning.sender !== 'Deutscher Wetterdienst');
-    }
-
-    const allWarningsRaw = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
-
-    const deduplicatedWarnings = new Map<string, NinaWarning | DwdWarning>();
-    const getWarningKey = (headline: string, start: string | undefined): string => {
-      if (!start) {
-        // Create a unique key for warnings without a start time to prevent them from being deduplicated
-        return `${headline.toLowerCase().trim()}|${Math.random()}`;
-      }
-      try {
-        const startDate = new Date(start);
-        // Key is based on headline and start time (down to the hour)
-        return `${headline.toLowerCase().trim()}|${startDate.toISOString().slice(0, 13)}`;
-      } catch {
-        return `${headline.toLowerCase().trim()}|invalid_date`;
-      }
-    };
-
-    // Prioritize NINA warnings. If a DWD warning with the same key appears, it will be ignored.
-    for (const warning of allWarningsRaw) {
-      if (warning.headline && warning.start) {
-        const key = getWarningKey(warning.headline, warning.start);
-        if (!deduplicatedWarnings.has(key)) {
-          deduplicatedWarnings.set(key, warning);
-        }
-      }
-    }
-
     let mapUrl: string | undefined;
     if (this._config.dwd_map_land) {
       mapUrl = `https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${this._config.dwd_map_land}.png`;
@@ -124,86 +128,98 @@ export class NinaDwdCard extends LitElement {
       mapUrl += `?${new Date().getTime()}`;
     }
 
-    const allWarnings = Array.from(deduplicatedWarnings.values());
-
-    let sortedWarnings = [...allWarnings]
-      .sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a))
-      .filter((warning) => {
-        if (!this._config.hide_on_level_below) return true;
-        return this._getSeverityScore(warning) >= (this._config.hide_on_level_below ?? 0);
-      });
-
-    if (this._config.max_warnings) {
-      sortedWarnings = sortedWarnings.slice(0, this._config.max_warnings);
-    }
-
     const editMode = this._editMode;
-    const isHidden = sortedWarnings.length === 0 && this._config.hide_when_no_warnings;
 
-    if (isHidden && !editMode) {
-      return html``; // Hide card completely in view mode
+    if (this._config.separate_advance_warnings) {
+      const currentRaw = [...ninaWarnings, ...dwdCurrentWarnings];
+      const advanceRaw = [...dwdAdvanceWarnings];
+
+      const processedCurrent = this._processWarnings(currentRaw, advanceRaw);
+      const processedAdvance = this._processWarnings(advanceRaw);
+
+      const isHidden =
+        processedCurrent.length === 0 && processedAdvance.length === 0 && this._config.hide_when_no_warnings;
+
+      if (isHidden && !editMode) {
+        return html``;
+      }
+
+      return html`
+        <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+          <div class="card-content">
+            <div class="warnings-container">
+              ${processedCurrent.length > 0
+                ? html`
+                    <div class="sub-header">${localize(this.hass, 'card.current_warnings')}</div>
+                    ${this._processAndRenderWarnings(processedCurrent, mapUrl)}
+                  `
+                : ''}
+              ${processedAdvance.length > 0
+                ? html`
+                    ${processedCurrent.length > 0 ? html`<hr class="section-divider" />` : ''}
+                    <div class="sub-header">${localize(this.hass, 'card.advance_warnings')}</div>
+                    ${this._processAndRenderWarnings(processedAdvance, undefined)}
+                  `
+                : ''}
+              ${processedCurrent.length === 0 && processedAdvance.length === 0
+                ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">
+                    ${localize(this.hass, 'card.no_warnings')}
+                  </div>`
+                : ''}
+              ${isHidden && editMode
+                ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
+                : ''}
+            </div>
+          </div>
+        </ha-card>
+      `;
     }
 
-    const firstDwdIndex = sortedWarnings.findIndex((w) => 'level' in w);
+    // Default combined view
+    const allWarningsRaw = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
+    const processedWarnings = this._processWarnings(allWarningsRaw);
+    const isHidden = processedWarnings.length === 0 && this._config.hide_when_no_warnings;
+
+    if (isHidden && !editMode) return html``;
 
     return html`
       <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
         <div class="card-content">
           <div class="warnings-container">
-            ${sortedWarnings.length === 0
-              ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">No Warnings</div>`
-              : sortedWarnings.map(
-                  (warning, index) => html`
-                    ${index > 0 ? html`<hr />` : ''}
-                    <div class="warning">
-                      ${'level' in warning && mapUrl && index === firstDwdIndex
-                        ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
-                        : ''}
-                      <div
-                        class="headline"
-                        style="color: ${'severity' in warning
-                          ? NINA_LEVEL_COLORS[warning.severity]
-                          : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
-                      >
-                        <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${warning.headline}
-                      </div>
-                      <div class="time">${formatTime(warning, this.hass)}</div>
-                      <div class="description">${unsafeHTML(warning.description)}</div>
-                      ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
-                      ${isHidden && editMode
-                        ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
-                        : !this._config.hide_instructions && 'instruction' in warning && warning.instruction
-                          ? html`
-                              <ha-expansion-panel outlined>
-                                <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                                <div class="instruction">${warning.instruction}</div>
-                              </ha-expansion-panel>
-                            `
-                          : ''}
-                      ${!this._config.hide_footer
-                        ? html`<div class="footer">
-                            <div class="sender">
-                              ${'sender' in warning && warning.sender
-                                ? localize(this.hass, 'card.source', { sender: warning.sender })
-                                : 'level' in warning
-                                  ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
-                                  : ''}
-                            </div>
-                            <ha-icon-button
-                              class="info-button"
-                              .label=${`More info for ${warning.headline}`}
-                              @click=${() => this._handleMoreInfo(warning.entity_id)}
-                              ><ha-icon icon="mdi:information-outline"></ha-icon
-                            ></ha-icon-button>
-                          </div>`
-                        : ''}
-                    </div>
-                  `,
-                )}
+            ${processedWarnings.length === 0
+              ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">
+                  ${localize(this.hass, 'card.no_warnings')}
+                </div>`
+              : this._processAndRenderWarnings(processedWarnings, mapUrl)}
+            ${isHidden && editMode
+              ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
+              : ''}
           </div>
         </div>
       </ha-card>
     `;
+  }
+
+  private _renderFooter(warning: NinaWarning | DwdWarning): TemplateResult {
+    if (this._config.hide_footer) {
+      return html``;
+    }
+
+    return html`<div class="footer">
+      <div class="sender">
+        ${'sender' in warning && warning.sender
+          ? localize(this.hass, 'card.source', { sender: warning.sender })
+          : 'level' in warning
+            ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
+            : ''}
+      </div>
+      <ha-icon-button
+        class="info-button"
+        .label=${`More info for ${warning.headline}`}
+        @click=${() => this._handleMoreInfo(warning.entity_id)}
+        ><ha-icon icon="mdi:information-outline"></ha-icon
+      ></ha-icon-button>
+    </div>`;
   }
 
   private _getNinaWarnings(): NinaWarning[] {
@@ -253,6 +269,53 @@ export class NinaDwdCard extends LitElement {
     }
 
     return warnings;
+  }
+
+  private _processWarnings(
+    warningsToProcess: (NinaWarning | DwdWarning)[],
+    otherWarnings?: (NinaWarning | DwdWarning)[],
+  ): (NinaWarning | DwdWarning)[] {
+    let warnings = warningsToProcess;
+
+    // If there are active DWD warnings, filter out any NINA warnings that are from DWD.
+    if ((otherWarnings && otherWarnings.length > 0) || warnings.some((w) => 'level' in w)) {
+      warnings = warnings.filter((warning) => !('sender' in warning) || warning.sender !== 'Deutscher Wetterdienst');
+    }
+
+    const deduplicatedWarnings = new Map<string, NinaWarning | DwdWarning>();
+    const getWarningKey = (headline: string, start: string | undefined): string => {
+      if (!start) {
+        return `${headline.toLowerCase().trim()}|${Math.random()}`;
+      }
+      try {
+        const startDate = new Date(start);
+        return `${headline.toLowerCase().trim()}|${startDate.toISOString().slice(0, 13)}`;
+      } catch {
+        return `${headline.toLowerCase().trim()}|invalid_date`;
+      }
+    };
+
+    for (const warning of warnings) {
+      if (warning.headline && warning.start) {
+        const key = getWarningKey(warning.headline, warning.start);
+        if (!deduplicatedWarnings.has(key)) {
+          deduplicatedWarnings.set(key, warning);
+        }
+      }
+    }
+
+    let processed = Array.from(deduplicatedWarnings.values())
+      .sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a))
+      .filter((warning) => {
+        if (!this._config.hide_on_level_below) return true;
+        return this._getSeverityScore(warning) >= (this._config.hide_on_level_below ?? 0);
+      });
+
+    if (this._config.max_warnings) {
+      processed = processed.slice(0, this._config.max_warnings);
+    }
+
+    return processed;
   }
 
   private _getDwdEntitiesFromDevice(deviceId: string): { current?: string; advance?: string } {
