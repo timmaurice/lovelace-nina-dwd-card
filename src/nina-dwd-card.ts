@@ -126,14 +126,19 @@ export class NinaDwdCard extends LitElement {
 
     const allWarnings = Array.from(deduplicatedWarnings.values());
 
-    let sortedWarnings = [...allWarnings].sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a));
+    let sortedWarnings = [...allWarnings]
+      .sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a))
+      .filter((warning) => {
+        if (!this._config.hide_on_level_below) return true;
+        return this._getSeverityScore(warning) >= (this._config.hide_on_level_below ?? 0);
+      });
 
     if (this._config.max_warnings) {
       sortedWarnings = sortedWarnings.slice(0, this._config.max_warnings);
     }
 
     const editMode = this._editMode;
-    const isHidden = allWarnings.length === 0 && this._config.hide_when_no_warnings;
+    const isHidden = sortedWarnings.length === 0 && this._config.hide_when_no_warnings;
 
     if (isHidden && !editMode) {
       return html``; // Hide card completely in view mode

@@ -7,6 +7,7 @@
     "dwd_device": "DWD Warnings Device",
     "dwd_map_land": "DWD Warning Map (State)",
     "hide_when_no_warnings": "Hide card when no warnings",
+    "hide_on_level_below": "Hide warnings with a level below",
     "hide_instructions": "Hide recommended actions",
     "hide_footer": "Hide footer with source and info icon",
     "dwd_map_land_options": {
@@ -22,6 +23,11 @@
       "saa": "Saxony-Anhalt",
       "shh": "Schleswig-Holstein, Hamburg",
       "thu": "Thuringia"
+    },
+    "hide_on_level_below_options": {
+      "dont_hide": "Don't hide",
+      "moderate": "Moderate",
+      "severe": "Severe"
     }
   },
   "card": {

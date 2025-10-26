@@ -58,6 +58,7 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   hide_when_no_warnings?: boolean;
   hide_instructions?: boolean;
   hide_footer?: boolean;
+  hide_on_level_below?: number;
 }
 
 export interface HomeAssistant {

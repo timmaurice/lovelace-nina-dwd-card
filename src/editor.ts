@@ -30,6 +30,10 @@ const SCHEMA = [
     selector: { select: { mode: 'dropdown' } },
   },
   {
+    name: 'hide_on_level_below',
+    selector: { select: { mode: 'dropdown' } },
+  },
+  {
     name: 'hide_instructions',
     selector: { boolean: {} },
   },
@@ -90,6 +94,18 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     const lang = this.hass.language || 'en';
     const langOptions = translations[lang]?.editor.dwd_map_land_options || translations.en.editor.dwd_map_land_options;
 
+    const hideLevelOptions = [
+      { value: 0, label: localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.dont_hide') },
+      {
+        value: 2,
+        label: `2 / ${localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.moderate')}`,
+      },
+      {
+        value: 3,
+        label: `3 / ${localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.severe')}`,
+      },
+    ];
+
     // Filter schema based on current config
     let filteredSchema = [...SCHEMA];
     if (!this._config.dwd_device) {
@@ -107,6 +123,17 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
                 value: key === 'none' ? '' : key,
                 label: localize(this.hass, `component.nina-dwd-card.editor.dwd_map_land_options.${key}`),
               })),
+            },
+          },
+        };
+      }
+      if (item.name === 'hide_on_level_below') {
+        return {
+          ...item,
+          selector: {
+            select: {
+              mode: 'dropdown',
+              options: hideLevelOptions,
             },
           },
         };
