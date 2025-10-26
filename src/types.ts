@@ -60,6 +60,13 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   hide_footer?: boolean;
   separate_advance_warnings?: boolean;
   hide_on_level_below?: number;
+  color_overrides?: {
+    no_warning?: string;
+    minor?: string;
+    moderate?: string;
+    severe?: string;
+    extreme?: string;
+  };
 }
 
 export interface HomeAssistant {
@@ -76,4 +83,7 @@ export interface HomeAssistant {
     time_format: string;
   };
   callWS: <T>(message: any) => Promise<T>;
+  themes?: {
+    darkMode?: boolean;
+  };
 }

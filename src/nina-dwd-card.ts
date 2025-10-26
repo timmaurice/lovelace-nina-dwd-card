@@ -1,20 +1,12 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
+import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { fireEvent, formatTime } from './utils';
 import { localize } from './localize';
 import cardStyles from './styles/card.styles.scss';
 
-const NINA_LEVEL_COLORS: Record<NinaWarning['severity'], string> = {
-  Minor: '#ffeb3b',
-  Moderate: '#fb8c00',
-  Severe: '#e53935',
-  Extreme: '#880e4f',
-  Unknown: '#999999',
-};
-
-const DWD_LEVEL_COLORS: Record<number, string> = {
+const SEVERITY_COLORS: Record<number, string> = {
   0: '#c5e566' /* No Warning */,
   1: '#ffeb3b' /* Minor */,
   2: '#fb8c00' /* Moderate */,
@@ -81,9 +73,7 @@ export class NinaDwdCard extends LitElement {
             : ''}
           <div
             class="headline"
-            style="color: ${'severity' in warning
-              ? NINA_LEVEL_COLORS[warning.severity]
-              : DWD_LEVEL_COLORS[warning.level] || '#999999'}"
+            style="color: ${this._getWarningColor(warning)}"
           >
             <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${warning.headline}
           </div>
@@ -162,7 +152,7 @@ export class NinaDwdCard extends LitElement {
                   `
                 : ''}
               ${processedCurrent.length === 0 && processedAdvance.length === 0
-                ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">
+                ? html`<div class="no-warnings" style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}">
                     ${localize(this.hass, 'card.no_warnings')}
                   </div>`
                 : ''}
@@ -187,7 +177,7 @@ export class NinaDwdCard extends LitElement {
         <div class="card-content">
           <div class="warnings-container">
             ${processedWarnings.length === 0
-              ? html`<div class="no-warnings" style="color: ${DWD_LEVEL_COLORS[0]}">
+              ? html`<div class="no-warnings" style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}">
                   ${localize(this.hass, 'card.no_warnings')}
                 </div>`
               : this._processAndRenderWarnings(processedWarnings, mapUrl)}
@@ -220,6 +210,20 @@ export class NinaDwdCard extends LitElement {
         ><ha-icon icon="mdi:information-outline"></ha-icon
       ></ha-icon-button>
     </div>`;
+  }
+
+  private _getWarningColor(warning: NinaWarning | DwdWarning): string {
+    const overrides = this._config.color_overrides || {};
+    const score = this._getSeverityScore(warning);
+
+    switch (score) {
+      case 4: return overrides.extreme || SEVERITY_COLORS[4];
+      case 3: return overrides.severe || SEVERITY_COLORS[3];
+      case 2: return overrides.moderate || SEVERITY_COLORS[2];
+      case 1: return overrides.minor || SEVERITY_COLORS[1];
+      case 0: return overrides.no_warning || SEVERITY_COLORS[0];
+      default: return '#999999';
+    }
   }
 
   private _getNinaWarnings(): NinaWarning[] {

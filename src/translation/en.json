@@ -1,6 +1,16 @@
 {
   "editor": {
-    "groups": { "core": "Core Configuration" },
+    "groups": {
+      "core": "Core Configuration",
+      "color_overrides": "Color Overrides"
+    },
+    "color_overrides": {
+      "no_warning": "No Warning",
+      "minor": "Minor",
+      "moderate": "Moderate",
+      "severe": "Severe",
+      "extreme": "Extreme"
+    },
     "title": "Title (Optional)",
     "nina_entity_prefix": "NINA Warning Area",
     "max_warnings": "Max Number of Warnings",

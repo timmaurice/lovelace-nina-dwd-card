@@ -1,6 +1,16 @@
 {
   "editor": {
-    "groups": { "core": "Grundeinstellungen" },
+    "groups": {
+      "core": "Grundeinstellungen",
+      "color_overrides": "Farben überschreiben"
+    },
+    "color_overrides": {
+      "no_warning": "Keine Warnung",
+      "minor": "Geringfügig",
+      "moderate": "Moderat",
+      "severe": "Schwer",
+      "extreme": "Extrem"
+    },
     "title": "Titel (Optional)",
     "nina_entity_prefix": "NINA Warngebiet",
     "max_warnings": "Maximale Anzahl an Warnungen",

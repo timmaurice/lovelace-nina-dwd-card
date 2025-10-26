@@ -5,6 +5,7 @@ import { localize, translations } from './localize';
 import { fireEvent } from './utils';
 import editorStyles from './styles/editor.styles.scss';
 
+// `separate_advance_warnings` is missing from the schema, I'll add it.
 const SCHEMA = [
   {
     name: 'max_warnings',
@@ -42,6 +43,10 @@ const SCHEMA = [
     selector: { boolean: {} },
   },
   {
+    name: 'separate_advance_warnings',
+    selector: { boolean: {} },
+  },
+  {
     name: 'hide_when_no_warnings',
     selector: { boolean: {} },
   },
@@ -54,6 +59,30 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
 
   public setConfig(config: NinaDwdCardConfig): void {
     this._config = config;
+  }
+
+  private _colorOverrideChanged(ev: Event): void {
+    const target = ev.target as HTMLInputElement & { configValue: string };
+    const level = target.configValue as keyof NonNullable<NinaDwdCardConfig['color_overrides']>;
+    const value = target.value;
+
+    let newConfig: NinaDwdCardConfig = {
+      ...this._config,
+      color_overrides: {
+        ...this._config.color_overrides,
+        [level]: value,
+      },
+    };
+    // Clean up empty values
+    if (!value) {
+      delete newConfig.color_overrides?.[level];
+      if (Object.keys(newConfig.color_overrides || {}).length === 0) {
+        // Create a new object without the empty color_overrides
+        const { color_overrides, ...rest } = newConfig; // eslint-disable-line @typescript-eslint/no-unused-vars
+        newConfig = rest;
+      }
+    }
+    fireEvent(this, 'config-changed', { config: newConfig });
   }
 
   private _valueChanged(ev: { detail: { value: Partial<NinaDwdCardConfig> } }): void {
@@ -172,27 +201,60 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               @value-changed=${this._valueChanged}
             ></ha-form>
           </div>
+          <ha-expansion-panel .header=${localize(this.hass, 'component.nina-dwd-card.editor.groups.color_overrides')}>
+            <div class="color-grid">
+              <ha-textfield
+                .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.no_warning')}
+                .value=${this._config.color_overrides?.no_warning || ''}
+                .configValue=${'no_warning'}
+                @change=${this._colorOverrideChanged}
+                placeholder="#c5e566"
+              ></ha-textfield>
+              <ha-textfield
+                .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.minor')}
+                .value=${this._config.color_overrides?.minor || ''}
+                .configValue=${'minor'}
+                @change=${this._colorOverrideChanged}
+                placeholder="#ffeb3b"
+              ></ha-textfield>
+              <ha-textfield
+                .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.moderate')}
+                .value=${this._config.color_overrides?.moderate || ''}
+                .configValue=${'moderate'}
+                @change=${this._colorOverrideChanged}
+                placeholder="#fb8c00"
+              ></ha-textfield>
+              <ha-textfield
+                .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.severe')}
+                .value=${this._config.color_overrides?.severe || ''}
+                .configValue=${'severe'}
+                @change=${this._colorOverrideChanged}
+                placeholder="#e53935"
+              ></ha-textfield>
+              <ha-textfield
+                .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.extreme')}
+                .value=${this._config.color_overrides?.extreme || ''}
+                .configValue=${'extreme'}
+                @change=${this._colorOverrideChanged}
+                placeholder="#880e4f"
+              ></ha-textfield>
+            </div>
+          </ha-expansion-panel>
         </div>
       </ha-card>
     `;
+  }
+
+  private _ninaPrefixChanged(ev: CustomEvent): void {
+    ev.stopPropagation();
+    const target = ev.target as HTMLSelectElement;
+    this._valueChanged({ detail: { value: { nina_entity_prefix: target.value || undefined } } });
   }
 
   private _titleChanged(ev: Event): void {
     const target = ev.target as HTMLInputElement;
     this._config = { ...this._config, title: target.value };
     fireEvent(this, 'config-changed', { config: this._config });
-  }
-
-  private _ninaPrefixChanged(ev: CustomEvent): void {
-    ev.stopPropagation();
-    const target = ev.target as HTMLSelectElement;
-    const newConfig = { ...this._config };
-    if (target.value) {
-      newConfig.nina_entity_prefix = target.value;
-    } else {
-      delete newConfig.nina_entity_prefix;
-    }
-    fireEvent(this, 'config-changed', { config: newConfig });
   }
 
   static styles = css`
