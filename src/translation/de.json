@@ -7,6 +7,7 @@
     "dwd_device": "DWD Warnungs-Gerät",
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
     "hide_when_no_warnings": "Karte ausblenden, wenn keine Warnungen vorliegen",
+    "hide_instructions": "Handlungsempfehlungen ausblenden",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",
     "dwd_map_land_options": {
       "baw": "Baden-Württemberg",

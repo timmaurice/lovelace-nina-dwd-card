@@ -167,11 +167,13 @@ export class NinaDwdCard extends LitElement {
                       ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
                       ${isHidden && editMode
                         ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
-                        : 'instruction' in warning && warning.instruction
-                          ? html` <ha-expansion-panel outlined>
-                              <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                              <div class="instruction">${warning.instruction}</div>
-                            </ha-expansion-panel>`
+                        : !this._config.hide_instructions && 'instruction' in warning && warning.instruction
+                          ? html`
+                              <ha-expansion-panel outlined>
+                                <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
+                                <div class="instruction">${warning.instruction}</div>
+                              </ha-expansion-panel>
+                            `
                           : ''}
                       ${!this._config.hide_footer
                         ? html`<div class="footer">
