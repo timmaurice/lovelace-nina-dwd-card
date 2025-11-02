@@ -1,6 +1,6 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig } from './types';
+import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, TranslationObject } from './types';
 import { localize, translations } from './localize';
 import { fireEvent } from './utils';
 import editorStyles from './styles/editor.styles.scss';
@@ -27,7 +27,15 @@ const SCHEMA = [
     },
   },
   {
+    name: 'dwd_map_type',
+    selector: { select: { mode: 'dropdown' } },
+  },
+  {
     name: 'dwd_map_land',
+    selector: { select: { mode: 'dropdown' } },
+  },
+  {
+    name: 'dwd_map_position',
     selector: { select: { mode: 'dropdown' } },
   },
   {
@@ -87,11 +95,30 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
 
   private _valueChanged(ev: { detail: { value: Partial<NinaDwdCardConfig> } }): void {
     if (!this.hass || !this._config) return;
-    const newConfig = { ...this._config, ...ev.detail.value } as NinaDwdCardConfig;
+    const changedValue = ev.detail.value;
+    const newConfig = { ...this._config, ...changedValue } as NinaDwdCardConfig;
 
     // If dwd_device is being cleared, also remove the map setting.
-    if (!newConfig.dwd_device) {
+    if ('dwd_device' in changedValue && !newConfig.dwd_device) {
+      delete newConfig.dwd_map_type;
       delete newConfig.dwd_map_land;
+      delete newConfig.dwd_map_position;
+    }
+
+    // If a dwd_device is newly selected, set default map options.
+    if ('dwd_device' in changedValue && newConfig.dwd_device && !this._config.dwd_device) {
+      newConfig.dwd_map_type = 'state';
+      newConfig.dwd_map_land = 'de';
+    }
+
+    // If dwd_map_type changed, reset dwd_map_land to the default for that type.
+    // This must come after the other logic to avoid being overridden.
+    if (
+      'dwd_map_type' in changedValue &&
+      newConfig.dwd_map_type &&
+      newConfig.dwd_map_type !== this._config.dwd_map_type
+    ) {
+      newConfig.dwd_map_land = newConfig.dwd_map_type === 'region' ? 'SchilderD' : 'de'; // 'SchilderD' is Germany for region
     }
 
     fireEvent(this, 'config-changed', { config: newConfig });
@@ -121,7 +148,16 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     const ninaPrefixes = Array.from(ninaPrefixesMap.values());
 
     const lang = this.hass.language || 'en';
-    const langOptions = translations[lang]?.editor.dwd_map_land_options || translations.en.editor.dwd_map_land_options;
+    const mapType = this._config.dwd_map_type || 'state';
+    const langOptionsKey = mapType === 'region' ? 'dwd_map_region_options' : 'dwd_map_land_options';
+
+    const getLangOptions = (lang: string, key: string): Record<string, string> => {
+      const langTranslations = translations[lang as keyof typeof translations] as unknown as TranslationObject;
+      if (!langTranslations) return {};
+
+      return ((langTranslations.editor as TranslationObject)[key] as Record<string, string>) || {};
+    };
+    const langOptions = getLangOptions(lang, langOptionsKey) || getLangOptions('en', langOptionsKey);
 
     const hideLevelOptions = [
       {
@@ -137,19 +173,54 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     // Filter schema based on current config
     let filteredSchema = [...SCHEMA];
     if (!this._config.dwd_device) {
+      filteredSchema = filteredSchema.filter((item) => item.name !== 'dwd_map_type');
+      filteredSchema = filteredSchema.filter((item) => item.name !== 'dwd_map_position');
       filteredSchema = filteredSchema.filter((item) => item.name !== 'dwd_map_land');
     }
     // Dynamically build the schema for the form to include translatable dropdown options.
     const schema = filteredSchema.map((item) => {
       if (item.name === 'dwd_map_land') {
+        // The options for dwd_map_land depend on dwd_map_type
         return {
           ...item,
           selector: {
             select: {
               mode: 'dropdown',
-              options: Object.keys(langOptions).map((key) => ({
-                value: key === 'none' ? '' : key,
-                label: localize(this.hass, `component.nina-dwd-card.editor.dwd_map_land_options.${key}`),
+              clearable: true,
+              options: Object.keys(langOptions)
+                .filter((key) => key !== 'none')
+                .map((key) => ({
+                  value: key,
+                  label: langOptions[key],
+                })),
+            },
+          },
+        };
+      }
+      if (item.name === 'dwd_map_type') {
+        return {
+          ...item,
+          selector: {
+            select: {
+              mode: 'dropdown',
+              clearable: false,
+              options: ['state', 'region'].map((key) => ({
+                value: key,
+                label: localize(this.hass, `editor.dwd_map_type_options.${key}`),
+              })),
+            },
+          },
+        };
+      }
+      if (item.name === 'dwd_map_position') {
+        return {
+          ...item,
+          selector: {
+            select: {
+              mode: 'dropdown',
+              options: ['inside', 'above', 'below'].map((key) => ({
+                value: key,
+                label: localize(this.hass, `editor.dwd_map_position_options.${key}`),
               })),
             },
           },

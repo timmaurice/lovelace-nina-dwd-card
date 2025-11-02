@@ -16,12 +16,19 @@
     "max_warnings": "Max Number of Warnings",
     "dwd_device": "DWD Warnings Device",
     "dwd_map_land": "DWD Warning Map (State)",
+    "dwd_map_type": "DWD Map Type",
+    "dwd_map_position": "DWD Map Position",
     "hide_when_no_warnings": "Hide card when no warnings",
     "hide_on_level_below": "Hide warnings with a level below",
     "hide_instructions": "Hide recommended actions",
     "hide_footer": "Hide footer with source and info icon",
     "separate_advance_warnings": "Separate current and advance warnings",
+    "dwd_map_type_options": {
+      "state": "State",
+      "region": "Region"
+    },
     "dwd_map_land_options": {
+      "de": "Germany",
       "baw": "Baden-Württemberg",
       "bay": "Bavaria",
       "bbb": "Berlin, Brandenburg",
@@ -34,6 +41,22 @@
       "saa": "Saxony-Anhalt",
       "shh": "Schleswig-Holstein, Hamburg",
       "thu": "Thuringia"
+    },
+    "dwd_map_region_options": {
+      "SchilderSU": "Baden-Württemberg",
+      "SchilderMS": "Bavaria",
+      "SchilderPD": "Berlin, Brandenburg, Mecklenburg-Western Pomerania",
+      "SchilderOF": "Hesse, Rhineland-Palatinate, Saarland",
+      "SchilderHA": "Lower Saxony, Bremen, Hamburg, Schleswig-Holstein, North Rhine-Westphalia",
+      "SchilderEM": "North Rhine-Westphalia",
+      "SchilderLZ": "Saxony, Saxony-Anhalt, Thuringia",
+      "SchilderBodensee": "Lake Constance",
+      "SchilderD": "Germany"
+    },
+    "dwd_map_position_options": {
+      "inside": "Inside first DWD warning",
+      "above": "Above warnings",
+      "below": "Below warnings"
     },
     "hide_on_level_below_options": {
       "moderate": "Moderate",

@@ -16,12 +16,19 @@
     "max_warnings": "Maximale Anzahl an Warnungen",
     "dwd_device": "DWD Warnungs-Gerät",
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
+    "dwd_map_type": "DWD Kartentyp",
+    "dwd_map_position": "DWD Kartenposition",
     "hide_when_no_warnings": "Karte ausblenden, wenn keine Warnungen vorliegen",
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",
     "separate_advance_warnings": "Aktuelle und Vorab-Warnungen trennen",
+    "dwd_map_type_options": {
+      "state": "Bundesland",
+      "region": "Region"
+    },
     "dwd_map_land_options": {
+      "de": "Deutschland",
       "baw": "Baden-Württemberg",
       "bay": "Bayern",
       "bbb": "Berlin, Brandenburg",
@@ -34,6 +41,22 @@
       "saa": "Sachsen-Anhalt",
       "shh": "Schleswig-Holstein, Hamburg",
       "thu": "Thüringen"
+    },
+    "dwd_map_region_options": {
+      "SchilderSU": "Baden-Württemberg",
+      "SchilderMS": "Bayern",
+      "SchilderPD": "Berlin, Brandenburg, Mecklenburg-Vorpommern",
+      "SchilderOF": "Hessen, Rheinland-Pfalz, Saarland",
+      "SchilderHA": "Niedersachsen, Bremen, Hamburg, Schleswig-Holstein, Nordrhein-Westfalen",
+      "SchilderEM": "Nordrhein-Westfalen",
+      "SchilderLZ": "Sachsen, Sachsen-Anhalt, Thüringen",
+      "SchilderBodensee": "Bodensee",
+      "SchilderD": "Deutschland"
+    },
+    "dwd_map_position_options": {
+      "inside": "Innerhalb der ersten DWD-Warnung",
+      "above": "Über den Warnungen",
+      "below": "Unter den Warnungen"
     },
     "hide_on_level_below_options": {
       "moderate": "Moderate",

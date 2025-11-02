@@ -1,4 +1,4 @@
-import { HomeAssistant } from './types';
+import { HomeAssistant, TranslationObject } from './types';
 
 import de from './translation/de.json';
 import en from './translation/en.json';
@@ -9,10 +9,6 @@ const _translations = {
 };
 
 export const translations: { [key: string]: typeof en } = _translations;
-
-export interface TranslationObject {
-  [key: string]: string | TranslationObject;
-}
 
 const typedTranslations: { [key: string]: TranslationObject } = _translations;
 

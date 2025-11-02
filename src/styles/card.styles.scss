@@ -92,6 +92,13 @@ ha-expansion-panel {
   clear: both;
 }
 
+.map-image-standalone {
+  border-radius: var(--ha-card-border-radius, 4px);
+  display: block;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
 .map-image {
   border-radius: var(--ha-card-border-radius, 4px); /* Apply border-radius */
   float: right; /* Float the image to the right */

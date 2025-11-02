@@ -68,7 +68,11 @@ export class NinaDwdCard extends LitElement {
       (warning, index) => html`
         ${index > 0 ? html`<hr />` : ''}
         <div class="warning">
-          ${'level' in warning && mapUrl && index === firstDwdIndex
+          ${'level' in warning &&
+          mapUrl &&
+          index === firstDwdIndex &&
+          this._config.dwd_map_position !== 'above' &&
+          this._config.dwd_map_position !== 'below'
             ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
             : ''}
           <div class="headline" style="color: ${this._getWarningColor(warning)}">
@@ -110,10 +114,21 @@ export class NinaDwdCard extends LitElement {
 
     let mapUrl: string | undefined;
     if (this._config.dwd_map_land) {
-      mapUrl = `https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${this._config.dwd_map_land}.png`;
+      if (this._config.dwd_map_type === 'region') {
+        mapUrl = `https://www.dwd.de/DWD/warnungen/warnstatus/${this._config.dwd_map_land}.jpg`;
+      } else {
+        mapUrl = `https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${this._config.dwd_map_land}.png`;
+      }
       // Add a timestamp to prevent caching issues
       mapUrl += `?${new Date().getTime()}`;
     }
+
+    const renderMap = (position: 'above' | 'below') => {
+      const hasDwdWarnings = [...dwdCurrentWarnings, ...dwdAdvanceWarnings].length > 0;
+      return mapUrl && hasDwdWarnings && this._config.dwd_map_position === position
+        ? html`<img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />`
+        : '';
+    };
 
     const editMode = this._editMode;
 
@@ -134,6 +149,7 @@ export class NinaDwdCard extends LitElement {
       return html`
         <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
           <div class="card-content">
+            ${renderMap('above')}
             <div class="warnings-container">
               ${processedCurrent.length > 0
                 ? html`
@@ -160,6 +176,7 @@ export class NinaDwdCard extends LitElement {
                 ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
                 : ''}
             </div>
+            ${renderMap('below')}
           </div>
         </ha-card>
       `;
@@ -175,6 +192,7 @@ export class NinaDwdCard extends LitElement {
     return html`
       <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
         <div class="card-content">
+          ${renderMap('above')}
           <div class="warnings-container">
             ${processedWarnings.length === 0
               ? html`<div
@@ -188,6 +206,7 @@ export class NinaDwdCard extends LitElement {
               ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
               : ''}
           </div>
+          ${renderMap('below')}
         </div>
       </ha-card>
     `;

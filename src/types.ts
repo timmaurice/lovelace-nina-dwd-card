@@ -1,3 +1,7 @@
+export interface TranslationObject {
+  [key: string]: string | TranslationObject;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export interface LovelaceCardConfig {

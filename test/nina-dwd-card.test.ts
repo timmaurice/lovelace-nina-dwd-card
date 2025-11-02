@@ -191,6 +191,56 @@ describe('NinaDwdCard', () => {
       expect(mapImage?.src).toContain('warnungen_gemeinde_map_hes.png');
     });
 
+    it('should render the DWD region map when configured', async () => {
+      config.dwd_map_type = 'region';
+      config.dwd_map_land = 'SchilderD'; // Germany
+      // A DWD warning must be active for the map to be rendered.
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const mapImage = element.shadowRoot?.querySelector<HTMLImageElement>('.map-image');
+      expect(mapImage).not.toBeNull();
+      expect(mapImage?.src).toContain('warnstatus/SchilderD.jpg');
+    });
+
+    it('should render the map above the warnings when position is "above"', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+      // A DWD warning must be active for the map to be rendered.
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const mapImage = element.shadowRoot?.querySelector<HTMLImageElement>('.map-image-standalone');
+      expect(mapImage).not.toBeNull();
+      expect(mapImage?.src).toContain('warnungen_gemeinde_map_hes.png');
+      // Check that it's not the inline image
+      expect(element.shadowRoot?.querySelector<HTMLImageElement>('.map-image')).toBeNull();
+    });
+
     it('should render instruction accordion when available', async () => {
       hass.states['binary_sensor.nina_warnung_1'] = {
         state: 'on',
