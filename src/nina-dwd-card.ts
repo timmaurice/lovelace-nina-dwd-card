@@ -71,10 +71,7 @@ export class NinaDwdCard extends LitElement {
           ${'level' in warning && mapUrl && index === firstDwdIndex
             ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
             : ''}
-          <div
-            class="headline"
-            style="color: ${this._getWarningColor(warning)}"
-          >
+          <div class="headline" style="color: ${this._getWarningColor(warning)}">
             <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${warning.headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
@@ -152,7 +149,10 @@ export class NinaDwdCard extends LitElement {
                   `
                 : ''}
               ${processedCurrent.length === 0 && processedAdvance.length === 0
-                ? html`<div class="no-warnings" style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}">
+                ? html`<div
+                    class="no-warnings"
+                    style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}"
+                  >
                     ${localize(this.hass, 'card.no_warnings')}
                   </div>`
                 : ''}
@@ -177,7 +177,10 @@ export class NinaDwdCard extends LitElement {
         <div class="card-content">
           <div class="warnings-container">
             ${processedWarnings.length === 0
-              ? html`<div class="no-warnings" style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}">
+              ? html`<div
+                  class="no-warnings"
+                  style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}"
+                >
                   ${localize(this.hass, 'card.no_warnings')}
                 </div>`
               : this._processAndRenderWarnings(processedWarnings, mapUrl)}
@@ -217,12 +220,18 @@ export class NinaDwdCard extends LitElement {
     const score = this._getSeverityScore(warning);
 
     switch (score) {
-      case 4: return overrides.extreme || SEVERITY_COLORS[4];
-      case 3: return overrides.severe || SEVERITY_COLORS[3];
-      case 2: return overrides.moderate || SEVERITY_COLORS[2];
-      case 1: return overrides.minor || SEVERITY_COLORS[1];
-      case 0: return overrides.no_warning || SEVERITY_COLORS[0];
-      default: return '#999999';
+      case 4:
+        return overrides.extreme || SEVERITY_COLORS[4];
+      case 3:
+        return overrides.severe || SEVERITY_COLORS[3];
+      case 2:
+        return overrides.moderate || SEVERITY_COLORS[2];
+      case 1:
+        return overrides.minor || SEVERITY_COLORS[1];
+      case 0:
+        return overrides.no_warning || SEVERITY_COLORS[0];
+      default:
+        return '#999999';
     }
   }
 
@@ -300,11 +309,9 @@ export class NinaDwdCard extends LitElement {
     };
 
     for (const warning of warnings) {
-      if (warning.headline && warning.start) {
-        const key = getWarningKey(warning.headline, warning.start);
-        if (!deduplicatedWarnings.has(key)) {
-          deduplicatedWarnings.set(key, warning);
-        }
+      const key = getWarningKey(warning.headline, warning.start);
+      if (!deduplicatedWarnings.has(key)) {
+        deduplicatedWarnings.set(key, warning);
       }
     }
 

@@ -12,7 +12,10 @@ const createMockHass = (): HomeAssistant =>
       if (key === 'card.source' && placeholders?.sender) {
         return `Source: ${placeholders.sender}`;
       }
-      return key;
+      if (key === 'card.no_warnings') {
+        return 'No Warnings';
+      }
+      return key; // Return key for other unhandled cases
     },
     language: 'en',
     locale: { language: 'en', number_format: 'comma_decimal', time_format: '24' },
@@ -74,7 +77,7 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
       const noWarnings = element.shadowRoot?.querySelector('.no-warnings');
       expect(noWarnings).not.toBeNull();
-      expect(noWarnings?.textContent).toBe('No Warnings');
+      expect(noWarnings?.textContent?.trim()).toBe('No Warnings');
     });
 
     it('should not render anything when hide_when_no_warnings is true and there are no warnings', async () => {
@@ -142,6 +145,27 @@ describe('NinaDwdCard', () => {
       expect(warning).not.toBeNull();
       expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('DWD Test Warning');
       expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('Source: Deutscher Wetterdienst');
+    });
+
+    it('should render a NINA warning without a start date', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Warning without start date',
+          description: 'This is a test without a start date.',
+          sender: 'Test Sender No-Date',
+          severity: 'Minor',
+          // no start attribute
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning).not.toBeNull();
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Warning without start date');
+      expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('Source: Test Sender No-Date');
     });
 
     it('should render the DWD map when configured', async () => {
