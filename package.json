@@ -27,7 +27,7 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.3.0",
-    "eslint": "^9.39.0",
+    "eslint": "^9.39.1",
     "home-assistant-js-websocket": "^9.5.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-lit": "^2.1.1",
@@ -39,7 +39,7 @@
     "rollup-plugin-lit-css": "^6.0.0",
     "sass": "^1.93.3",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.2",
+    "typescript-eslint": "^8.46.3",
     "vitest": "^4.0.6"
   },
   "dependencies": {
