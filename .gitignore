@@ -6,5 +6,6 @@ bun.lock
 yarn.lock
 
 .DS_Store
+GEMINI.md
 
 *.bak

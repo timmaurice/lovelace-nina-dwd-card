@@ -286,18 +286,24 @@ export class NinaDwdCard extends LitElement {
     const stateObj = this.hass.states[entityId];
     if (!stateObj || stateObj.state === '0') return warnings;
 
-    // The state of the sensor indicates the number of active warnings.
-    const count = parseInt(stateObj.state, 10) || 0;
-    for (let i = 1; i <= count; i++) {
-      warnings.push({
-        headline: stateObj.attributes[`warning_${i}_headline`],
-        description: stateObj.attributes[`warning_${i}_description`],
-        entity_id: entityId,
-        level: stateObj.attributes[`warning_${i}_level`],
-        start: stateObj.attributes[`warning_${i}_start`],
-        end: stateObj.attributes[`warning_${i}_end`],
-        instruction: stateObj.attributes[`warning_${i}_instruction`],
-      });
+    // The state of the sensor indicates the highest warning level, not the number of warnings.
+    // We iterate until we no longer find warning attributes. Let's assume a max of 20.
+    for (let i = 1; i <= 20; i++) {
+      const headline = stateObj.attributes[`warning_${i}_headline`];
+      if (headline) {
+        warnings.push({
+          headline: headline,
+          description: stateObj.attributes[`warning_${i}_description`],
+          entity_id: entityId,
+          level: stateObj.attributes[`warning_${i}_level`],
+          start: stateObj.attributes[`warning_${i}_start`],
+          end: stateObj.attributes[`warning_${i}_end`],
+          instruction: stateObj.attributes[`warning_${i}_instruction`],
+        });
+      } else {
+        // Stop when we don't find a headline for the current index.
+        break;
+      }
     }
 
     return warnings;

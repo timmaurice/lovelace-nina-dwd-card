@@ -18,7 +18,7 @@
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
     "dwd_map_type": "DWD Kartentyp",
     "dwd_map_position": "DWD Kartenposition",
-    "hide_when_no_warnings": "Karte ausblenden, wenn keine Warnungen vorliegen",
+    "hide_when_no_warnings": "Dashboard-Karte ausblenden, wenn keine Warnungen vorliegen",
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",
