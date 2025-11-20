@@ -61,6 +61,12 @@
     "hide_on_level_below_options": {
       "moderate": "Moderate",
       "severe": "Severe"
+    },
+    "theme_mode": "Theme Mode",
+    "theme_mode_options": {
+      "auto": "Auto",
+      "light": "Light",
+      "dark": "Dark"
     }
   },
   "card": {

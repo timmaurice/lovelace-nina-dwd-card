@@ -32,6 +32,7 @@ export class NinaDwdCard extends LitElement {
       nina_entity_prefix: '',
       max_warnings: 5,
       dwd_device: '',
+      theme_mode: 'auto',
     };
   }
 
@@ -98,6 +99,10 @@ export class NinaDwdCard extends LitElement {
       return html``;
     }
 
+    const themeMode = this._config.theme_mode || 'auto';
+    const isDarkMode = themeMode === 'dark' || (themeMode === 'auto' && this.hass.themes?.darkMode);
+    const modeClass = isDarkMode ? 'mode-dark' : 'mode-light';
+
     const ninaWarnings = this._getNinaWarnings();
     let dwdCurrentWarnings: DwdWarning[] = [];
     let dwdAdvanceWarnings: DwdWarning[] = [];
@@ -147,7 +152,7 @@ export class NinaDwdCard extends LitElement {
       }
 
       return html`
-        <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+        <ha-card .header=${this._config.title} class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
           <div class="card-content">
             ${renderMap('above')}
             <div class="warnings-container">
@@ -190,7 +195,7 @@ export class NinaDwdCard extends LitElement {
     if (isHidden && !editMode) return html``;
 
     return html`
-      <ha-card .header=${this._config.title} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+      <ha-card .header=${this._config.title} class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">

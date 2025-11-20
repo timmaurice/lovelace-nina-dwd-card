@@ -80,6 +80,7 @@ You can now add the card to your dashboard.
 | `hide_footer`               | boolean | `false`      | Hides the footer containing the source and info icon.                                                  |
 | `separate_advance_warnings` | boolean | `false`      | Displays current warnings and advance warnings in separate sections.                                   |
 | `hide_when_no_warnings`     | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.        |
+| `theme_mode`                | string  | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                     |
 
 ### Examples
 
@@ -97,6 +98,7 @@ hide_instructions: false
 hide_footer: false
 separate_advance_warnings: true
 hide_when_no_warnings: true
+theme_mode: auto
 ```
 
 ## Development

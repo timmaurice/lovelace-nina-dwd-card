@@ -3,6 +3,22 @@
   padding: 16px;
 }
 
+.mode-dark {
+  --primary-text-color: #ffffff;
+  --secondary-text-color: #b3b3b3;
+  --ha-card-background: #1c1c1c;
+  --divider-color: #444444;
+  color: var(--primary-text-color);
+}
+
+.mode-light {
+  --primary-text-color: #212121;
+  --secondary-text-color: #727272;
+  --ha-card-background: #ffffff;
+  --divider-color: #e0e0e0;
+  color: var(--primary-text-color);
+}
+
 .no-warnings {
   font-weight: bold;
 }

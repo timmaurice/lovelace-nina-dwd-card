@@ -58,6 +58,10 @@ const SCHEMA = [
     name: 'hide_when_no_warnings',
     selector: { boolean: {} },
   },
+  {
+    name: 'theme_mode',
+    selector: { select: { mode: 'dropdown' } },
+  },
 ];
 
 @customElement('nina-dwd-card-editor')
@@ -234,6 +238,20 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               mode: 'dropdown',
               options: hideLevelOptions,
               clearable: true,
+            },
+          },
+        };
+      }
+      if (item.name === 'theme_mode') {
+        return {
+          ...item,
+          selector: {
+            select: {
+              mode: 'dropdown',
+              options: ['auto', 'light', 'dark'].map((key) => ({
+                value: key,
+                label: localize(this.hass, `editor.theme_mode_options.${key}`),
+              })),
             },
           },
         };
