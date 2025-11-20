@@ -11,7 +11,7 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 
 ## Features
 
-- Displays current and advance warnings from NINA and DWD integrations.
+- Displays current and advance warnings from [NINA](https://www.home-assistant.io/integrations/nina/) and [DWD](https://www.home-assistant.io/integrations/dwd_weather_warnings/) integrations.
 - Consolidates warnings from multiple NINA binary sensors and DWD sensors into a single card.
 - Color-coded headlines based on warning severity/level.
 - Intelligently deduplicates warnings, prioritizing the original DWD alert over NINA rebroadcasts.
