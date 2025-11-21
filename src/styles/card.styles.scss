@@ -7,8 +7,9 @@
   --primary-text-color: #ffffff;
   --secondary-text-color: #b3b3b3;
   --ha-card-background: #1c1c1c;
-  --outline-color: #444444;
-  --ha-card-border-color: #444444;
+  --divider-color: rgba(225, 225, 225, 0.12);
+  --outline-color: rgba(225, 225, 225, 0.12);
+  --ha-card-border-color: rgba(225, 225, 225, 0.12);
   color: var(--primary-text-color);
 
   ha-expansion-panel {
@@ -25,8 +26,14 @@
   --primary-text-color: #212121;
   --secondary-text-color: #727272;
   --ha-card-background: #ffffff;
-  --outline-color: #d3d3d3;
+  --divider-color: rgba(0, 0, 0, 0.12);
+  --outline-color: rgba(0, 0, 0, 0.12);
+  --ha-card-border-color: rgba(0, 0, 0, 0.12);
   color: var(--primary-text-color);
+
+  ha-expansion-panel {
+    --input-fill-color: rgb(245, 245, 245);
+  }
 }
 
 .no-warnings {
