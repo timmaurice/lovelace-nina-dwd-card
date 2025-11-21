@@ -7,7 +7,7 @@
   --primary-text-color: #ffffff;
   --secondary-text-color: #b3b3b3;
   --ha-card-background: #1c1c1c;
-  --divider-color: #444444;
+  --outline-color: #444444;
   --ha-card-border-color: #444444;
   color: var(--primary-text-color);
 
@@ -17,7 +17,7 @@
     --ha-card-background: transparent;
     --card-background-color: transparent;
     --paper-card-background-color: transparent;
-    --input-fill-color: transparent;
+    --input-fill-color: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -25,7 +25,7 @@
   --primary-text-color: #212121;
   --secondary-text-color: #727272;
   --ha-card-background: #ffffff;
-  --divider-color: #d3d3d3;
+  --outline-color: #d3d3d3;
   color: var(--primary-text-color);
 }
 
