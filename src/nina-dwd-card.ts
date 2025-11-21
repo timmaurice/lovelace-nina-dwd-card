@@ -59,10 +59,7 @@ export class NinaDwdCard extends LitElement {
     this.requestUpdate();
   }
 
-  private _processAndRenderWarnings(
-    warnings: (NinaWarning | DwdWarning)[],
-    mapUrl: string | undefined,
-  ): TemplateResult {
+  private _renderWarnings(warnings: (NinaWarning | DwdWarning)[], mapUrl: string | undefined): TemplateResult {
     const firstDwdIndex = warnings.findIndex((w) => 'level' in w);
 
     return html`${warnings.map(
@@ -99,10 +96,46 @@ export class NinaDwdCard extends LitElement {
       return html``;
     }
 
+    const { modeClass } = this._getThemeSettings();
+    const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+    const mapUrl = this._getMapUrl();
+
+    const hasDwdWarnings = [...dwdCurrentWarnings, ...dwdAdvanceWarnings].length > 0;
+    const renderMap = (position: 'above' | 'below') => this._renderMap(position, mapUrl, hasDwdWarnings);
+
+    const editMode = this._editMode;
+
+    if (this._config.separate_advance_warnings) {
+      return this._renderSeparateView(
+        ninaWarnings,
+        dwdCurrentWarnings,
+        dwdAdvanceWarnings,
+        modeClass,
+        editMode,
+        mapUrl,
+        renderMap,
+      );
+    }
+
+    return this._renderCombinedView(
+      ninaWarnings,
+      dwdCurrentWarnings,
+      dwdAdvanceWarnings,
+      modeClass,
+      editMode,
+      mapUrl,
+      renderMap,
+    );
+  }
+
+  private _getThemeSettings(): { isDarkMode: boolean; modeClass: string } {
     const themeMode = this._config.theme_mode || 'auto';
     const isDarkMode = themeMode === 'dark' || (themeMode === 'auto' && this.hass.themes?.darkMode);
     const modeClass = isDarkMode ? 'mode-dark' : 'mode-light';
+    return { isDarkMode: !!isDarkMode, modeClass };
+  }
 
+  private _collectWarnings() {
     const ninaWarnings = this._getNinaWarnings();
     let dwdCurrentWarnings: DwdWarning[] = [];
     let dwdAdvanceWarnings: DwdWarning[] = [];
@@ -116,78 +149,94 @@ export class NinaDwdCard extends LitElement {
         dwdAdvanceWarnings = this._getDwdWarnings(deviceEntities.advance);
       }
     }
+    return { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings };
+  }
 
-    let mapUrl: string | undefined;
-    if (this._config.dwd_map_land) {
-      if (this._config.dwd_map_type === 'region') {
-        mapUrl = `https://www.dwd.de/DWD/warnungen/warnstatus/${this._config.dwd_map_land}.jpg`;
-      } else {
-        mapUrl = `https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${this._config.dwd_map_land}.png`;
-      }
-      // Add a timestamp to prevent caching issues
-      mapUrl += `?${new Date().getTime()}`;
+  private _getMapUrl(): string | undefined {
+    if (!this._config.dwd_map_land) return undefined;
+
+    let mapUrl: string;
+    if (this._config.dwd_map_type === 'region') {
+      mapUrl = `https://www.dwd.de/DWD/warnungen/warnstatus/${this._config.dwd_map_land}.jpg`;
+    } else {
+      mapUrl = `https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${this._config.dwd_map_land}.png`;
+    }
+    // Add a timestamp to prevent caching issues
+    // We round to the nearest 5 minutes to allow some caching while ensuring freshness
+    const timestamp = Math.floor(Date.now() / (5 * 60 * 1000)) * (5 * 60 * 1000);
+    return `${mapUrl}?${timestamp}`;
+  }
+
+  private _renderMap(
+    position: 'above' | 'below',
+    mapUrl: string | undefined,
+    hasDwdWarnings: boolean,
+  ): TemplateResult | string {
+    return mapUrl && hasDwdWarnings && this._config.dwd_map_position === position
+      ? html`<img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />`
+      : '';
+  }
+
+  private _renderSeparateView(
+    ninaWarnings: NinaWarning[],
+    dwdCurrentWarnings: DwdWarning[],
+    dwdAdvanceWarnings: DwdWarning[],
+    modeClass: string,
+    editMode: boolean,
+    mapUrl: string | undefined,
+    renderMap: (pos: 'above' | 'below') => TemplateResult | string,
+  ): TemplateResult {
+    const currentRaw = [...ninaWarnings, ...dwdCurrentWarnings];
+    const advanceRaw = [...dwdAdvanceWarnings];
+
+    const processedCurrent = this._processWarnings(currentRaw, advanceRaw);
+    const processedAdvance = this._processWarnings(advanceRaw);
+
+    const isHidden =
+      processedCurrent.length === 0 && processedAdvance.length === 0 && this._config.hide_when_no_warnings;
+
+    if (isHidden && !editMode) {
+      return html``;
     }
 
-    const renderMap = (position: 'above' | 'below') => {
-      const hasDwdWarnings = [...dwdCurrentWarnings, ...dwdAdvanceWarnings].length > 0;
-      return mapUrl && hasDwdWarnings && this._config.dwd_map_position === position
-        ? html`<img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />`
-        : '';
-    };
-
-    const editMode = this._editMode;
-
-    if (this._config.separate_advance_warnings) {
-      const currentRaw = [...ninaWarnings, ...dwdCurrentWarnings];
-      const advanceRaw = [...dwdAdvanceWarnings];
-
-      const processedCurrent = this._processWarnings(currentRaw, advanceRaw);
-      const processedAdvance = this._processWarnings(advanceRaw);
-
-      const isHidden =
-        processedCurrent.length === 0 && processedAdvance.length === 0 && this._config.hide_when_no_warnings;
-
-      if (isHidden && !editMode) {
-        return html``;
-      }
-
-      return html`
-        <ha-card .header=${this._config.title} class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
-          <div class="card-content">
-            ${renderMap('above')}
-            <div class="warnings-container">
-              ${processedCurrent.length > 0
-                ? html`
-                    <div class="sub-header">${localize(this.hass, 'card.current_warnings')}</div>
-                    ${this._processAndRenderWarnings(processedCurrent, mapUrl)}
-                  `
-                : ''}
-              ${processedAdvance.length > 0
-                ? html`
-                    ${processedCurrent.length > 0 ? html`<hr class="section-divider" />` : ''}
-                    <div class="sub-header">${localize(this.hass, 'card.advance_warnings')}</div>
-                    ${this._processAndRenderWarnings(processedAdvance, undefined)}
-                  `
-                : ''}
-              ${processedCurrent.length === 0 && processedAdvance.length === 0
-                ? html`<div
-                    class="no-warnings"
-                    style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}"
-                  >
-                    ${localize(this.hass, 'card.no_warnings')}
-                  </div>`
-                : ''}
-              ${isHidden && editMode
-                ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
-                : ''}
-            </div>
-            ${renderMap('below')}
+    return html`
+      <ha-card .header=${this._config.title} class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+        <div class="card-content">
+          ${renderMap('above')}
+          <div class="warnings-container">
+            ${processedCurrent.length > 0
+              ? html`
+                  <div class="sub-header">${localize(this.hass, 'card.current_warnings')}</div>
+                  ${this._renderWarnings(processedCurrent, mapUrl)}
+                `
+              : ''}
+            ${processedAdvance.length > 0
+              ? html`
+                  ${processedCurrent.length > 0 ? html`<hr class="section-divider" />` : ''}
+                  <div class="sub-header">${localize(this.hass, 'card.advance_warnings')}</div>
+                  ${this._renderWarnings(processedAdvance, undefined)}
+                `
+              : ''}
+            ${processedCurrent.length === 0 && processedAdvance.length === 0 ? this._renderNoWarnings() : ''}
+            ${isHidden && editMode
+              ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
+              : ''}
           </div>
-        </ha-card>
-      `;
-    }
+          ${renderMap('below')}
+        </div>
+      </ha-card>
+    `;
+  }
 
-    // Default combined view
+  private _renderCombinedView(
+    ninaWarnings: NinaWarning[],
+    dwdCurrentWarnings: DwdWarning[],
+    dwdAdvanceWarnings: DwdWarning[],
+    modeClass: string,
+    editMode: boolean,
+    mapUrl: string | undefined,
+    renderMap: (pos: 'above' | 'below') => TemplateResult | string,
+  ): TemplateResult {
     const allWarningsRaw = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
     const processedWarnings = this._processWarnings(allWarningsRaw);
     const isHidden = processedWarnings.length === 0 && this._config.hide_when_no_warnings;
@@ -200,13 +249,8 @@ export class NinaDwdCard extends LitElement {
           ${renderMap('above')}
           <div class="warnings-container">
             ${processedWarnings.length === 0
-              ? html`<div
-                  class="no-warnings"
-                  style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}"
-                >
-                  ${localize(this.hass, 'card.no_warnings')}
-                </div>`
-              : this._processAndRenderWarnings(processedWarnings, mapUrl)}
+              ? this._renderNoWarnings()
+              : this._renderWarnings(processedWarnings, mapUrl)}
             ${isHidden && editMode
               ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
               : ''}
@@ -215,6 +259,15 @@ export class NinaDwdCard extends LitElement {
         </div>
       </ha-card>
     `;
+  }
+
+  private _renderNoWarnings(): TemplateResult {
+    return html`<div
+      class="no-warnings"
+      style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}"
+    >
+      ${localize(this.hass, 'card.no_warnings')}
+    </div>`;
   }
 
   private _renderFooter(warning: NinaWarning | DwdWarning): TemplateResult {

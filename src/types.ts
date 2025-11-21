@@ -75,20 +75,55 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
 }
 
 export interface HomeAssistant {
-  hass?: any;
+  auth: any;
+  connection: any;
+  connected: boolean;
   states: Record<string, any>;
   entities: Record<string, any>;
   devices: Record<string, any>;
+  areas: Record<string, any>;
   services: Record<string, any>;
+  config: any;
+  themes: {
+    darkMode: boolean;
+    themes: Record<string, any>;
+  };
+  selectedTheme: string | null;
+  panels: Record<string, any>;
+  panelUrl: string;
   language: string;
-  localize: (key: string, ...args: any[]) => string;
+  selectedLanguage: string | null;
   locale: {
     language: string;
     number_format: string;
     time_format: string;
   };
-  callWS: <T>(message: any) => Promise<T>;
-  themes?: {
-    darkMode?: boolean;
-  };
+  resources: any;
+  localize: (key: string, ...args: any[]) => string;
+  translationMetadata: any;
+  suspendWhenHidden: boolean;
+  enableShortcuts: boolean;
+  vibrate: boolean;
+  dockedSidebar: 'docked' | 'always_hidden' | 'auto';
+  defaultPanel: string;
+  moreInfoEntityId: string | null;
+  user: any;
+  callService: (
+    domain: string,
+    service: string,
+    serviceData?: Record<string, any>,
+    target?: {
+      entity_id?: string | string[];
+      device_id?: string | string[];
+      area_id?: string | string[];
+    },
+  ) => Promise<void>;
+  callApi: <T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    path: string,
+    parameters?: Record<string, any>,
+    headers?: Record<string, string>,
+  ) => Promise<T>;
+  callWS: <T>(msg: any) => Promise<T>;
+  loadBackendTranslation: (category: string, integration?: string | string[], configFlow?: boolean) => Promise<any>;
 }

@@ -428,4 +428,92 @@ describe('NinaDwdCard', () => {
       expect(headlines?.[2].textContent?.trim()).toBe('Minor Warning');
     });
   });
+
+  describe('Configuration Options', () => {
+    it('should respect max_warnings limit', async () => {
+      // Create 10 warnings
+      for (let i = 1; i <= 10; i++) {
+        hass.states[`binary_sensor.nina_warnung_${i}`] = {
+          state: 'on',
+          attributes: {
+            headline: `Warning ${i}`,
+            severity: 'Minor',
+            start: new Date().toISOString(),
+          },
+        };
+      }
+
+      element.hass = hass;
+      element.setConfig({ ...config, max_warnings: 3 });
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(3);
+    });
+
+    it('should apply color overrides', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Colored Warning',
+          severity: 'Severe', // Default is red
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({
+        ...config,
+        color_overrides: { severe: '#00ff00' }, // Override to green
+      });
+      await element.updateComplete;
+
+      const headline = element.shadowRoot?.querySelector<HTMLElement>('.headline');
+      // Check if the style attribute contains the overridden color
+      // Note: styles might be normalized by the browser, so we check for the value
+      expect(headline?.getAttribute('style')).toContain('color: #00ff00');
+    });
+
+    it('should separate advance warnings when configured', async () => {
+      // Current warning (DWD level)
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Current Warning',
+          warning_1_level: 1,
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+
+      // Advance warning (DWD advance level)
+      hass.entities['sensor.berlin_advance_warning_level'] = {
+        entity_id: 'sensor.berlin_advance_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_advance_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Advance Warning',
+          warning_1_level: 1,
+          warning_1_start: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, separate_advance_warnings: true });
+      await element.updateComplete;
+
+      const subHeaders = element.shadowRoot?.querySelectorAll('.sub-header');
+      expect(subHeaders?.length).toBe(2);
+      expect(subHeaders?.[0].textContent).toBe('Current Warnings');
+      expect(subHeaders?.[1].textContent).toBe('Advance Warnings');
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(2);
+    });
+  });
 });
