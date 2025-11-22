@@ -568,7 +568,7 @@ describe('NinaDwdCard', () => {
 
     it('should fallback to original text if translation fails', async () => {
       // Suppress console.error for this test since we're intentionally causing an error
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       hass.states['sensor.nina_warning_1'] = {
         state: 'on',
