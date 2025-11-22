@@ -72,6 +72,9 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
     severe?: string;
     extreme?: string;
   };
+  enable_translation?: boolean;
+  translation_target?: string;
+  ai_entity_id?: string;
 }
 
 export interface HomeAssistant {
@@ -117,7 +120,9 @@ export interface HomeAssistant {
       device_id?: string | string[];
       area_id?: string | string[];
     },
-  ) => Promise<void>;
+    notify?: boolean,
+    returnResponse?: boolean,
+  ) => Promise<any>;
   callApi: <T>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,

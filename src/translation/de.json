@@ -2,7 +2,8 @@
   "editor": {
     "groups": {
       "core": "Grundeinstellungen",
-      "color_overrides": "Farben überschreiben"
+      "color_overrides": "Farben überschreiben",
+      "translation": "KI-Übersetzung"
     },
     "color_overrides": {
       "no_warning": "Keine Warnung",
@@ -67,7 +68,31 @@
       "auto": "Automatisch",
       "light": "Hell",
       "dark": "Dunkel"
-    }
+    },
+    "enable_translation": "Übersetzung aktivieren",
+    "translation_target": "Zielsprache",
+    "translation_target_options": {
+      "English": "Englisch",
+      "Swiss German": "Schwiizerdütsch (Schweizerdeutsch)",
+      "Bavarian": "Bairisch",
+      "Austrian German": "Österreichisches Deutsch",
+      "Swabian": "Schwäbisch",
+      "Low German": "Plattdütsch (Niederdeutsch)",
+      "Kölsch": "Kölsch (Kölner Dialekt)",
+      "Wäller Platt": "Wäller Platt (Westerwälder Dialekt)",
+      "French": "Französisch",
+      "Spanish": "Spanisch",
+      "Italian": "Italienisch",
+      "Dutch": "Niederländisch",
+      "Polish": "Polnisch",
+      "Portuguese": "Portugiesisch",
+      "Czech": "Tschechisch",
+      "Danish": "Dänisch",
+      "Swedish": "Schwedisch",
+      "Norwegian": "Norwegisch",
+      "Finnish": "Finnisch"
+    },
+    "ai_entity_id": "KI-Entitäts-ID"
   },
   "card": {
     "no_warnings": "Keine Warnungen",

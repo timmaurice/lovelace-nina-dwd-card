@@ -21,6 +21,26 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Displays sender information for NINA warnings.
 - Designed to be fully customizable through the visual editor (editor UI is a future enhancement).
 
+## AI Translation
+
+The card supports AI-powered translation of warning content using Home Assistant's `ai_task.generate_data` service.
+
+**Important**: To use this feature, you need to:
+
+1. Have an AI Task integration configured in Home Assistant (e.g., with Google Gemini or OpenAI)
+2. Provide the `ai_entity_id` of your AI task entity (e.g., `ai_task.google_ai_task`)
+
+### Setup
+
+1.  **Enable Translation**: In the card editor, expand the "AI Translation" section and toggle "Enable Translation".
+2.  **Configure Settings**:
+    - **`translation_target`**: Target language for translation (selected from a dropdown of common European languages)
+    - **`ai_entity_id`**: AI Task entity to use for translation (selected from a dropdown of available `ai_task` entities)
+
+**Note**: The AI prompt is standardized and cannot be customized. It instructs the AI to return a JSON object with `headline`, `description`, and `instruction` keys.
+
+**Note**: Translation happens asynchronously. You might see the original text briefly before the translation appears. Translations are cached for the duration of the session to minimize API calls.
+
 ## Localization
 
 The editor is available in the following languages:

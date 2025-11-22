@@ -2,7 +2,8 @@
   "editor": {
     "groups": {
       "core": "Core Configuration",
-      "color_overrides": "Color Overrides"
+      "color_overrides": "Color Overrides",
+      "translation": "AI Translation"
     },
     "color_overrides": {
       "no_warning": "No Warning",
@@ -67,7 +68,31 @@
       "auto": "Auto",
       "light": "Light",
       "dark": "Dark"
-    }
+    },
+    "enable_translation": "Enable Translation",
+    "translation_target": "Target Language",
+    "translation_target_options": {
+      "English": "English",
+      "Swiss German": "Schwiizerdütsch (Swiss German)",
+      "Bavarian": "Bairisch (Bavarian)",
+      "Austrian German": "Österreichisches Deutsch (Austrian German)",
+      "Swabian": "Schwäbisch (Swabian)",
+      "Low German": "Plattdütsch (Low German)",
+      "Kölsch": "Kölsch (Cologne Dialect)",
+      "Wäller Platt": "Wäller Platt (Westerwald Dialect)",
+      "French": "Français (French)",
+      "Spanish": "Español (Spanish)",
+      "Italian": "Italiano (Italian)",
+      "Dutch": "Nederlands (Dutch)",
+      "Polish": "Polski (Polish)",
+      "Portuguese": "Português (Portuguese)",
+      "Czech": "Čeština (Czech)",
+      "Danish": "Dansk (Danish)",
+      "Swedish": "Svenska (Swedish)",
+      "Norwegian": "Norsk (Norwegian)",
+      "Finnish": "Suomi (Finnish)"
+    },
+    "ai_entity_id": "AI Entity ID"
   },
   "card": {
     "no_warnings": "No Warnings",

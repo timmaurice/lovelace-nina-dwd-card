@@ -64,6 +64,46 @@ const SCHEMA = [
   },
 ];
 
+const TRANSLATION_SCHEMA = [
+  { name: 'enable_translation', selector: { boolean: {} } },
+  {
+    name: 'translation_target',
+    selector: {
+      select: {
+        options: [
+          { value: 'English', label: 'English' },
+          { value: 'Swiss German', label: 'Schwiizerdütsch (Swiss German)' },
+          { value: 'Bavarian', label: 'Bairisch (Bavarian)' },
+          { value: 'Austrian German', label: 'Österreichisches Deutsch (Austrian German)' },
+          { value: 'Swabian', label: 'Schwäbisch (Swabian)' },
+          { value: 'Low German', label: 'Plattdütsch (Low German)' },
+          { value: 'Kölsch', label: 'Kölsch (Cologne Dialect)' },
+          { value: 'Wäller Platt', label: 'Wäller Platt (Westerwald Dialect)' },
+          { value: 'French', label: 'Français (French)' },
+          { value: 'Spanish', label: 'Español (Spanish)' },
+          { value: 'Italian', label: 'Italiano (Italian)' },
+          { value: 'Dutch', label: 'Nederlands (Dutch)' },
+          { value: 'Polish', label: 'Polski (Polish)' },
+          { value: 'Portuguese', label: 'Português (Portuguese)' },
+          { value: 'Czech', label: 'Čeština (Czech)' },
+          { value: 'Danish', label: 'Dansk (Danish)' },
+          { value: 'Swedish', label: 'Svenska (Swedish)' },
+          { value: 'Norwegian', label: 'Norsk (Norwegian)' },
+          { value: 'Finnish', label: 'Suomi (Finnish)' },
+        ],
+      },
+    },
+  },
+  {
+    name: 'ai_entity_id',
+    selector: {
+      entity: {
+        domain: 'ai_task',
+      },
+    },
+  },
+];
+
 @customElement('nina-dwd-card-editor')
 export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass!: HomeAssistant;
@@ -328,6 +368,15 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
                 placeholder="#880e4f"
               ></ha-textfield>
             </div>
+          </ha-expansion-panel>
+          <ha-expansion-panel .header=${localize(this.hass, 'component.nina-dwd-card.editor.groups.translation')}>
+            <ha-form
+              .schema=${TRANSLATION_SCHEMA}
+              .hass=${this.hass}
+              .data=${this._config}
+              .computeLabel=${(s: { name: string }) => localize(this.hass, `component.nina-dwd-card.editor.${s.name}`)}
+              @value-changed=${this._valueChanged}
+            ></ha-form>
           </ha-expansion-panel>
         </div>
       </ha-card>

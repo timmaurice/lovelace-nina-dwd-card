@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../src/nina-dwd-card';
-import type { NinaDwdCard } from '../src/nina-dwd-card';
+import { NinaDwdCard } from '../src/nina-dwd-card';
 import { HomeAssistant, NinaDwdCardConfig, HaCard } from '../src/types';
 
 // Mock console.info
@@ -514,6 +514,177 @@ describe('NinaDwdCard', () => {
 
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(2);
+    });
+  });
+  describe('Translation', () => {
+    it('should call the translation service when enabled', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Original Headline',
+          description: 'Original Description',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      const callServiceMock = vi.fn().mockResolvedValue({
+        result: JSON.stringify({
+          headline: 'Translated Headline',
+          description: 'Translated Description',
+        }),
+      });
+      hass.callService = callServiceMock as unknown as HomeAssistant['callService'];
+
+      element.hass = hass;
+      element.setConfig({
+        ...config,
+        enable_translation: true,
+        translation_target: 'English',
+      });
+      await element.updateComplete;
+
+      // Wait for async translation (sequential with 1s delay)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await element.updateComplete;
+
+      expect(callServiceMock).toHaveBeenCalledWith(
+        'ai_task',
+        'generate_data',
+        expect.objectContaining({
+          instructions: expect.stringContaining('Original Headline'),
+          task_name: 'translate_warning',
+        }),
+        undefined,
+        undefined,
+        true,
+      );
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Translated Headline');
+      expect(warning?.querySelector('.description')?.textContent?.trim()).toBe('Translated Description');
+    });
+
+    it('should fallback to original text if translation fails', async () => {
+      // Suppress console.error for this test since we're intentionally causing an error
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+      hass.states['sensor.nina_warning_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Original Headline',
+          description: 'Original Description',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      const callServiceMock = vi.fn().mockRejectedValue(new Error('Service failed'));
+      hass.callService = callServiceMock as unknown as HomeAssistant['callService'];
+
+      element.hass = hass;
+      element.setConfig({
+        type: 'custom:nina-dwd-card',
+        nina_entity_prefix: 'sensor.nina_warning',
+        enable_translation: true,
+        translation_target: 'English',
+      });
+      await element.updateComplete;
+
+      // Wait for async translation attempt
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await element.updateComplete;
+
+      expect(callServiceMock).toHaveBeenCalled();
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Original Headline');
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
+    });
+    it('should handle object response from translation service', async () => {
+      hass.states['sensor.nina_warning_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Original Headline',
+          description: 'Original Description',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      const callServiceMock = vi.fn().mockResolvedValue({
+        data: {
+          headline: 'Translated Headline',
+          description: 'Translated Description',
+          instruction: 'Translated Instruction',
+        },
+      });
+      hass.callService = callServiceMock as unknown as HomeAssistant['callService'];
+
+      element.hass = hass;
+      element.setConfig({
+        ...NinaDwdCard.getStubConfig(),
+        enable_translation: true,
+        nina_entity_prefix: 'sensor.nina_warning',
+      });
+
+      await element.updateComplete;
+
+      // Wait for async translation
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await element.updateComplete;
+
+      expect(callServiceMock).toHaveBeenCalled();
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.innerHTML).toContain('Translated Headline');
+    });
+
+    it('should handle nested object response with data string', async () => {
+      hass.states['sensor.nina_warning_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Original Headline',
+          description: 'Original Description',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      const callServiceMock = vi.fn().mockResolvedValue({
+        response: {
+          data: JSON.stringify({
+            headline: 'Nested Translated Headline',
+            description: 'Nested Translated Description',
+            instruction: 'Nested Translated Instruction',
+          }),
+        },
+      });
+      hass.callService = callServiceMock as unknown as HomeAssistant['callService'];
+
+      element.hass = hass;
+      element.setConfig({
+        ...NinaDwdCard.getStubConfig(),
+        enable_translation: true,
+        nina_entity_prefix: 'sensor.nina_warning',
+      });
+
+      await element.updateComplete;
+
+      // Wait for async translation (sequential with 1s delay)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await element.updateComplete;
+
+      expect(callServiceMock).toHaveBeenCalled();
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.innerHTML).toContain('Nested Translated Headline');
     });
   });
 });

@@ -69,7 +69,7 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
 
     return `${startDayString}, ${formattedStartTime} - ${endDayString}, ${formattedEndTime}`;
   } catch (e) {
-    console.error('Error formatting time:', e);
+    console.error('NINA-DWD: Error formatting time', e);
     return localize(hass, 'card.time_invalid');
   }
 }

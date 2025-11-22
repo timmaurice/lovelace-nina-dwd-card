@@ -14,11 +14,18 @@ const SEVERITY_COLORS: Record<number, string> = {
   4: '#880e4f' /* Extreme */,
 };
 
+const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
+Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
+
 @customElement('nina-dwd-card')
 export class NinaDwdCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config!: NinaDwdCardConfig;
   @state() private _editMode = false;
+  @state() private _warnings: (NinaWarning | DwdWarning)[] = [];
+  @state() private _translations: Record<string, { headline: string; description: string; instruction: string }> = {};
+  private _translationInProgress = new Set<string>();
+  private _error: string | undefined;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -33,6 +40,9 @@ export class NinaDwdCard extends LitElement {
       max_warnings: 5,
       dwd_device: '',
       theme_mode: 'auto',
+      hide_when_no_warnings: false,
+      enable_translation: false,
+      translation_target: 'English',
     };
   }
 
@@ -42,6 +52,16 @@ export class NinaDwdCard extends LitElement {
     }
     if (!config.nina_entity_prefix && !config.dwd_device) {
       throw new Error('You need to define at least one NINA or DWD entity.');
+    }
+
+    // Reset translations if configuration changes that affects translation
+    if (
+      this._config &&
+      (this._config.translation_target !== config.translation_target ||
+        this._config.enable_translation !== config.enable_translation)
+    ) {
+      this._translations = {};
+      this._translationInProgress.clear();
     }
 
     this._config = {
@@ -62,8 +82,14 @@ export class NinaDwdCard extends LitElement {
   private _renderWarnings(warnings: (NinaWarning | DwdWarning)[], mapUrl: string | undefined): TemplateResult {
     const firstDwdIndex = warnings.findIndex((w) => 'level' in w);
 
-    return html`${warnings.map(
-      (warning, index) => html`
+    return html`${warnings.map((warning, index) => {
+      const key = this._getWarningKey(warning);
+      const translation = this._translations[key];
+      const headline = translation?.headline || warning.headline;
+      const description = translation?.description || warning.description;
+      const instruction = translation?.instruction || warning.instruction;
+
+      return html`
         ${index > 0 ? html`<hr />` : ''}
         <div class="warning">
           ${'level' in warning &&
@@ -74,21 +100,31 @@ export class NinaDwdCard extends LitElement {
             ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
             : ''}
           <div class="headline" style="color: ${this._getWarningColor(warning)}">
-            <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${warning.headline}
+            <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
-          <div class="description">${unsafeHTML(warning.description)}</div>
+          <div class="description">${unsafeHTML(description)}</div>
           ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
-          ${!this._config.hide_instructions && 'instruction' in warning && warning.instruction
+          ${!this._config.hide_instructions && instruction
             ? html` <ha-expansion-panel outlined>
                 <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                <div class="instruction">${warning.instruction}</div>
+                <div class="instruction">${instruction}</div>
               </ha-expansion-panel>`
             : ''}
           ${this._renderFooter(warning)}
         </div>
-      `,
-    )}`;
+      `;
+    })}`;
+  }
+
+  protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
+    if (changedProperties.has('hass') || changedProperties.has('_config')) {
+      const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+      const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
+      if (allWarnings.length > 0) {
+        this._translateWarnings(allWarnings);
+      }
+    }
   }
 
   protected render(): TemplateResult {
@@ -455,6 +491,112 @@ export class NinaDwdCard extends LitElement {
     }
     // DWD level
     return 'level' in warning ? warning.level : 0;
+  }
+
+  private async _translateWarnings(warnings: (NinaWarning | DwdWarning)[]): Promise<void> {
+    if (!this._config.enable_translation || !this.hass) return;
+
+    const targetLanguage = this._config.translation_target || 'English';
+    const [domain, service] = ['ai_task', 'generate_data'];
+
+    for (const warning of warnings) {
+      const key = this._getWarningKey(warning);
+      if (this._translations[key]) {
+        continue;
+      }
+
+      if (this._translationInProgress.has(key)) {
+        continue;
+      }
+
+      // Mark as in-progress
+      this._translationInProgress.add(key);
+
+      try {
+        const prompt = DEFAULT_AI_PROMPT.replace('{{ target_language }}', targetLanguage)
+          .replace('{{ headline }}', warning.headline)
+          .replace('{{ description }}', warning.description)
+          .replace('{{ instruction }}', warning.instruction || '');
+
+        const serviceData: Record<string, unknown> = {
+          instructions: prompt,
+          task_name: 'translate_warning',
+        };
+
+        if (this._config.ai_entity_id) {
+          serviceData.entity_id = this._config.ai_entity_id;
+        }
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Service call timed out')), 30000),
+        );
+
+        const response = (await Promise.race([
+          this.hass.callService(domain, service, serviceData, undefined, undefined, true),
+          timeoutPromise,
+        ])) as unknown;
+
+        let translatedText: unknown = '';
+        if (response && typeof response === 'object' && 'result' in response) {
+          translatedText = (response as Record<string, unknown>).result as string;
+        } else if (response && typeof response === 'object' && 'response' in response) {
+          translatedText = (response as Record<string, unknown>).response as string;
+        } else if (response && typeof response === 'object' && 'text' in response) {
+          translatedText = (response as Record<string, unknown>).text as string;
+        } else if (response && typeof response === 'object' && 'data' in response) {
+          translatedText = (response as Record<string, unknown>).data as unknown;
+        }
+
+        if (translatedText) {
+          try {
+            let translation: unknown;
+            if (typeof translatedText === 'string') {
+              const jsonMatch = translatedText.match(/\{[\s\S]*\}/);
+              const jsonStr = jsonMatch ? jsonMatch[0] : translatedText;
+              translation = JSON.parse(jsonStr);
+            } else if (typeof translatedText === 'object') {
+              if (
+                'data' in (translatedText as Record<string, unknown>) &&
+                typeof (translatedText as Record<string, unknown>).data === 'string'
+              ) {
+                const innerText = (translatedText as Record<string, unknown>).data as string;
+                const jsonMatch = innerText.match(/\{[\s\S]*\}/);
+                const jsonStr = jsonMatch ? jsonMatch[0] : innerText;
+                translation = JSON.parse(jsonStr);
+              } else {
+                translation = translatedText;
+              }
+            }
+
+            if (translation) {
+              const translationObj = translation as Record<string, string>;
+              this._translations = {
+                ...this._translations,
+                [key]: {
+                  headline: translationObj.headline || warning.headline,
+                  description: translationObj.description || warning.description,
+                  instruction: translationObj.instruction || warning.instruction || '',
+                },
+              };
+            }
+          } catch (e) {
+            console.warn('NINA-DWD: Failed to parse translation JSON', e);
+          }
+        }
+      } catch (e) {
+        console.error('NINA-DWD: Translation failed', e);
+      } finally {
+        this._translationInProgress.delete(key);
+      }
+
+      // Add a small delay between requests to avoid rate limits
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  private _getWarningKey(warning: NinaWarning | DwdWarning): string {
+    // Use a combination of properties to create a unique key for translation caching
+    return `${warning.headline}|${warning.description}|${warning.instruction || ''}`;
   }
 
   static styles = css`
