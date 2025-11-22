@@ -205,11 +205,11 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
 
     const hideLevelOptions = [
       {
-        value: 2,
+        value: '2',
         label: `2 / ${localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.moderate')}`,
       },
       {
-        value: 3,
+        value: '3',
         label: `3 / ${localize(this.hass, 'component.nina-dwd-card.editor.hide_on_level_below_options.severe')}`,
       },
     ];
@@ -277,7 +277,6 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
             select: {
               mode: 'dropdown',
               options: hideLevelOptions,
-              clearable: true,
             },
           },
         };
