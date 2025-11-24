@@ -67,8 +67,8 @@ describe('NinaDwdCard', () => {
       element.hass = hass;
       element.setConfig(config);
       await element.updateComplete;
-      const card = element.shadowRoot?.querySelector<HaCard>('ha-card');
-      expect(card?.header).toBe('Current Warnings');
+      const cardHeader = element.shadowRoot?.querySelector('.card-header');
+      expect(cardHeader?.textContent?.trim()).toBe('Current Warnings');
     });
 
     it('should render "No Warnings" when no entities are on', async () => {

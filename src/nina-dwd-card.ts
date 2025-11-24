@@ -239,7 +239,8 @@ export class NinaDwdCard extends LitElement {
     }
 
     return html`
-      <ha-card .header=${this._config.title} class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+      <ha-card class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+        <div class="card-header">${this._config.title}</div>
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">
@@ -283,7 +284,8 @@ export class NinaDwdCard extends LitElement {
     if (isHidden && !editMode) return html``;
 
     return html`
-      <ha-card .header=${this._config.title} class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+      <ha-card class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+        <div class="card-header">${this._config.title}</div>
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">

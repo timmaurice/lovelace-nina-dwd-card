@@ -3,6 +3,17 @@
   padding: 16px;
 }
 
+.card-header {
+  color: var(--ha-card-header-color, --primary-text-color);
+  display: block;
+  font-family: var(--ha-card-header-font-family, inherit);
+  font-size: var(--nina-card-header-font-size, 20px);
+  font-weight: var(--nina-card-header-font-weight, 400);
+  letter-spacing: var(--ha-card-header-letter-spacing, normal);
+  line-height: var(--nina-card-header-line-height, 1.2);
+  padding: var(--nina-card-header-padding, 24px 16px 16px);
+}
+
 .mode-dark {
   --primary-text-color: #ffffff;
   --secondary-text-color: #b3b3b3;
@@ -13,12 +24,12 @@
   color: var(--primary-text-color);
 
   ha-expansion-panel {
-    background-color: transparent !important;
-    color: var(--primary-text-color);
     --ha-card-background: transparent;
     --card-background-color: transparent;
     --paper-card-background-color: transparent;
     --input-fill-color: rgba(255, 255, 255, 0.05);
+    background-color: transparent !important;
+    color: var(--primary-text-color);
   }
 }
 
@@ -57,10 +68,11 @@
 .headline {
   align-items: center;
   display: flex;
-  gap: 8px;
   font-size: 1.1em;
   font-weight: bold;
+  gap: 8px;
   margin-bottom: 4px;
+
   ha-icon {
     flex-shrink: 0;
   }
@@ -113,36 +125,36 @@ ha-expansion-panel {
 }
 
 .clearfix::after {
+  clear: both;
   content: '';
   display: table;
-  clear: both;
 }
 
 .warnings-container::after {
+  clear: both;
   content: '';
   display: table;
-  clear: both;
 }
 
 .map-image-standalone {
   border-radius: var(--ha-card-border-radius, 4px);
   display: block;
-  width: 100%;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .map-image {
-  border-radius: var(--ha-card-border-radius, 4px); /* Apply border-radius */
-  float: right; /* Float the image to the right */
-  margin-left: 16px; /* Space between image and text */
-  margin-bottom: 8px; /* Space below the image */
-  max-width: 40%; /* Make the image smaller */
-  min-width: 120px; /* Ensure a minimum size */
-  shape-outside: margin-box; /* Allow text to flow around the image's shape */
+  border-radius: var(--ha-card-border-radius, 4px);
+  float: right;
+  margin-bottom: 8px;
+  margin-left: 16px;
+  max-width: 40%;
+  min-width: 120px;
+  shape-outside: margin-box;
 }
 
 .info-button ha-icon {
-  transform: translateY(-4px); /* Fine-tune vertical alignment of info icon */
+  transform: translateY(-4px);
 }
 
 hr {
