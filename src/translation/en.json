@@ -2,8 +2,13 @@
   "editor": {
     "groups": {
       "core": "Core Configuration",
-      "color_overrides": "Color Overrides",
+      "dwd_map": "DWD Map",
+      "display_options": "Display Options",
+      "theme": "Theme",
       "translation": "AI Translation"
+    },
+    "theme": {
+      "color_overrides": "Color Overrides"
     },
     "color_overrides": {
       "no_warning": "No Warning",
@@ -19,6 +24,7 @@
     "dwd_map_land": "DWD Warning Map (State)",
     "dwd_map_type": "DWD Map Type",
     "dwd_map_position": "DWD Map Position",
+    "map_pin_zone": "Map Pin Zone (BETA)",
     "hide_when_no_warnings": "Hide card when no warnings",
     "hide_on_level_below": "Hide warnings with a level below",
     "hide_instructions": "Hide recommended actions",
@@ -57,7 +63,8 @@
     "dwd_map_position_options": {
       "inside": "Inside first DWD warning",
       "above": "Above warnings",
-      "below": "Below warnings"
+      "below": "Below warnings",
+      "none": "Hidden"
     },
     "hide_on_level_below_options": {
       "moderate": "Moderate",

@@ -59,6 +59,8 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   max_warnings?: number;
   dwd_device?: string;
   dwd_map_land?: string;
+  map_pin_zone?: string;
+  debug_mode?: boolean;
   hide_when_no_warnings?: boolean;
   hide_instructions?: boolean;
   hide_footer?: boolean;

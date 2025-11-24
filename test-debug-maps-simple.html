@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NINA DWD Card - Simple Debug Map Padding</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+      }
+      .card-wrapper {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+      }
+      h2 {
+        margin: 0 0 12px 0;
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+      }
+      .instructions {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 16px;
+        margin-bottom: 30px;
+        border-radius: 4px;
+      }
+      .instructions h3 {
+        margin-top: 0;
+        color: #1976d2;
+      }
+      .instructions code {
+        background: #fff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+      }
+
+      /* Map container styles */
+      .map-container {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+      }
+      .map-image-standalone {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .map-pin {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+      }
+      .pin-icon {
+        width: 100%;
+        height: 100%;
+        background: #e53935;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .debug-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 20;
+      }
+      .debug-region {
+        position: absolute;
+        background: rgba(255, 0, 0, 0.2);
+        border: 1px dashed rgba(255, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        color: #c62828;
+        text-shadow: 0 0 3px white;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🗺️ NINA DWD Card - Simple Map Padding Debug</h1>
+
+    <div class="instructions">
+      <h3>Instructions:</h3>
+      <ul>
+        <li>Each map shows the debug overlay with padding regions</li>
+        <li>Red areas show the padding (top, bottom, left, right)</li>
+        <li>Red dot shows the approximate center of each state</li>
+        <li>Edit the padding values directly in this HTML file (search for "EDIT PADDING")</li>
+        <li>Refresh the page to see changes</li>
+      </ul>
+    </div>
+
+    <div class="container" id="maps-container"></div>
+
+    <script>
+      // Map data with padding values
+      // EDIT PADDING VALUES HERE:
+      const mapData = {
+        baw: {
+          name: 'Baden-Württemberg',
+          padding: { top: 11.4, bottom: 11.8, left: 8.8, right: 7 },
+          pin: { lat: 48.6616, lon: 9.3501 },
+        },
+        bay: {
+          name: 'Bayern',
+          padding: { top: 11.4, bottom: 12.8, left: 4, right: 3 },
+          pin: { lat: 48.7904, lon: 11.4979 },
+        },
+        bbb: {
+          name: 'Berlin, Brandenburg',
+          padding: { top: 16, bottom: 17.2, left: 5, right: 6.5 },
+          pin: { lat: 52.52, lon: 13.405 },
+        },
+        hes: {
+          name: 'Hessen',
+          padding: { top: 11.8, bottom: 6.5, left: 11.7, right: 13.5 },
+          pin: { lat: 50.1109, lon: 8.6821 },
+        },
+        mvp: {
+          name: 'Mecklenburg-Vorpommern',
+          padding: { top: 27.8, bottom: 30.0, left: 6.5, right: 8.5 },
+          pin: { lat: 53.6288, lon: 11.4148 },
+        },
+        nib: {
+          name: 'Niedersachsen, Bremen',
+          padding: { top: 22.1, bottom: 19.4, left: 5.5, right: 5.5 },
+          pin: { lat: 52.3759, lon: 9.732 },
+        },
+        nrw: {
+          name: 'Nordrhein-Westfalen',
+          padding: { top: 22.2, bottom: 19.0, left: 10.7, right: 10.3 },
+          pin: { lat: 51.4332, lon: 7.6616 },
+        },
+        rps: {
+          name: 'Rheinland-Pfalz, Saarland',
+          padding: { top: 10.9, bottom: 14.8, left: 10.5, right: 14.8 },
+          pin: { lat: 49.4521, lon: 7.7683 },
+        },
+        sac: {
+          name: 'Sachsen',
+          padding: { top: 27.8, bottom: 21.2, left: 5.8, right: 4.9 },
+          pin: { lat: 51.0504, lon: 13.7373 },
+        },
+        saa: {
+          name: 'Sachsen-Anhalt',
+          padding: { top: 12.8, bottom: 10.7, left: 10.5, right: 10.6 },
+          pin: { lat: 51.4969, lon: 11.9688 },
+        },
+        shh: {
+          name: 'Schleswig-Holstein, Hamburg',
+          padding: { top: 23, bottom: 20, left: 8.5, right: 5.5 },
+          pin: { lat: 54.3233, lon: 10.1228 },
+        },
+        thu: {
+          name: 'Thüringen',
+          padding: { top: 25.5, bottom: 22.0, left: 8.2, right: 7.8 },
+          pin: { lat: 50.9848, lon: 11.0299 },
+        },
+        de: {
+          name: 'Deutschland',
+          padding: { top: 8.8, bottom: 2, left: 5.2, right: 7.0 },
+          pin: { lat: 51.1657, lon: 10.4515 },
+        },
+      };
+
+      // Map bounds for each state (from map-data.ts)
+      const bounds = {
+        baw: { minLat: 47.5338, maxLat: 49.7914, minLon: 7.5114, maxLon: 10.4918 },
+        bay: { minLat: 47.2704, maxLat: 50.5645, minLon: 8.9772, maxLon: 13.835 },
+        bbb: { minLat: 51.3607, maxLat: 53.558, minLon: 11.2682, maxLon: 14.7647 },
+        hes: { minLat: 49.3948, maxLat: 51.654, minLon: 7.7732, maxLon: 10.234 },
+        mvp: { minLat: 53.1159, maxLat: 54.685, minLon: 10.5932, maxLon: 14.4123 },
+        nib: { minLat: 51.2954, maxLat: 53.8942, minLon: 6.6546, maxLon: 11.5977 },
+        nrw: { minLat: 50.3227, maxLat: 52.531, minLon: 5.866, maxLon: 9.4477 },
+        rps: { minLat: 48.9663, maxLat: 50.9404, minLon: 6.1174, maxLon: 8.5085 },
+        sac: { minLat: 50.1715, maxLat: 51.6831, minLon: 11.8723, maxLon: 15.0377 },
+        saa: { minLat: 50.938, maxLat: 53.0421, minLon: 10.5615, maxLon: 13.1866 },
+        shh: { minLat: 53.3591, maxLat: 55.0574, minLon: 7.8685, maxLon: 11.3132 },
+        thu: { minLat: 50.2042, maxLat: 51.6491, minLon: 9.8778, maxLon: 12.6532 },
+        de: { minLat: 47.2, maxLat: 55.1, minLon: 5.8, maxLon: 15.1 },
+      };
+
+      // Calculate pin position
+      function calculatePinPosition(stateCode, data) {
+        const stateBounds = bounds[stateCode];
+        const lat = data.pin.lat;
+        const lon = data.pin.lon;
+        const padding = data.padding;
+
+        const xNorm = (lon - stateBounds.minLon) / (stateBounds.maxLon - stateBounds.minLon);
+        const yNorm = (lat - stateBounds.minLat) / (stateBounds.maxLat - stateBounds.minLat);
+
+        const usableWidth = 100 - padding.left - padding.right;
+        const usableHeight = 100 - padding.top - padding.bottom;
+
+        const xPercent = padding.left + xNorm * usableWidth;
+        const yPercent = padding.top + (1 - yNorm) * usableHeight;
+
+        return { left: xPercent, top: yPercent };
+      }
+
+      // Generate HTML for each map
+      const container = document.getElementById('maps-container');
+      Object.keys(mapData).forEach((stateCode) => {
+        const data = mapData[stateCode];
+        const pinPos = calculatePinPosition(stateCode, data);
+        const timestamp = Date.now();
+
+        const html = `
+                <div class="card-wrapper">
+                    <h2>${data.name} (${stateCode})</h2>
+                    <div class="map-container">
+                        <img class="map-image-standalone" 
+                             alt="DWD Warning Map" 
+                             src="https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${stateCode}.png?${timestamp}">
+                        <div class="map-pin" style="left: ${pinPos.left}%; top: ${pinPos.top}%;">
+                            <div class="pin-icon"></div>
+                        </div>
+                        <div class="debug-overlay">
+                            <div class="debug-region" 
+                                 style="top: 0; left: 0; right: 0; height: ${data.padding.top}%;" 
+                                 title="Top Padding: ${data.padding.top}%">
+                                Top: ${data.padding.top}%
+                            </div>
+                            <div class="debug-region" 
+                                 style="bottom: 0; left: 0; right: 0; height: ${data.padding.bottom}%;" 
+                                 title="Bottom Padding: ${data.padding.bottom}%">
+                                Bottom: ${data.padding.bottom}%
+                            </div>
+                            <div class="debug-region" 
+                                 style="top: 0; bottom: 0; left: 0; width: ${data.padding.left}%;" 
+                                 title="Left Padding: ${data.padding.left}%">
+                                Left: ${data.padding.left}%
+                            </div>
+                            <div class="debug-region" 
+                                 style="top: 0; bottom: 0; right: 0; width: ${data.padding.right}%;" 
+                                 title="Right Padding: ${data.padding.right}%">
+                                Right: ${data.padding.right}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        container.innerHTML += html;
+      });
+
+      // Auto-refresh functionality
+      let lastModified = null;
+
+      async function checkForUpdates() {
+        try {
+          const response = await fetch(window.location.href, {
+            method: 'HEAD',
+            cache: 'no-cache',
+          });
+          const modified = response.headers.get('Last-Modified');
+
+          if (lastModified === null) {
+            lastModified = modified;
+          } else if (modified !== lastModified) {
+            console.log('File changed, reloading...');
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Error checking for updates:', error);
+        }
+      }
+
+      // Check for updates every 1 second
+      setInterval(checkForUpdates, 1000);
+      console.log('Auto-refresh enabled - page will reload when file is saved');
+    </script>
+  </body>
+</html>

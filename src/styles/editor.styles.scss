@@ -24,7 +24,21 @@
 
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 8px;
-  padding: 12px;
+  margin-top: 8px;
+}
+
+.color-overrides-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--card-background-color, #fff);
+  border-radius: 8px;
+}
+
+.section-header {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: var(--primary-text-color);
 }

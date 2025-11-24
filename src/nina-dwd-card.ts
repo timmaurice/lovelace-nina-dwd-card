@@ -4,6 +4,7 @@ import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning,
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { fireEvent, formatTime } from './utils';
 import { localize } from './localize';
+import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
 
 const SEVERITY_COLORS: Record<number, string> = {
@@ -96,15 +97,32 @@ export class NinaDwdCard extends LitElement {
           mapUrl &&
           index === firstDwdIndex &&
           this._config.dwd_map_position !== 'above' &&
-          this._config.dwd_map_position !== 'below'
-            ? html`<img class="map-image" src=${mapUrl} alt="DWD Warning Map" />`
+          this._config.dwd_map_position !== 'below' &&
+          this._config.dwd_map_position !== 'none'
+            ? html`<div class="map-container">
+                <img class="map-image" src=${mapUrl} alt="DWD Warning Map" />
+                ${(() => {
+                  const pinStyle = this._calculatePinStyle();
+                  return pinStyle
+                    ? html`<div class="map-pin" style=${pinStyle}>
+                        <div class="pin-icon"></div>
+                      </div>`
+                    : '';
+                })()}
+              </div>`
             : ''}
           <div class="headline" style="color: ${this._getWarningColor(warning)}">
             <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
           <div class="description">${unsafeHTML(description)}</div>
-          ${'level' in warning && mapUrl ? html`<div class="clearfix"></div>` : ''}
+          ${'level' in warning &&
+          mapUrl &&
+          this._config.dwd_map_position !== 'above' &&
+          this._config.dwd_map_position !== 'below' &&
+          this._config.dwd_map_position !== 'none'
+            ? html`<div class="clearfix"></div>`
+            : ''}
           ${!this._config.hide_instructions && instruction
             ? html` <ha-expansion-panel outlined>
                 <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
@@ -206,14 +224,106 @@ export class NinaDwdCard extends LitElement {
     return `${mapUrl}?${timestamp}`;
   }
 
+  private _renderDebugOverlay(mapData: MapData): TemplateResult {
+    const { padding, bounds } = mapData;
+    return html`
+      <div class="debug-overlay">
+        <div
+          class="debug-region"
+          style="top: 0; left: 0; right: 0; height: ${padding.top}%;"
+          title="Top Padding: ${padding.top}%"
+        >
+          Top: ${padding.top}%
+        </div>
+        <div
+          class="debug-region"
+          style="bottom: 0; left: 0; right: 0; height: ${padding.bottom}%;"
+          title="Bottom Padding: ${padding.bottom}%"
+        >
+          Bottom: ${padding.bottom}%
+        </div>
+        <div
+          class="debug-region"
+          style="top: 0; bottom: 0; left: 0; width: ${padding.left}%;"
+          title="Left Padding: ${padding.left}%"
+        >
+          Left: ${padding.left}%
+        </div>
+        <div
+          class="debug-region"
+          style="top: 0; bottom: 0; right: 0; width: ${padding.right}%;"
+          title="Right Padding: ${padding.right}%"
+        >
+          Right: ${padding.right}%
+        </div>
+        <div class="debug-info">
+          <div><strong>Map Bounds:</strong></div>
+          <div>N: ${bounds.maxLat}°</div>
+          <div>S: ${bounds.minLat}°</div>
+          <div>E: ${bounds.maxLon}°</div>
+          <div>W: ${bounds.minLon}°</div>
+        </div>
+      </div>
+    `;
+  }
+
+  private _calculatePinStyle(): string {
+    const mapLand = this._config.dwd_map_land;
+    const mapData = mapLand ? MAP_DATA[mapLand] : undefined;
+
+    let lat: number | undefined;
+    let lon: number | undefined;
+
+    // If a zone entity is configured, try to get coordinates from it
+    if (this._config.map_pin_zone) {
+      const zoneState = this.hass.states[this._config.map_pin_zone];
+      if (zoneState) {
+        lat = zoneState.attributes.latitude;
+        lon = zoneState.attributes.longitude;
+      }
+    }
+
+    if (!mapData || lat === undefined || lon === undefined) {
+      return '';
+    }
+
+    const { bounds, padding } = mapData;
+    const xNorm = (lon - bounds.minLon) / (bounds.maxLon - bounds.minLon);
+    const yNorm = (lat - bounds.minLat) / (bounds.maxLat - bounds.minLat);
+
+    const usableWidth = 100 - padding.left - padding.right;
+    const usableHeight = 100 - padding.top - padding.bottom;
+
+    const xPercent = padding.left + xNorm * usableWidth;
+    const yPercent = padding.top + (1 - yNorm) * usableHeight;
+
+    return `left: ${xPercent}%; top: ${yPercent}%;`;
+  }
+
   private _renderMap(
     position: 'above' | 'below',
     mapUrl: string | undefined,
     hasDwdWarnings: boolean,
   ): TemplateResult | string {
-    return mapUrl && hasDwdWarnings && this._config.dwd_map_position === position
-      ? html`<img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />`
-      : '';
+    if (!mapUrl || !hasDwdWarnings || this._config.dwd_map_position !== position) {
+      return '';
+    }
+
+    const mapLand = this._config.dwd_map_land;
+    const mapData = mapLand ? MAP_DATA[mapLand] : undefined;
+    const pinStyle = this._calculatePinStyle();
+
+    return html`
+      <div class="map-container">
+        <img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />
+        ${pinStyle
+          ? html`<div class="map-pin" style=${pinStyle}>
+              <div class="pin-icon"></div>
+            </div>`
+          : ''}
+        ${this._config.debug_mode && mapData ? this._renderDebugOverlay(mapData) : ''}
+      </div>
+    `;
   }
 
   private _renderSeparateView(
@@ -240,7 +350,7 @@ export class NinaDwdCard extends LitElement {
 
     return html`
       <ha-card class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
-        <div class="card-header">${this._config.title}</div>
+        ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">
@@ -285,7 +395,7 @@ export class NinaDwdCard extends LitElement {
 
     return html`
       <ha-card class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
-        <div class="card-header">${this._config.title}</div>
+        ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">

@@ -1,9 +1,14 @@
 {
   "editor": {
     "groups": {
-      "core": "Grundeinstellungen",
-      "color_overrides": "Farben überschreiben",
+      "core": "Grundkonfiguration",
+      "dwd_map": "DWD-Karte",
+      "display_options": "Anzeigeoptionen",
+      "theme": "Design",
       "translation": "KI-Übersetzung"
+    },
+    "theme": {
+      "color_overrides": "Farbüberschreibungen"
     },
     "color_overrides": {
       "no_warning": "Keine Warnung",
@@ -19,6 +24,7 @@
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
     "dwd_map_type": "DWD Kartentyp",
     "dwd_map_position": "DWD Kartenposition",
+    "map_pin_zone": "Kartenmarkierung Zone (BETA)",
     "hide_when_no_warnings": "Dashboard-Karte ausblenden, wenn keine Warnungen vorliegen",
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
@@ -57,7 +63,8 @@
     "dwd_map_position_options": {
       "inside": "Innerhalb der ersten DWD-Warnung",
       "above": "Über den Warnungen",
-      "below": "Unter den Warnungen"
+      "below": "Unter den Warnungen",
+      "none": "Ausgeblendet"
     },
     "hide_on_level_below_options": {
       "moderate": "Moderate",

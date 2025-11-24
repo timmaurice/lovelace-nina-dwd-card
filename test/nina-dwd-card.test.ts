@@ -23,6 +23,22 @@ const createMockHass = (): HomeAssistant =>
     entities: {},
     devices: {},
     callWS: vi.fn(),
+    config: {
+      latitude: 52.52,
+      longitude: 13.4,
+      elevation: 34,
+      unit_system: {
+        length: 'km',
+        mass: 'kg',
+        temperature: '°C',
+        volume: 'L',
+      },
+      location_name: 'Home',
+      time_zone: 'Europe/Berlin',
+      components: [],
+      version: '2024.1.0',
+      whitelist_external_dirs: [],
+    },
   }) as unknown as HomeAssistant;
 
 describe('NinaDwdCard', () => {
@@ -239,6 +255,62 @@ describe('NinaDwdCard', () => {
       expect(mapImage?.src).toContain('warnungen_gemeinde_map_hes.png');
       // Check that it's not the inline image
       expect(element.shadowRoot?.querySelector<HTMLImageElement>('.map-image')).toBeNull();
+    });
+
+    it('should render the map pin when coordinates are available', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+      config.map_pin_zone = 'zone.home';
+      // A DWD warning must be active for the map to be rendered.
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      hass.states['zone.home'] = {
+        state: 'zoning',
+        attributes: {
+          latitude: 50.1109,
+          longitude: 8.6821,
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const pin = element.shadowRoot?.querySelector('.map-pin');
+      expect(pin).not.toBeNull();
+    });
+
+    it('should render debug overlay when debug_mode is enabled', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+      config.debug_mode = true;
+      // A DWD warning must be active for the map to be rendered.
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const overlay = element.shadowRoot?.querySelector('.debug-overlay');
+      expect(overlay).not.toBeNull();
+      expect(overlay?.querySelectorAll('.debug-region').length).toBe(4);
     });
 
     it('should render instruction accordion when available', async () => {

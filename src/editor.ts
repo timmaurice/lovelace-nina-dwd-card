@@ -5,19 +5,8 @@ import { localize, translations } from './localize';
 import { fireEvent } from './utils';
 import editorStyles from './styles/editor.styles.scss';
 
-// `separate_advance_warnings` is missing from the schema, I'll add it.
+// Schema organized into logical sections
 const SCHEMA = [
-  {
-    name: 'max_warnings',
-    selector: {
-      number: {
-        min: 1,
-        max: 20,
-        step: 1,
-        mode: 'box',
-      },
-    },
-  },
   {
     name: 'dwd_device',
     selector: {
@@ -26,81 +15,93 @@ const SCHEMA = [
       },
     },
   },
+  // DWD Map Settings
   {
-    name: 'dwd_map_type',
-    selector: { select: { mode: 'dropdown' } },
-  },
-  {
-    name: 'dwd_map_land',
-    selector: { select: { mode: 'dropdown' } },
-  },
-  {
-    name: 'dwd_map_position',
-    selector: { select: { mode: 'dropdown' } },
-  },
-  {
-    name: 'hide_on_level_below',
-    selector: { select: { mode: 'dropdown' } },
-  },
-  {
-    name: 'hide_instructions',
-    selector: { boolean: {} },
-  },
-  {
-    name: 'hide_footer',
-    selector: { boolean: {} },
-  },
-  {
-    name: 'separate_advance_warnings',
-    selector: { boolean: {} },
-  },
-  {
-    name: 'hide_when_no_warnings',
-    selector: { boolean: {} },
-  },
-  {
-    name: 'theme_mode',
-    selector: { select: { mode: 'dropdown' } },
-  },
-];
-
-const TRANSLATION_SCHEMA = [
-  { name: 'enable_translation', selector: { boolean: {} } },
-  {
-    name: 'translation_target',
-    selector: {
-      select: {
-        options: [
-          { value: 'English', label: 'English' },
-          { value: 'Swiss German', label: 'Schwiizerdütsch (Swiss German)' },
-          { value: 'Bavarian', label: 'Bairisch (Bavarian)' },
-          { value: 'Austrian German', label: 'Österreichisches Deutsch (Austrian German)' },
-          { value: 'Swabian', label: 'Schwäbisch (Swabian)' },
-          { value: 'Low German', label: 'Plattdütsch (Low German)' },
-          { value: 'Kölsch', label: 'Kölsch (Cologne Dialect)' },
-          { value: 'Wäller Platt', label: 'Wäller Platt (Westerwald Dialect)' },
-          { value: 'French', label: 'Français (French)' },
-          { value: 'Spanish', label: 'Español (Spanish)' },
-          { value: 'Italian', label: 'Italiano (Italian)' },
-          { value: 'Dutch', label: 'Nederlands (Dutch)' },
-          { value: 'Polish', label: 'Polski (Polish)' },
-          { value: 'Portuguese', label: 'Português (Portuguese)' },
-          { value: 'Czech', label: 'Čeština (Czech)' },
-          { value: 'Danish', label: 'Dansk (Danish)' },
-          { value: 'Swedish', label: 'Svenska (Swedish)' },
-          { value: 'Norwegian', label: 'Norsk (Norwegian)' },
-          { value: 'Finnish', label: 'Suomi (Finnish)' },
-        ],
+    type: 'expandable',
+    title: 'groups.dwd_map',
+    schema: [
+      {
+        name: 'dwd_map_type',
+        selector: { select: { mode: 'dropdown' } },
       },
-    },
-  },
-  {
-    name: 'ai_entity_id',
-    selector: {
-      entity: {
-        domain: 'ai_task',
+      {
+        name: 'dwd_map_land',
+        selector: { select: { mode: 'dropdown' } },
       },
-    },
+      {
+        name: 'map_pin_zone',
+        selector: { entity: { domain: 'zone' } },
+      },
+      {
+        name: 'dwd_map_position',
+        selector: { select: { mode: 'dropdown' } },
+      },
+    ],
+  },
+  // Display Options
+  {
+    type: 'expandable',
+    title: 'groups.display_options',
+    schema: [
+      {
+        name: 'max_warnings',
+        selector: {
+          number: {
+            min: 1,
+            max: 20,
+            step: 1,
+            mode: 'box',
+          },
+        },
+      },
+      {
+        name: 'hide_on_level_below',
+        selector: { select: { mode: 'dropdown' } },
+      },
+      {
+        name: 'hide_instructions',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'hide_footer',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'separate_advance_warnings',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'hide_when_no_warnings',
+        selector: { boolean: {} },
+      },
+    ],
+  },
+  // Theme
+  {
+    type: 'expandable',
+    title: 'groups.theme',
+    schema: [
+      {
+        name: 'theme_mode',
+        selector: { select: { mode: 'dropdown' } },
+      },
+    ],
+  },
+  // AI Translation
+  {
+    type: 'expandable',
+    title: 'groups.translation',
+    schema: [
+      { name: 'enable_translation', selector: { boolean: {} } },
+      {
+        name: 'translation_target',
+        selector: { select: { mode: 'dropdown' } },
+      },
+      {
+        name: 'ai_entity_id',
+        selector: { entity: { domain: 'ai_task' } },
+      },
+    ],
   },
 ];
 
@@ -214,15 +215,18 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
       },
     ];
 
-    // Filter schema based on current config
-    let filteredSchema = [...SCHEMA];
-    if (!this._config.dwd_device) {
-      filteredSchema = filteredSchema.filter((item) => item.name !== 'dwd_map_type');
-      filteredSchema = filteredSchema.filter((item) => item.name !== 'dwd_map_position');
-      filteredSchema = filteredSchema.filter((item) => item.name !== 'dwd_map_land');
-    }
-    // Dynamically build the schema for the form to include translatable dropdown options.
-    const schema = filteredSchema.map((item) => {
+    // Helper function to process schema items recursively
+    const processSchemaItem = (item: Record<string, unknown>): Record<string, unknown> => {
+      // Handle expandable sections
+      if (item.type === 'expandable' && Array.isArray(item.schema)) {
+        return {
+          ...item,
+          title: typeof item.title === 'string' ? localize(this.hass, `editor.${item.title}`) : item.title,
+          schema: (item.schema as Record<string, unknown>[]).map(processSchemaItem),
+        };
+      }
+
+      // Handle regular items
       if (item.name === 'dwd_map_land') {
         // The options for dwd_map_land depend on dwd_map_type
         return {
@@ -262,7 +266,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
           selector: {
             select: {
               mode: 'dropdown',
-              options: ['inside', 'above', 'below'].map((key) => ({
+              options: ['inside', 'above', 'below', 'none'].map((key) => ({
                 value: key,
                 label: localize(this.hass, `editor.dwd_map_position_options.${key}`),
               })),
@@ -295,8 +299,58 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
           },
         };
       }
+      if (item.name === 'translation_target') {
+        return {
+          ...item,
+          selector: {
+            select: {
+              mode: 'dropdown',
+              options: [
+                { value: 'English', label: 'English' },
+                { value: 'Swiss German', label: 'Schwiizerdütsch (Swiss German)' },
+                { value: 'Bavarian', label: 'Bairisch (Bavarian)' },
+                { value: 'Austrian German', label: 'Österreichisches Deutsch (Austrian German)' },
+                { value: 'Swabian', label: 'Schwäbisch (Swabian)' },
+                { value: 'Low German', label: 'Plattdütsch (Low German)' },
+                { value: 'Kölsch', label: 'Kölsch (Cologne Dialect)' },
+                { value: 'Wäller Platt', label: 'Wäller Platt (Westerwald Dialect)' },
+                { value: 'French', label: 'Français (French)' },
+                { value: 'Spanish', label: 'Español (Spanish)' },
+                { value: 'Italian', label: 'Italiano (Italian)' },
+                { value: 'Dutch', label: 'Nederlands (Dutch)' },
+                { value: 'Polish', label: 'Polski (Polish)' },
+                { value: 'Czech', label: 'Čeština (Czech)' },
+                { value: 'Danish', label: 'Dansk (Danish)' },
+              ],
+            },
+          },
+        };
+      }
       return item;
-    });
+    };
+
+    // Helper function to filter schema items recursively
+    const filterSchemaItem = (item: Record<string, unknown>): boolean => {
+      // Handle expandable sections
+      if (item.type === 'expandable' && Array.isArray(item.schema)) {
+        // Filter the nested schema
+        const filteredSchema = (item.schema as Record<string, unknown>[]).filter(filterSchemaItem);
+        item.schema = filteredSchema;
+        // Keep the section if it has any items left
+        return filteredSchema.length > 0;
+      }
+
+      // Handle regular items - only show map_pin_zone if map type is 'state'
+      if (item.name === 'map_pin_zone') {
+        return this._config.dwd_map_type === 'state';
+      }
+
+      return true;
+    };
+
+    // Filter and process schema
+    const filteredSchema = SCHEMA.filter(filterSchemaItem);
+    const schema = filteredSchema.map(processSchemaItem);
 
     return html`
       <ha-card>
@@ -329,7 +383,8 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               @value-changed=${this._valueChanged}
             ></ha-form>
           </div>
-          <ha-expansion-panel .header=${localize(this.hass, 'component.nina-dwd-card.editor.groups.color_overrides')}>
+          <div class="color-overrides-section">
+            <div class="section-header">${localize(this.hass, 'component.nina-dwd-card.editor.theme.color_overrides')}</div>
             <div class="color-grid">
               <ha-textfield
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.no_warning')}
@@ -367,16 +422,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
                 placeholder="#880e4f"
               ></ha-textfield>
             </div>
-          </ha-expansion-panel>
-          <ha-expansion-panel .header=${localize(this.hass, 'component.nina-dwd-card.editor.groups.translation')}>
-            <ha-form
-              .schema=${TRANSLATION_SCHEMA}
-              .hass=${this.hass}
-              .data=${this._config}
-              .computeLabel=${(s: { name: string }) => localize(this.hass, `component.nina-dwd-card.editor.${s.name}`)}
-              @value-changed=${this._valueChanged}
-            ></ha-form>
-          </ha-expansion-panel>
+          </div>
         </div>
       </ha-card>
     `;
@@ -391,7 +437,9 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
   private _titleChanged(ev: Event): void {
     const target = ev.target as HTMLInputElement;
     this._config = { ...this._config, title: target.value };
-    fireEvent(this, 'config-changed', { config: this._config });
+    fireEvent(this, 'config-changed', {
+      config: this._config,
+    });
   }
 
   static styles = css`
