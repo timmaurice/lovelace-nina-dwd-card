@@ -384,7 +384,9 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
             ></ha-form>
           </div>
           <div class="color-overrides-section">
-            <div class="section-header">${localize(this.hass, 'component.nina-dwd-card.editor.theme.color_overrides')}</div>
+            <div class="section-header">
+              ${localize(this.hass, 'component.nina-dwd-card.editor.theme.color_overrides')}
+            </div>
             <div class="color-grid">
               <ha-textfield
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.no_warning')}

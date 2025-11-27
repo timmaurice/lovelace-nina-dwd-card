@@ -6,6 +6,7 @@ import { fireEvent, formatTime } from './utils';
 import { localize } from './localize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
+import { EVENT_CODE_ICONS } from './icons';
 
 const SEVERITY_COLORS: Record<number, string> = {
   0: '#c5e566' /* No Warning */,
@@ -112,7 +113,7 @@ export class NinaDwdCard extends LitElement {
               </div>`
             : ''}
           <div class="headline" style="color: ${this._getWarningColor(warning)}">
-            <ha-icon icon="mdi:alert-circle-outline"></ha-icon> ${headline}
+            <ha-icon icon=${this._getWarningIcon(warning)}></ha-icon> ${headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
           <div class="description">${unsafeHTML(description)}</div>
@@ -508,6 +509,7 @@ export class NinaDwdCard extends LitElement {
           start: stateObj.attributes[`warning_${i}_start`],
           end: stateObj.attributes[`warning_${i}_end`],
           instruction: stateObj.attributes[`warning_${i}_instruction`],
+          event: stateObj.attributes[`warning_${i}_event`],
         });
       } else {
         // Stop when we don't find a headline for the current index.
@@ -709,6 +711,16 @@ export class NinaDwdCard extends LitElement {
   private _getWarningKey(warning: NinaWarning | DwdWarning): string {
     // Use a combination of properties to create a unique key for translation caching
     return `${warning.headline}|${warning.description}|${warning.instruction || ''}`;
+  }
+
+  private _getWarningIcon(warning: NinaWarning | DwdWarning): string {
+    if ('event' in warning && warning.event !== undefined) {
+      const icon = EVENT_CODE_ICONS[warning.event];
+      if (icon) {
+        return icon;
+      }
+    }
+    return 'mdi:alert-circle-outline';
   }
 
   static styles = css`

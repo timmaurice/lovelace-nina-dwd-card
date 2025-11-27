@@ -51,6 +51,7 @@ export interface DwdWarning {
   start: string;
   end: string;
   instruction?: string;
+  event?: number;
 }
 
 export interface NinaDwdCardConfig extends LovelaceCardConfig {
