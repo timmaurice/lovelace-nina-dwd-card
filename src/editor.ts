@@ -36,6 +36,10 @@ const SCHEMA = [
         name: 'dwd_map_position',
         selector: { select: { mode: 'dropdown' } },
       },
+      {
+        name: 'show_map_without_warnings',
+        selector: { boolean: {} },
+      },
     ],
   },
   // Display Options
@@ -166,7 +170,24 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
       newConfig.dwd_map_land = newConfig.dwd_map_type === 'region' ? 'SchilderD' : 'de'; // 'SchilderD' is Germany for region
     }
 
+    // If dwd_map_position changed to 'inside' or 'none', clear show_map_without_warnings
+    if (
+      'dwd_map_position' in changedValue &&
+      (newConfig.dwd_map_position === 'inside' || newConfig.dwd_map_position === 'none')
+    ) {
+      delete newConfig.show_map_without_warnings;
+    }
+
+    // Update internal config first
+    this._config = newConfig;
+
     fireEvent(this, 'config-changed', { config: newConfig });
+
+    // Request update to re-render when map position or type changes (to show/hide conditional fields)
+    if ('dwd_map_position' in changedValue || 'dwd_map_type' in changedValue) {
+      // Use async to ensure the update happens after the event
+      setTimeout(() => this.requestUpdate(), 0);
+    }
   }
 
   protected render(): TemplateResult {
@@ -215,142 +236,125 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
       },
     ];
 
-    // Helper function to process schema items recursively
-    const processSchemaItem = (item: Record<string, unknown>): Record<string, unknown> => {
-      // Handle expandable sections
-      if (item.type === 'expandable' && Array.isArray(item.schema)) {
-        return {
-          ...item,
-          title: typeof item.title === 'string' ? localize(this.hass, `editor.${item.title}`) : item.title,
-          schema: (item.schema as Record<string, unknown>[]).map(processSchemaItem),
-        };
-      }
+    // Helper function to process and filter schema items recursively
+    const computeSchema = (items: Record<string, unknown>[]): Record<string, unknown>[] => {
+      return items.reduce(
+        (acc, item) => {
+          // Filtering Logic
+          if (item.name === 'map_pin_zone' && this._config.dwd_map_type !== 'state') {
+            return acc;
+          }
+          if (
+            item.name === 'show_map_without_warnings' &&
+            this._config.dwd_map_position !== 'above' &&
+            this._config.dwd_map_position !== 'below'
+          ) {
+            return acc;
+          }
 
-      // Handle regular items
-      if (item.name === 'dwd_map_land') {
-        // The options for dwd_map_land depend on dwd_map_type
-        return {
-          ...item,
-          selector: {
-            select: {
-              mode: 'dropdown',
-              clearable: true,
-              options: Object.keys(langOptions)
-                .filter((key) => key !== 'none')
-                .map((key) => ({
+          // Create a shallow copy to avoid mutation
+          const newItem = { ...item };
+
+          // Handle expandable sections
+          if (newItem.type === 'expandable' && Array.isArray(newItem.schema)) {
+            const nestedSchema = computeSchema(newItem.schema as Record<string, unknown>[]);
+            // If nested schema is empty, don't include this section
+            if (nestedSchema.length === 0) {
+              return acc;
+            }
+            newItem.schema = nestedSchema;
+            newItem.title =
+              typeof newItem.title === 'string' ? localize(this.hass, `editor.${newItem.title}`) : newItem.title;
+
+            acc.push(newItem);
+            return acc;
+          }
+
+          // Apply Transformations (Options, Translations)
+          if (newItem.name === 'dwd_map_land') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                clearable: true,
+                options: Object.keys(langOptions)
+                  .filter((key) => key !== 'none')
+                  .map((key) => ({
+                    value: key,
+                    label: langOptions[key],
+                  })),
+              },
+            };
+          } else if (newItem.name === 'dwd_map_type') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                clearable: false,
+                options: ['state', 'region'].map((key) => ({
                   value: key,
-                  label: langOptions[key],
+                  label: localize(this.hass, `editor.dwd_map_type_options.${key}`),
                 })),
-            },
-          },
-        };
-      }
-      if (item.name === 'dwd_map_type') {
-        return {
-          ...item,
-          selector: {
-            select: {
-              mode: 'dropdown',
-              clearable: false,
-              options: ['state', 'region'].map((key) => ({
-                value: key,
-                label: localize(this.hass, `editor.dwd_map_type_options.${key}`),
-              })),
-            },
-          },
-        };
-      }
-      if (item.name === 'dwd_map_position') {
-        return {
-          ...item,
-          selector: {
-            select: {
-              mode: 'dropdown',
-              options: ['inside', 'above', 'below', 'none'].map((key) => ({
-                value: key,
-                label: localize(this.hass, `editor.dwd_map_position_options.${key}`),
-              })),
-            },
-          },
-        };
-      }
-      if (item.name === 'hide_on_level_below') {
-        return {
-          ...item,
-          selector: {
-            select: {
-              mode: 'dropdown',
-              options: hideLevelOptions,
-            },
-          },
-        };
-      }
-      if (item.name === 'theme_mode') {
-        return {
-          ...item,
-          selector: {
-            select: {
-              mode: 'dropdown',
-              options: ['auto', 'light', 'dark'].map((key) => ({
-                value: key,
-                label: localize(this.hass, `editor.theme_mode_options.${key}`),
-              })),
-            },
-          },
-        };
-      }
-      if (item.name === 'translation_target') {
-        return {
-          ...item,
-          selector: {
-            select: {
-              mode: 'dropdown',
-              options: [
-                { value: 'English', label: 'English' },
-                { value: 'Swiss German', label: 'Schwiizerdütsch (Swiss German)' },
-                { value: 'Bavarian', label: 'Bairisch (Bavarian)' },
-                { value: 'Austrian German', label: 'Österreichisches Deutsch (Austrian German)' },
-                { value: 'Swabian', label: 'Schwäbisch (Swabian)' },
-                { value: 'Low German', label: 'Plattdütsch (Low German)' },
-                { value: 'Kölsch', label: 'Kölsch (Cologne Dialect)' },
-                { value: 'Wäller Platt', label: 'Wäller Platt (Westerwald Dialect)' },
-                { value: 'French', label: 'Français (French)' },
-                { value: 'Spanish', label: 'Español (Spanish)' },
-                { value: 'Italian', label: 'Italiano (Italian)' },
-                { value: 'Dutch', label: 'Nederlands (Dutch)' },
-                { value: 'Polish', label: 'Polski (Polish)' },
-                { value: 'Czech', label: 'Čeština (Czech)' },
-                { value: 'Danish', label: 'Dansk (Danish)' },
-              ],
-            },
-          },
-        };
-      }
-      return item;
+              },
+            };
+          } else if (newItem.name === 'dwd_map_position') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                options: ['inside', 'above', 'below', 'none'].map((key) => ({
+                  value: key,
+                  label: localize(this.hass, `editor.dwd_map_position_options.${key}`),
+                })),
+              },
+            };
+          } else if (newItem.name === 'hide_on_level_below') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                options: hideLevelOptions,
+              },
+            };
+          } else if (newItem.name === 'theme_mode') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                options: ['auto', 'light', 'dark'].map((key) => ({
+                  value: key,
+                  label: localize(this.hass, `editor.theme_mode_options.${key}`),
+                })),
+              },
+            };
+          } else if (newItem.name === 'translation_target') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                options: [
+                  { value: 'English', label: 'English' },
+                  { value: 'Swiss German', label: 'Schwiizerdütsch (Swiss German)' },
+                  { value: 'Bavarian', label: 'Bairisch (Bavarian)' },
+                  { value: 'Austrian German', label: 'Österreichisches Deutsch (Austrian German)' },
+                  { value: 'Swabian', label: 'Schwäbisch (Swabian)' },
+                  { value: 'Low German', label: 'Plattdütsch (Low German)' },
+                  { value: 'Kölsch', label: 'Kölsch (Cologne Dialect)' },
+                  { value: 'Wäller Platt', label: 'Wäller Platt (Westerwald Dialect)' },
+                  { value: 'French', label: 'Français (French)' },
+                  { value: 'Spanish', label: 'Español (Spanish)' },
+                  { value: 'Italian', label: 'Italiano (Italian)' },
+                  { value: 'Dutch', label: 'Nederlands (Dutch)' },
+                  { value: 'Polish', label: 'Polski (Polish)' },
+                  { value: 'Czech', label: 'Čeština (Czech)' },
+                  { value: 'Danish', label: 'Dansk (Danish)' },
+                ],
+              },
+            };
+          }
+
+          acc.push(newItem);
+          return acc;
+        },
+        [] as Record<string, unknown>[],
+      );
     };
 
-    // Helper function to filter schema items recursively
-    const filterSchemaItem = (item: Record<string, unknown>): boolean => {
-      // Handle expandable sections
-      if (item.type === 'expandable' && Array.isArray(item.schema)) {
-        // Filter the nested schema
-        const filteredSchema = (item.schema as Record<string, unknown>[]).filter(filterSchemaItem);
-        item.schema = filteredSchema;
-        // Keep the section if it has any items left
-        return filteredSchema.length > 0;
-      }
-
-      // Handle regular items - only show map_pin_zone if map type is 'state'
-      if (item.name === 'map_pin_zone') {
-        return this._config.dwd_map_type === 'state';
-      }
-
-      return true;
-    };
-
-    // Filter and process schema
-    const filteredSchema = SCHEMA.filter(filterSchemaItem);
-    const schema = filteredSchema.map(processSchemaItem);
+    const schema = computeSchema(SCHEMA);
 
     return html`
       <ha-card>

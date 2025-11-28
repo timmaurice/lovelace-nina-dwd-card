@@ -306,7 +306,11 @@ export class NinaDwdCard extends LitElement {
     mapUrl: string | undefined,
     hasDwdWarnings: boolean,
   ): TemplateResult | string {
-    if (!mapUrl || !hasDwdWarnings || this._config.dwd_map_position !== position) {
+    if (
+      !mapUrl ||
+      (!hasDwdWarnings && !this._config.show_map_without_warnings) ||
+      this._config.dwd_map_position !== position
+    ) {
       return '';
     }
 
@@ -343,7 +347,14 @@ export class NinaDwdCard extends LitElement {
     const processedAdvance = this._processWarnings(advanceRaw);
 
     const isHidden =
-      processedCurrent.length === 0 && processedAdvance.length === 0 && this._config.hide_when_no_warnings;
+      processedCurrent.length === 0 &&
+      processedAdvance.length === 0 &&
+      this._config.hide_when_no_warnings &&
+      !(
+        this._config.show_map_without_warnings &&
+        mapUrl &&
+        (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
+      );
 
     if (isHidden && !editMode) {
       return html``;
@@ -390,7 +401,14 @@ export class NinaDwdCard extends LitElement {
   ): TemplateResult {
     const allWarningsRaw = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
     const processedWarnings = this._processWarnings(allWarningsRaw);
-    const isHidden = processedWarnings.length === 0 && this._config.hide_when_no_warnings;
+    const isHidden =
+      processedWarnings.length === 0 &&
+      this._config.hide_when_no_warnings &&
+      !(
+        this._config.show_map_without_warnings &&
+        mapUrl &&
+        (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
+      );
 
     if (isHidden && !editMode) return html``;
 
@@ -509,7 +527,7 @@ export class NinaDwdCard extends LitElement {
           start: stateObj.attributes[`warning_${i}_start`],
           end: stateObj.attributes[`warning_${i}_end`],
           instruction: stateObj.attributes[`warning_${i}_instruction`],
-          event: stateObj.attributes[`warning_${i}_event`],
+          event: stateObj.attributes[`warning_${i}_type`],
         });
       } else {
         // Stop when we don't find a headline for the current index.

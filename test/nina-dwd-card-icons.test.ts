@@ -76,7 +76,7 @@ describe('NinaDwdCard Icons', () => {
         warning_1_description: 'Heavy thunderstorm.',
         warning_1_level: 2,
         warning_1_start: new Date().toISOString(),
-        warning_1_event: 31, // Thunderstorm event code
+        warning_1_type: 31, // Thunderstorm event code
       },
     };
     element.hass = hass;
@@ -126,7 +126,7 @@ describe('NinaDwdCard Icons', () => {
         warning_1_description: 'Rare event.',
         warning_1_level: 2,
         warning_1_start: new Date().toISOString(),
-        warning_1_event: 999, // Unmapped event code
+        warning_1_type: 999, // Unmapped event code
       },
     };
     element.hass = hass;

@@ -25,6 +25,7 @@
     "dwd_map_type": "DWD Map Type",
     "dwd_map_position": "DWD Map Position",
     "map_pin_zone": "Map Pin Zone (BETA)",
+    "show_map_without_warnings": "Show map even without warnings",
     "hide_when_no_warnings": "Hide card when no warnings",
     "hide_on_level_below": "Hide warnings with a level below",
     "hide_instructions": "Hide recommended actions",

@@ -13,13 +13,14 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 
 - Displays current and advance warnings from [NINA](https://www.home-assistant.io/integrations/nina/) and [DWD](https://www.home-assistant.io/integrations/dwd_weather_warnings/) integrations.
 - Consolidates warnings from multiple NINA binary sensors and DWD sensors into a single card.
+- **Context-aware icons**: DWD warnings display specific icons based on warning type (frost, thunderstorm, wind, rain, snow, etc.).
 - Color-coded headlines based on warning severity/level.
 - Intelligently deduplicates warnings, prioritizing the original DWD alert over NINA rebroadcasts.
 - Automatically sorts warnings by severity, displaying the most critical alerts first.
 - Formats warning start and end times for readability.
 - Shows a "No Warnings" message when no active warnings are present.
 - Displays sender information for NINA warnings.
-- Designed to be fully customizable through the visual editor (editor UI is a future enhancement).
+- Designed to be fully customizable through the visual editor.
 
 ## AI Translation
 
@@ -96,6 +97,7 @@ You can now add the card to your dashboard.
 | `dwd_map_land`              | string  | `de`         | The German state ("Bundesland") or region to display the DWD warning map for.                                               |
 | `dwd_map_position`          | string  | `inside`     | The position of the DWD map. Can be `inside` the first warning, `above` or `below` all warnings, or `none` to hide the map. |
 | `map_pin_zone` **(BETA)**   | string  | **Optional** | Entity ID of a Home Assistant zone (e.g., `zone.home`) to mark on the map. Only available when `dwd_map_type` is `state`.   |
+| `show_map_without_warnings` | boolean | `false`      | Shows the map even when there are no warnings. Only works when `dwd_map_position` is `above` or `below`.                    |
 | `hide_on_level_below`       | number  | `(none)`     | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate).                                 |
 | `hide_instructions`         | boolean | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
 | `hide_footer`               | boolean | `false`      | Hides the footer containing the source and info icon.                                                                       |
@@ -118,6 +120,7 @@ dwd_device: 1234567890abcdef1234567890abcdef # Device ID for your DWD integratio
 dwd_map_land: de # For Germany
 dwd_map_type: state
 dwd_map_position: above
+show_map_without_warnings: true # Keep map visible even without warnings
 hide_on_level_below: 2 # Filters out warnings with level "Minor" (1)
 hide_instructions: false
 hide_footer: false
