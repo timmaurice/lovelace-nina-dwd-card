@@ -62,6 +62,7 @@ describe('NinaDwdCard', () => {
   afterEach(() => {
     document.body.removeChild(element);
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   describe('Initialization and Configuration', () => {

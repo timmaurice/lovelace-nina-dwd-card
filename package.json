@@ -34,7 +34,7 @@
     "eslint-plugin-wc": "^3.0.2",
     "jsdom": "^27.2.0",
     "lit": "^3.3.1",
-    "prettier": "^3.7.1",
+    "prettier": "^3.7.3",
     "rollup": "^4.53.3",
     "rollup-plugin-lit-css": "^6.0.0",
     "sass": "^1.94.2",

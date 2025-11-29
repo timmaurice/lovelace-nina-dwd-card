@@ -7,6 +7,7 @@ import { localize } from './localize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
 import { EVENT_CODE_ICONS } from './icons';
+import { TranslationCache } from './translation-cache';
 
 const SEVERITY_COLORS: Record<number, string> = {
   0: '#c5e566' /* No Warning */,
@@ -28,6 +29,7 @@ export class NinaDwdCard extends LitElement {
   @state() private _translations: Record<string, { headline: string; description: string; instruction: string }> = {};
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
+  private _cache = new TranslationCache();
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -633,7 +635,23 @@ export class NinaDwdCard extends LitElement {
 
     for (const warning of warnings) {
       const key = this._getWarningKey(warning);
+
+      // Check in-memory state first
       if (this._translations[key]) {
+        continue;
+      }
+
+      // Check persistent cache
+      const cached = this._cache.get(targetLanguage, key);
+      if (cached) {
+        this._translations = {
+          ...this._translations,
+          [key]: {
+            headline: cached.headline,
+            description: cached.description,
+            instruction: cached.instruction,
+          },
+        };
         continue;
       }
 
@@ -702,14 +720,20 @@ export class NinaDwdCard extends LitElement {
 
             if (translation) {
               const translationObj = translation as Record<string, string>;
+              const result = {
+                headline: translationObj.headline || warning.headline,
+                description: translationObj.description || warning.description,
+                instruction: translationObj.instruction || warning.instruction || '',
+              };
+
+              // Update in-memory state
               this._translations = {
                 ...this._translations,
-                [key]: {
-                  headline: translationObj.headline || warning.headline,
-                  description: translationObj.description || warning.description,
-                  instruction: translationObj.instruction || warning.instruction || '',
-                },
+                [key]: result,
               };
+
+              // Save to persistent cache
+              this._cache.set(targetLanguage, key, result);
             }
           } catch (e) {
             console.warn('NINA-DWD: Failed to parse translation JSON', e);
