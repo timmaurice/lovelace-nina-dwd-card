@@ -588,6 +588,41 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(2);
     });
+    it('should suppress "Amtliche Warnung vor" when configured', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche Warnung vor Sturm',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, suppress_warning_text: true });
+      await element.updateComplete;
+
+      const headline = element.shadowRoot?.querySelector('.headline');
+      expect(headline?.textContent?.trim()).toBe('Sturm');
+    });
+
+    it('should suppress "Amtliche Unwetterwarnung vor" when configured', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche Unwetterwarnung vor Starkregen',
+          severity: 'Severe',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, suppress_warning_text: true });
+      await element.updateComplete;
+
+      const headline = element.shadowRoot?.querySelector('.headline');
+      expect(headline?.textContent?.trim()).toBe('Starkregen');
+    });
   });
   describe('Translation', () => {
     it('should call the translation service when enabled', async () => {

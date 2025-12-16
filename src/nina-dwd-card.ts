@@ -2,7 +2,7 @@ import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { fireEvent, formatTime } from './utils';
+import { fireEvent, formatTime, WARNING_PREFIX_REGEX } from './utils';
 import { localize } from './localize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
@@ -89,9 +89,13 @@ export class NinaDwdCard extends LitElement {
     return html`${warnings.map((warning, index) => {
       const key = this._getWarningKey(warning);
       const translation = this._translations[key];
-      const headline = translation?.headline || warning.headline;
+      let headline = translation?.headline || warning.headline;
       const description = translation?.description || warning.description;
       const instruction = translation?.instruction || warning.instruction;
+
+      if (this._config.suppress_warning_text) {
+        headline = headline.replace(WARNING_PREFIX_REGEX, '');
+      }
 
       return html`
         ${index > 0 ? html`<hr />` : ''}
@@ -663,8 +667,13 @@ export class NinaDwdCard extends LitElement {
       this._translationInProgress.add(key);
 
       try {
+        let headlineForTranslation = warning.headline;
+        if (this._config.suppress_warning_text) {
+          headlineForTranslation = headlineForTranslation.replace(WARNING_PREFIX_REGEX, '');
+        }
+
         const prompt = DEFAULT_AI_PROMPT.replace('{{ target_language }}', targetLanguage)
-          .replace('{{ headline }}', warning.headline)
+          .replace('{{ headline }}', headlineForTranslation)
           .replace('{{ description }}', warning.description)
           .replace('{{ instruction }}', warning.instruction || '');
 

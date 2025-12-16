@@ -78,6 +78,10 @@ const SCHEMA = [
         name: 'hide_when_no_warnings',
         selector: { boolean: {} },
       },
+      {
+        name: 'suppress_warning_text',
+        selector: { boolean: {} },
+      },
     ],
   },
   // Theme
