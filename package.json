@@ -35,11 +35,11 @@
     "jsdom": "^27.3.0",
     "lit": "^3.3.1",
     "prettier": "^3.7.4",
-    "rollup": "^4.53.5",
+    "rollup": "^4.54.0",
     "rollup-plugin-lit-css": "^6.0.0",
-    "sass": "^1.97.0",
+    "sass": "^1.97.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.0",
+    "typescript-eslint": "^8.50.1",
     "vitest": "^4.0.16"
   },
   "dependencies": {
