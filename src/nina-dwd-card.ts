@@ -349,7 +349,7 @@ export class NinaDwdCard extends LitElement {
     const currentRaw = [...ninaWarnings, ...dwdCurrentWarnings];
     const advanceRaw = [...dwdAdvanceWarnings];
 
-    const processedCurrent = this._processWarnings(currentRaw, advanceRaw);
+    const processedCurrent = this._processWarnings(currentRaw);
     const processedAdvance = this._processWarnings(advanceRaw);
 
     const isHidden =
@@ -544,27 +544,20 @@ export class NinaDwdCard extends LitElement {
     return warnings;
   }
 
-  private _processWarnings(
-    warningsToProcess: (NinaWarning | DwdWarning)[],
-    otherWarnings?: (NinaWarning | DwdWarning)[],
-  ): (NinaWarning | DwdWarning)[] {
-    let warnings = warningsToProcess;
-
-    // If there are active DWD warnings, filter out any NINA warnings that are from DWD.
-    if ((otherWarnings && otherWarnings.length > 0) || warnings.some((w) => 'level' in w)) {
-      warnings = warnings.filter((warning) => !('sender' in warning) || warning.sender !== 'Deutscher Wetterdienst');
-    }
+  private _processWarnings(warningsToProcess: (NinaWarning | DwdWarning)[]): (NinaWarning | DwdWarning)[] {
+    const warnings = warningsToProcess;
 
     const deduplicatedWarnings = new Map<string, NinaWarning | DwdWarning>();
     const getWarningKey = (headline: string, start: string | undefined): string => {
+      const cleanHeadline = headline.replace(WARNING_PREFIX_REGEX, '').toLowerCase().trim();
       if (!start) {
-        return `${headline.toLowerCase().trim()}|${Math.random()}`;
+        return `${cleanHeadline}|${Math.random()}`;
       }
       try {
         const startDate = new Date(start);
-        return `${headline.toLowerCase().trim()}|${startDate.toISOString().slice(0, 13)}`;
+        return `${cleanHeadline}|${startDate.toISOString().slice(0, 13)}`;
       } catch {
-        return `${headline.toLowerCase().trim()}|invalid_date`;
+        return `${cleanHeadline}|invalid_date`;
       }
     };
 

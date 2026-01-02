@@ -365,7 +365,7 @@ describe('NinaDwdCard', () => {
   });
 
   describe('Filtering and Deduplication', () => {
-    it('should filter NINA warnings from DWD if a DWD device is active', async () => {
+    it('should show both NINA and DWD warnings even if NINA sender is DWD (if not exact duplicate)', async () => {
       // NINA warning from DWD
       hass.states['binary_sensor.nina_warnung_1'] = {
         state: 'on',
@@ -375,7 +375,7 @@ describe('NinaDwdCard', () => {
           start: new Date().toISOString(),
         },
       };
-      // An active DWD warning
+      // An active DWD warning with different headline
       hass.entities['sensor.berlin_current_warning_level'] = {
         entity_id: 'sensor.berlin_current_warning_level',
         device_id: 'mock-dwd-device',
@@ -390,8 +390,7 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
 
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
-      expect(warnings?.length).toBe(1);
-      expect(warnings?.[0].querySelector('.headline')?.textContent).toContain('DWD Test Warning');
+      expect(warnings?.length).toBe(2);
     });
 
     it('should deduplicate identical warnings, prioritizing NINA', async () => {
@@ -415,6 +414,28 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
       expect(warnings?.[0].querySelector('.sender')?.textContent).toContain('Civil Protection');
+    });
+
+    it('should deduplicate warnings with different prefixes', async () => {
+      const startTime = new Date().toISOString();
+      // NINA warning with prefix
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { headline: 'Amtliche Warnung vor STURMBÖEN', sender: 'Civil Protection', start: startTime },
+      };
+      // DWD warning without prefix (or different prefix)
+      hass.entities['sensor.berlin_current_warning_level'] = { device_id: 'mock-dwd-device' };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: { warning_1_headline: 'STURMBÖEN', warning_1_start: startTime },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
     });
 
     it('should filter out warnings below the specified hide_on_level_below threshold', async () => {
