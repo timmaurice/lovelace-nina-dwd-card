@@ -196,7 +196,10 @@ export class NinaDwdCard extends LitElement {
 
   private _getThemeSettings(): { isDarkMode: boolean; modeClass: string } {
     const themeMode = this._config.theme_mode || 'auto';
-    const isDarkMode = themeMode === 'auto' ? !!this.hass.themes?.darkMode : themeMode === 'dark';
+    if (themeMode === 'auto') {
+      return { isDarkMode: !!this.hass.themes?.darkMode, modeClass: '' };
+    }
+    const isDarkMode = themeMode === 'dark';
     const modeClass = isDarkMode ? 'mode-dark' : 'mode-light';
     return { isDarkMode, modeClass };
   }

@@ -996,4 +996,94 @@ describe('NinaDwdCard', () => {
       expect(warning?.innerHTML).toContain('Nested Translated Headline');
     });
   });
+
+  describe('Theme Modes', () => {
+    it('should apply .mode-light class when theme_mode is light', async () => {
+      element.hass = hass;
+      element.setConfig({ ...config, theme_mode: 'light' });
+      await element.updateComplete;
+
+      const card = element.shadowRoot?.querySelector('ha-card');
+      expect(card?.classList.contains('mode-light')).toBe(true);
+      expect(card?.classList.contains('mode-dark')).toBe(false);
+    });
+
+    it('should apply .mode-dark class when theme_mode is dark', async () => {
+      element.hass = hass;
+      element.setConfig({ ...config, theme_mode: 'dark' });
+      await element.updateComplete;
+
+      const card = element.shadowRoot?.querySelector('ha-card');
+      expect(card?.classList.contains('mode-dark')).toBe(true);
+      expect(card?.classList.contains('mode-light')).toBe(false);
+    });
+
+    it('should not apply mode classes when theme_mode is auto', async () => {
+      // theme_mode: 'auto' is the default in getStubConfig, but let's be explicit
+      element.hass = hass;
+      element.setConfig({ ...config, theme_mode: 'auto' });
+      await element.updateComplete;
+
+      const card = element.shadowRoot?.querySelector('ha-card');
+      expect(card?.classList.contains('mode-light')).toBe(false);
+      expect(card?.classList.contains('mode-dark')).toBe(false);
+    });
+
+    it('should apply mode class to lightbox', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, theme_mode: 'dark' });
+      await element.updateComplete;
+
+      // Open lightbox
+      const mapContainer = element.shadowRoot?.querySelector('.map-container') as HTMLElement;
+      mapContainer.click();
+      await element.updateComplete;
+
+      const lightbox = element.shadowRoot?.querySelector('.lightbox');
+      expect(lightbox?.classList.contains('mode-dark')).toBe(true);
+    });
+
+    it('should not apply mode class to lightbox when theme_mode is auto', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, theme_mode: 'auto' });
+      await element.updateComplete;
+
+      // Open lightbox
+      const mapContainer = element.shadowRoot?.querySelector('.map-container') as HTMLElement;
+      mapContainer.click();
+      await element.updateComplete;
+
+      const lightbox = element.shadowRoot?.querySelector('.lightbox');
+      expect(lightbox?.classList.contains('mode-dark')).toBe(false);
+      expect(lightbox?.classList.contains('mode-light')).toBe(false);
+    });
+  });
 });
