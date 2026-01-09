@@ -136,6 +136,44 @@ ha-expansion-panel {
   display: table;
 }
 
+.lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  cursor: pointer;
+
+  .lightbox-content {
+    max-width: 95%;
+    max-height: 95%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      background-color: var(--ha-card-background, #fff); /* Better visibility for transparent PNG maps */
+      padding: 10px;
+      border-radius: 4px;
+      box-shadow: 0 4px 60px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  &.mode-dark {
+    .lightbox-content img {
+      background-color: var(--ha-card-background, #1c1c1c); /* Dark background for transparent PNG maps in dark mode */
+    }
+  }
+}
+
 .map-image-standalone {
   border-radius: var(--ha-card-border-radius, 4px);
   display: block;

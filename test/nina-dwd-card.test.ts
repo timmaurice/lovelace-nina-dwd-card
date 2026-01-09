@@ -361,6 +361,47 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
       footer = element.shadowRoot?.querySelector('.footer');
       expect(footer).toBeNull();
+      expect(footer).toBeNull();
+    });
+
+    it('should open and close the lightbox when clicking the map', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Map Test Warning',
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      // Ensure map is rendered and not lightbox initially
+      const mapContainer = element.shadowRoot?.querySelector('.map-container') as HTMLElement;
+      expect(mapContainer).not.toBeNull();
+      expect(element.shadowRoot?.querySelector('.lightbox')).toBeNull();
+
+      // Click to open lightbox
+      mapContainer.click();
+      await element.updateComplete;
+
+      const lightbox = element.shadowRoot?.querySelector('.lightbox') as HTMLElement;
+      expect(lightbox).not.toBeNull();
+      expect(lightbox.querySelector('img')).not.toBeNull();
+
+      // Click to close lightbox
+      lightbox.click();
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.lightbox')).toBeNull();
     });
   });
 
@@ -582,6 +623,37 @@ describe('NinaDwdCard', () => {
           warning_1_level: 2, // Marks it as DWD
           warning_1_start: '2026-01-08T18:00:00',
           warning_1_end: '2026-01-09T10:00:00',
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
+
+    it('should merge warnings with same content even if formatting (line breaks, spaces) differs', async () => {
+      // Warning 1: Simple formatting
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'SCHNEEFALL',
+          description: 'Line A. Line B.',
+          instruction: 'Action 1. Action 2.',
+          start: new Date().toISOString(),
+        },
+      };
+
+      // Warning 2: Different formatting (line breaks and extra spaces)
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'SCHNEEFALL',
+          description: 'Line A.\nLine B.',
+          instruction: 'Action 1.    Action 2. ',
+          start: new Date().toISOString(),
         },
       };
 

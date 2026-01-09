@@ -26,6 +26,7 @@ export class NinaDwdCard extends LitElement {
   @state() private _config!: NinaDwdCardConfig;
   @state() private _editMode = false;
   @state() private _warnings: (NinaWarning | DwdWarning)[] = [];
+  @state() private _showLargeMap = false;
   @state() private _translations: Record<string, { headline: string; description: string; instruction: string }> = {};
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
@@ -106,7 +107,7 @@ export class NinaDwdCard extends LitElement {
           this._config.dwd_map_position !== 'above' &&
           this._config.dwd_map_position !== 'below' &&
           this._config.dwd_map_position !== 'none'
-            ? html`<div class="map-container">
+            ? html`<div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
                 <img class="map-image" src=${mapUrl} alt="DWD Warning Map" />
                 ${(() => {
                   const pinStyle = this._calculatePinStyle();
@@ -166,8 +167,20 @@ export class NinaDwdCard extends LitElement {
 
     const editMode = this._editMode;
 
+    let cardContent: TemplateResult;
+
     if (this._config.separate_advance_warnings) {
-      return this._renderSeparateView(
+      cardContent = this._renderSeparateView(
+        ninaWarnings,
+        dwdCurrentWarnings,
+        dwdAdvanceWarnings,
+        modeClass,
+        editMode,
+        mapUrl,
+        renderMap,
+      );
+    } else {
+      cardContent = this._renderCombinedView(
         ninaWarnings,
         dwdCurrentWarnings,
         dwdAdvanceWarnings,
@@ -178,29 +191,18 @@ export class NinaDwdCard extends LitElement {
       );
     }
 
-    return this._renderCombinedView(
-      ninaWarnings,
-      dwdCurrentWarnings,
-      dwdAdvanceWarnings,
-      modeClass,
-      editMode,
-      mapUrl,
-      renderMap,
-    );
+    return html` ${cardContent} ${this._showLargeMap && mapUrl ? this._renderLightbox(mapUrl, modeClass) : ''} `;
   }
 
   private _getThemeSettings(): { isDarkMode: boolean; modeClass: string } {
     const themeMode = this._config.theme_mode || 'auto';
-    if (themeMode === 'auto') {
-      return { isDarkMode: !!this.hass.themes?.darkMode, modeClass: '' };
-    }
-    const isDarkMode = themeMode === 'dark';
+    const isDarkMode = themeMode === 'auto' ? !!this.hass.themes?.darkMode : themeMode === 'dark';
     const modeClass = isDarkMode ? 'mode-dark' : 'mode-light';
     return { isDarkMode, modeClass };
   }
 
   private _collectWarnings() {
-    const ninaWarnings = this._getNinaWarnings();
+    const ninaWarnings: NinaWarning[] = this._getNinaWarnings();
     let dwdCurrentWarnings: DwdWarning[] = [];
     let dwdAdvanceWarnings: DwdWarning[] = [];
 
@@ -325,7 +327,7 @@ export class NinaDwdCard extends LitElement {
     const pinStyle = this._calculatePinStyle();
 
     return html`
-      <div class="map-container">
+      <div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
         <img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />
         ${pinStyle
           ? html`<div class="map-pin" style=${pinStyle}>
@@ -335,6 +337,23 @@ export class NinaDwdCard extends LitElement {
         ${this._config.debug_mode && mapData ? this._renderDebugOverlay(mapData) : ''}
       </div>
     `;
+  }
+
+  private _renderLightbox(mapUrl: string, modeClass: string): TemplateResult {
+    return html`
+      <div class="lightbox ${modeClass}" @click=${() => (this._showLargeMap = false)}>
+        <div class="lightbox-content">
+          <img src=${mapUrl} alt="Enlarged DWD Warning Map" />
+        </div>
+      </div>
+    `;
+  }
+
+  private _handleDialogClick(e: Event) {
+    // Close on backdrop click (dialog element itself)
+    if (e.target === e.currentTarget) {
+      this._showLargeMap = false;
+    }
   }
 
   private _renderSeparateView(
@@ -577,11 +596,18 @@ export class NinaDwdCard extends LitElement {
       // We can use a simple O(N^2) approach or sort/map. Given small N usually, simple loop is fine.
       const mergedInGroup: (NinaWarning | DwdWarning)[] = [];
 
+      const normalize = (str: string | undefined): string => {
+        return (str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      };
+
       for (const warning of group) {
         let merged = false;
         for (const existing of mergedInGroup) {
           // Check if content matches
-          if (warning.description === existing.description && warning.instruction === existing.instruction) {
+          if (
+            normalize(warning.description) === normalize(existing.description) &&
+            normalize(warning.instruction) === normalize(existing.instruction)
+          ) {
             // MERGE
             // Check if one is DWD and the other is NINA. Prefer DWD to keep icons.
             const isDwd = (w: NinaWarning | DwdWarning) => 'event' in w || ('level' in w && w.level !== undefined);
