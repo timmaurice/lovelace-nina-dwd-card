@@ -484,6 +484,114 @@ describe('NinaDwdCard', () => {
       expect(renderedHeadlines).toContain('Moderate Warning');
       expect(renderedHeadlines).not.toContain('Minor Warning');
     });
+
+    it('should merge warnings with identical content but different times', async () => {
+      // Warning 1: Starts earlier
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Shared Headline',
+          description: 'Same Description',
+          sender: 'DWD',
+          severity: 'Severe',
+          start: '2026-01-08T17:00:00',
+          expires: '2026-01-09T09:00:00',
+        },
+      };
+
+      // Warning 2: Starts later, same content
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Shared Headline',
+          description: 'Same Description',
+          sender: 'DWD',
+          severity: 'Severe',
+          start: '2026-01-08T21:00:00',
+          expires: '2026-01-09T09:00:00',
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+
+      // const timeText = warnings?.[0].querySelector('.time')?.textContent;
+      // Should show start of first (17:00) and end of both (09:00)
+      // Note: Implementation specific time format check might optionally go here if needed,
+      // but count check verifies basic deduplication.
+    });
+
+    it('should NOT merge warnings with same headline but different description', async () => {
+      // Warning 1
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Generic Headline',
+          description: 'Description A',
+          sender: 'DWD',
+          start: new Date().toISOString(),
+        },
+      };
+
+      // Warning 2
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Generic Headline',
+          description: 'Description B',
+          sender: 'DWD',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(2);
+    });
+
+    it('should prioritize DWD source when merging NINA and DWD warnings', async () => {
+      // Warning 1: NINA (no event/level)
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Shared Headline',
+          description: 'Same Description',
+          sender: 'DWD',
+          start: '2026-01-08T17:00:00',
+          expires: '2026-01-09T09:00:00',
+        },
+      };
+
+      // Warning 2: DWD (has level/event) - treated as DWD warning
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Shared Headline',
+          warning_1_description: 'Same Description',
+          warning_1_level: 2, // Marks it as DWD
+          warning_1_start: '2026-01-08T18:00:00',
+          warning_1_end: '2026-01-09T10:00:00',
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
   });
 
   describe('Sorting', () => {

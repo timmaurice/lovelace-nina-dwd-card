@@ -15,7 +15,9 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Consolidates warnings from multiple NINA binary sensors and DWD sensors into a single card.
 - **Context-aware icons**: DWD warnings display specific icons based on warning type (frost, thunderstorm, wind, rain, snow, etc.).
 - Color-coded headlines based on warning severity/level.
-- Intelligently deduplicates warnings, prioritizing the original DWD alert over NINA rebroadcasts.
+- Intelligently deduplicates warnings:
+  - Prioritizes the original DWD alert over NINA rebroadcasts.
+  - Merges identical warnings (same headline, description, instruction) with different time ranges into a single entry with the earliest start and latest end time.
 - Automatically sorts warnings by severity, displaying the most critical alerts first.
 - Formats warning start and end times for readability.
 - Shows a "No Warnings" message when no active warnings are present.

@@ -547,28 +547,117 @@ export class NinaDwdCard extends LitElement {
   private _processWarnings(warningsToProcess: (NinaWarning | DwdWarning)[]): (NinaWarning | DwdWarning)[] {
     const warnings = warningsToProcess;
 
-    const deduplicatedWarnings = new Map<string, NinaWarning | DwdWarning>();
-    const getWarningKey = (headline: string, start: string | undefined): string => {
-      const cleanHeadline = headline.replace(WARNING_PREFIX_REGEX, '').toLowerCase().trim();
-      if (!start) {
-        return `${cleanHeadline}|${Math.random()}`;
-      }
-      try {
-        const startDate = new Date(start);
-        return `${cleanHeadline}|${startDate.toISOString().slice(0, 13)}`;
-      } catch {
-        return `${cleanHeadline}|invalid_date`;
-      }
+    const deduplicatedWarnings = new Map<string, (NinaWarning | DwdWarning)[]>();
+
+    const getWarningKey = (headline: string): string => {
+      return headline.replace(WARNING_PREFIX_REGEX, '').toLowerCase().trim();
     };
 
+    // Group by headline
     for (const warning of warnings) {
-      const key = getWarningKey(warning.headline, warning.start);
+      const key = getWarningKey(warning.headline);
       if (!deduplicatedWarnings.has(key)) {
-        deduplicatedWarnings.set(key, warning);
+        deduplicatedWarnings.set(key, []);
       }
+      deduplicatedWarnings.get(key)!.push(warning);
     }
 
-    let processed = Array.from(deduplicatedWarnings.values())
+    const processedWarnings: (NinaWarning | DwdWarning)[] = [];
+
+    // Process each group
+    for (const group of deduplicatedWarnings.values()) {
+      // If only one warning in group, just use it
+      if (group.length === 1) {
+        processedWarnings.push(group[0]);
+        continue;
+      }
+
+      // If multiple, try to merge identical content
+      // We need to compare description and instruction
+      // We can use a simple O(N^2) approach or sort/map. Given small N usually, simple loop is fine.
+      const mergedInGroup: (NinaWarning | DwdWarning)[] = [];
+
+      for (const warning of group) {
+        let merged = false;
+        for (const existing of mergedInGroup) {
+          // Check if content matches
+          if (warning.description === existing.description && warning.instruction === existing.instruction) {
+            // MERGE
+            // Check if one is DWD and the other is NINA. Prefer DWD to keep icons.
+            const isDwd = (w: NinaWarning | DwdWarning) => 'event' in w || ('level' in w && w.level !== undefined);
+
+            // If existing is NINA and new is DWD, swap them so we keep DWD as base
+            if (!isDwd(existing) && isDwd(warning)) {
+              // Swap content of existing with warning
+              const tempStart = existing.start;
+              const tempEnd = 'expires' in existing ? (existing as NinaWarning).expires : (existing as DwdWarning).end;
+
+              // Copy properties from DWD warning to existing object (effectively morphing it)
+              Object.assign(existing, warning);
+
+              // Restore/Merge times
+              const existingStartMs = tempStart ? new Date(tempStart).getTime() : 0;
+              const newStartMs = warning.start ? new Date(warning.start).getTime() : 0;
+              if (existingStartMs < newStartMs && tempStart) {
+                existing.start = tempStart;
+              }
+
+              const getEndTime = (w: NinaWarning | DwdWarning) => {
+                if ('expires' in w) return w.expires ? new Date(w.expires).getTime() : 0;
+                if ('end' in w) return w.end ? new Date(w.end).getTime() : 0;
+                return 0;
+              };
+
+              // We already assigned warning to existing, so existing now has DWD end time.
+              // Check if the original NINA end time was later
+              const originalEndMs = tempEnd ? new Date(tempEnd).getTime() : 0;
+              const newEndMs = getEndTime(warning);
+
+              if (originalEndMs > newEndMs && tempEnd) {
+                if ('expires' in existing) (existing as NinaWarning).expires = tempEnd;
+                // DWD uses 'end', we just converted it to DWD type effectively, so use 'end'
+                else (existing as DwdWarning).end = tempEnd;
+              }
+            } else {
+              // Normal merge (existing is base)
+              // Update start time to be the earliest
+              const existingStart = existing.start ? new Date(existing.start).getTime() : 0;
+              const newStart = warning.start ? new Date(warning.start).getTime() : 0;
+              if (newStart < existingStart) {
+                existing.start = warning.start;
+              }
+
+              // Update end/expires time to be the latest
+              const getEndTime = (w: NinaWarning | DwdWarning) => {
+                if ('expires' in w) return w.expires ? new Date(w.expires).getTime() : 0;
+                if ('end' in w) return w.end ? new Date(w.end).getTime() : 0;
+                return 0;
+              };
+
+              const existingEnd = getEndTime(existing);
+              const newEnd = getEndTime(warning);
+
+              if (newEnd > existingEnd) {
+                if ('expires' in existing && 'expires' in warning) {
+                  (existing as NinaWarning).expires = (warning as NinaWarning).expires;
+                } else if ('end' in existing && 'end' in warning) {
+                  (existing as DwdWarning).end = (warning as DwdWarning).end;
+                }
+              }
+            }
+
+            merged = true;
+            break;
+          }
+        }
+        if (!merged) {
+          mergedInGroup.push({ ...warning }); // Clone to avoid mutating original if needed, though we mutate the clone above
+        }
+      }
+      processedWarnings.push(...mergedInGroup);
+    }
+
+    let processed = processedWarnings
       .sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a))
       .filter((warning) => {
         if (!this._config.hide_on_level_below) return true;
