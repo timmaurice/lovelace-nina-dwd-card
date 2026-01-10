@@ -695,6 +695,77 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
     });
+
+    it('should merge warnings with same content even if they have different periods/newlines (reproduction)', async () => {
+      // Warning 1: NINA style from prompt
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor STRENGEM FROST',
+          description:
+            'Es tritt strenger Frost zwischen -8 °C und -13 °C auf. Vor allem bei Aufklaren über Schnee sinken die Temperaturen auf Werte bis -15 °C.',
+          instruction:
+            'Gefahr durch: \n · mögliche erhebliche Frostschäden\n · Unterkühlung bei längerem Aufenthalt im Freien\n · einfrierende Wasserleitungen\n\nHandlungsempfehlungen: \n · Frostschutzmaßnahmen ergreifen, z.B. Pflanzen abdecken oder Wasser aus Außenleitungen ablassen\n · längere Aufenthalte im Freien vermeiden',
+          start: new Date().toISOString(),
+        },
+      };
+
+      // Warning 2: DWD style from prompt
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor STRENGEM FROST',
+          warning_1_description:
+            'Es tritt strenger Frost zwischen -8 °C und -13 °C auf. Vor allem bei Aufklaren über Schnee sinken die Temperaturen auf Werte bis -15 °C.',
+          warning_1_instruction:
+            'Gefahr durch: mögliche erhebliche Frostschäden; Unterkühlung bei längerem Aufenthalt im Freien; einfrierende Wasserleitungen. Handlungsempfehlungen: Frostschutzmaßnahmen ergreifen, z.B. Pflanzen abdecken oder Wasser aus Außenleitungen ablassen; längere Aufenthalte im Freien vermeiden',
+          warning_1_level: 2,
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
+
+    it('should NOT compare instructions if hide_instructions is enabled', async () => {
+      // Warning 1
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Shared Headline',
+          description: 'Same Description',
+          instruction: 'Instruction A',
+          start: new Date().toISOString(),
+        },
+      };
+
+      // Warning 2
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Shared Headline',
+          description: 'Same Description',
+          instruction: 'Instruction B',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, hide_instructions: true });
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
   });
 
   describe('Sorting', () => {

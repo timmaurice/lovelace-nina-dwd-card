@@ -600,17 +600,18 @@ export class NinaDwdCard extends LitElement {
       const mergedInGroup: (NinaWarning | DwdWarning)[] = [];
 
       const normalize = (str: string | undefined): string => {
-        return (str || '').replace(/[·•]/g, '').replace(/;/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        return (str || '').replace(/[·•.]/g, '').replace(/;/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
       };
 
       for (const warning of group) {
         let merged = false;
         for (const existing of mergedInGroup) {
           // Check if content matches
-          if (
-            normalize(warning.description) === normalize(existing.description) &&
-            normalize(warning.instruction) === normalize(existing.instruction)
-          ) {
+          const descriptionMatch = normalize(warning.description) === normalize(existing.description);
+          const instructionMatch =
+            this._config.hide_instructions || normalize(warning.instruction) === normalize(existing.instruction);
+
+          if (descriptionMatch && instructionMatch) {
             // MERGE
             // Check if one is DWD and the other is NINA. Prefer DWD to keep icons.
             const isDwd = (w: NinaWarning | DwdWarning) => 'event' in w || ('level' in w && w.level !== undefined);
