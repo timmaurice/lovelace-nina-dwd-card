@@ -664,6 +664,37 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
     });
+
+    it('should merge warnings with same content even if formatting (bullets vs semicolons) differs', async () => {
+      // Warning 1: Uses semicolons
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'FROST',
+          description: 'Description.',
+          instruction: 'Action 1; Action 2; Action 3',
+          start: new Date().toISOString(),
+        },
+      };
+
+      // Warning 2: Uses bullets and newlines
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'FROST',
+          description: 'Description.',
+          instruction: 'Action 1\n · Action 2\n · Action 3',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
   });
 
   describe('Sorting', () => {

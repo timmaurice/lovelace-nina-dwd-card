@@ -600,7 +600,7 @@ export class NinaDwdCard extends LitElement {
       const mergedInGroup: (NinaWarning | DwdWarning)[] = [];
 
       const normalize = (str: string | undefined): string => {
-        return (str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        return (str || '').replace(/[·•]/g, '').replace(/;/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
       };
 
       for (const warning of group) {
