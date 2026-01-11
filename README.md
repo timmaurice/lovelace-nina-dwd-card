@@ -104,7 +104,7 @@ You can now add the card to your dashboard.
 | `hide_instructions`         | boolean | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
 | `hide_footer`               | boolean | `false`      | Hides the footer containing the source and info icon.                                                                       |
 | `separate_advance_warnings` | boolean | `false`      | Displays current warnings and advance warnings in separate sections.                                                        |
-| `suppress_warning_text`     | boolean | `false`      | Removes "Amtliche (Unwetter)warnung vor" from the headline.                                                                 |
+| `suppress_warning_text`     | boolean | `false`      | Removes \"Amtliche (Unwetter)warnung vor\" and \"VORABINFORMATION UNWETTER vor\" from the headline.                         |
 | `hide_when_no_warnings`     | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                             |
 | `theme_mode`                | string  | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
 | `color_overrides`           | object  | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |

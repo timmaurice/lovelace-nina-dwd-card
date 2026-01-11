@@ -1,7 +1,7 @@
 import { HomeAssistant, NinaWarning, DwdWarning } from './types';
 import { localize } from './localize';
 
-export const WARNING_PREFIX_REGEX = /^Amtliche (Unwetter)?warnung vor /i;
+export const WARNING_PREFIX_REGEX = /^(Amtliche (Unwetter)?warnung vor |VORABINFORMATION UNWETTER vor )/i;
 
 /**
  * Dispatches a custom event with an optional detail value.
