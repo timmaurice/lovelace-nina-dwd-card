@@ -105,6 +105,8 @@ You can now add the card to your dashboard.
 | `hide_footer`               | boolean | `false`      | Hides the footer containing the source and info icon.                                                                       |
 | `separate_advance_warnings` | boolean | `false`      | Displays current warnings and advance warnings in separate sections.                                                        |
 | `suppress_warning_text`     | boolean | `false`      | Removes \"Amtliche (Unwetter)warnung vor\" and \"VORABINFORMATION UNWETTER vor\" from the headline.                         |
+| `description_max_length`    | number  | `(none)`     | The maximum number of characters to display in the warning description.                                                     |
+| `font_size`                 | number  | `(none)`     | The font size for the card content in pixels.                                                                               |
 | `hide_when_no_warnings`     | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                             |
 | `theme_mode`                | string  | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
 | `color_overrides`           | object  | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |

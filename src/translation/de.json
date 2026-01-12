@@ -28,6 +28,8 @@
     "show_map_without_warnings": "Karte auch ohne Warnungen anzeigen",
     "hide_when_no_warnings": "Dashboard-Karte ausblenden, wenn keine Warnungen vorliegen",
     "suppress_warning_text": "'Amtliche Warnung vor' und 'Vorabinformation Unwetter vor' entfernen",
+    "description_max_length": "Maximale Länge der Beschreibung",
+    "font_size": "Schriftgröße",
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",

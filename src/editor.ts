@@ -63,6 +63,27 @@ const SCHEMA = [
         selector: { select: { mode: 'dropdown' } },
       },
       {
+        name: 'description_max_length',
+        selector: {
+          number: {
+            min: 10,
+            step: 1,
+            mode: 'box',
+          },
+        },
+      },
+      {
+        name: 'font_size',
+        selector: {
+          number: {
+            min: 10,
+            max: 30,
+            step: 1,
+            mode: 'box',
+          },
+        },
+      },
+      {
         name: 'hide_instructions',
         selector: { boolean: {} },
       },

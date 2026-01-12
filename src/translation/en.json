@@ -28,6 +28,8 @@
     "show_map_without_warnings": "Show map even without warnings",
     "hide_when_no_warnings": "Hide card when no warnings",
     "suppress_warning_text": "Suppress 'Amtliche Warnung vor' and 'Vorabinformation Unwetter vor'",
+    "description_max_length": "Max description length",
+    "font_size": "Font size",
     "hide_on_level_below": "Hide warnings with a level below",
     "hide_instructions": "Hide recommended actions",
     "hide_footer": "Hide footer with source and info icon",

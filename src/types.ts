@@ -80,6 +80,8 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   enable_translation?: boolean;
   translation_target?: string;
   ai_entity_id?: string;
+  description_max_length?: number;
+  font_size?: number;
 }
 
 export interface HomeAssistant {

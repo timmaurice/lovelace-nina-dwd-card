@@ -98,6 +98,11 @@ export class NinaDwdCard extends LitElement {
         headline = headline.replace(WARNING_PREFIX_REGEX, '');
       }
 
+      let processedDescription = description;
+      if (this._config.description_max_length && processedDescription.length > this._config.description_max_length) {
+        processedDescription = `${processedDescription.substring(0, this._config.description_max_length)}...`;
+      }
+
       return html`
         ${index > 0 ? html`<hr />` : ''}
         <div class="warning">
@@ -123,7 +128,7 @@ export class NinaDwdCard extends LitElement {
             <ha-icon icon=${this._getWarningIcon(warning)}></ha-icon> ${headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
-          <div class="description">${unsafeHTML(description)}</div>
+          <div class="description">${unsafeHTML(processedDescription)}</div>
           ${'level' in warning &&
           mapUrl &&
           this._config.dwd_map_position !== 'above' &&
@@ -384,12 +389,17 @@ export class NinaDwdCard extends LitElement {
         (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
       );
 
+    const cardStyle = `
+      ${isHidden && editMode ? 'opacity: 0.5;' : ''}
+      ${this._config.font_size ? `font-size: ${this._config.font_size}px;` : ''}
+    `;
+
     if (isHidden && !editMode) {
       return html``;
     }
 
     return html`
-      <ha-card class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+      <ha-card class=${modeClass} style=${cardStyle}>
         ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
         <div class="card-content">
           ${renderMap('above')}
@@ -429,6 +439,7 @@ export class NinaDwdCard extends LitElement {
   ): TemplateResult {
     const allWarningsRaw = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
     const processedWarnings = this._processWarnings(allWarningsRaw);
+
     const isHidden =
       processedWarnings.length === 0 &&
       this._config.hide_when_no_warnings &&
@@ -438,10 +449,15 @@ export class NinaDwdCard extends LitElement {
         (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
       );
 
+    const cardStyle = `
+      ${isHidden && editMode ? 'opacity: 0.5;' : ''}
+      ${this._config.font_size ? `font-size: ${this._config.font_size}px;` : ''}
+    `;
+
     if (isHidden && !editMode) return html``;
 
     return html`
-      <ha-card class=${modeClass} style=${isHidden && editMode ? 'opacity: 0.5;' : ''}>
+      <ha-card class=${modeClass} style=${cardStyle}>
         ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
         <div class="card-content">
           ${renderMap('above')}
