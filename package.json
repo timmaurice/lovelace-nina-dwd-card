@@ -19,7 +19,7 @@
     "check-format": "prettier --check .",
     "format": "prettier . --write",
     "lint": "eslint .",
-    "test": "NODE_ENV=production vitest run",
+    "test": "NODE_ENV=production vitest run --reporter=verbose",
     "watch": "rollup -c -w"
   },
   "devDependencies": {
@@ -35,7 +35,7 @@
     "jsdom": "^27.4.0",
     "lit": "^3.3.2",
     "prettier": "^3.8.1",
-    "rollup": "^4.56.0",
+    "rollup": "^4.57.1",
     "rollup-plugin-lit-css": "^6.0.0",
     "sass": "^1.97.3",
     "typescript": "^5.9.3",

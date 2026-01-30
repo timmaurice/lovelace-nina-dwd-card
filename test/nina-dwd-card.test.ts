@@ -926,6 +926,45 @@ describe('NinaDwdCard', () => {
       const headline = element.shadowRoot?.querySelector('.headline');
       expect(headline?.textContent?.trim()).toBe('Starkregen');
     });
+
+    it('should truncate description when description_max_length is set', async () => {
+      const longDescription = 'This is a very long description that should be truncated when the max length is set.';
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Test Warning',
+          description: longDescription,
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, description_max_length: 30 });
+      await element.updateComplete;
+
+      const description = element.shadowRoot?.querySelector('.description');
+      expect(description?.textContent?.trim()).toBe('This is a very long descriptio...');
+    });
+
+    it('should apply custom font size when font_size is set', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Test Warning',
+          description: 'Test description',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, font_size: 18 });
+      await element.updateComplete;
+
+      const card = element.shadowRoot?.querySelector<HaCard>('ha-card');
+      expect(card?.getAttribute('style')).toContain('font-size: 18px');
+    });
   });
   describe('Translation', () => {
     it('should call the translation service when enabled', async () => {
