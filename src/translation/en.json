@@ -116,6 +116,8 @@
     "tomorrow": "Tomorrow",
     "time_unknown": "Time unknown",
     "time_invalid": "Time invalid",
-    "source": "Source: {sender}"
+    "source": "Source: {sender}",
+    "show_more": "Show more",
+    "show_less": "Show less"
   }
 }

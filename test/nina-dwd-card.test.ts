@@ -944,7 +944,46 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
 
       const description = element.shadowRoot?.querySelector('.description');
-      expect(description?.textContent?.trim()).toBe('This is a very long descriptio...');
+      expect(description?.textContent).toContain('This is a very long descriptio...');
+      expect(description?.textContent).toContain('Show more');
+    });
+
+    it('should toggle description expansion when "Show more/less" is clicked', async () => {
+      const longDescription = 'This is a very long description that should be truncated when the max length is set.';
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Test Warning',
+          description: longDescription,
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, description_max_length: 30 });
+      await element.updateComplete;
+
+      const description = element.shadowRoot?.querySelector('.description');
+      const expandButton = description?.querySelector('.expand-button') as HTMLElement;
+      expect(expandButton).not.toBeNull();
+      expect(expandButton.textContent?.trim()).toBe('Show more');
+      expect(description?.textContent).toContain('This is a very long descriptio...');
+
+      // Click "Show more"
+      expandButton.click();
+      await element.updateComplete;
+
+      expect(expandButton.textContent?.trim()).toBe('Show less');
+      expect(description?.textContent).toContain(longDescription);
+      expect(description?.textContent).not.toContain('...');
+
+      // Click "Show less"
+      expandButton.click();
+      await element.updateComplete;
+
+      expect(expandButton.textContent?.trim()).toBe('Show more');
+      expect(description?.textContent).toContain('This is a very long descriptio...');
     });
 
     it('should apply custom font size when font_size is set', async () => {

@@ -28,6 +28,7 @@ export class NinaDwdCard extends LitElement {
   @state() private _warnings: (NinaWarning | DwdWarning)[] = [];
   @state() private _showLargeMap = false;
   @state() private _translations: Record<string, { headline: string; description: string; instruction: string }> = {};
+  @state() private _expandedWarnings: Set<string> = new Set();
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
   private _cache = new TranslationCache();
@@ -99,8 +100,12 @@ export class NinaDwdCard extends LitElement {
       }
 
       let processedDescription = description;
+      let isTruncated = false;
       if (this._config.description_max_length && processedDescription.length > this._config.description_max_length) {
-        processedDescription = `${processedDescription.substring(0, this._config.description_max_length)}...`;
+        isTruncated = true;
+        if (!this._expandedWarnings.has(key)) {
+          processedDescription = `${processedDescription.substring(0, this._config.description_max_length)}...`;
+        }
       }
 
       return html`
@@ -128,7 +133,18 @@ export class NinaDwdCard extends LitElement {
             <ha-icon icon=${this._getWarningIcon(warning)}></ha-icon> ${headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
-          <div class="description">${unsafeHTML(processedDescription)}</div>
+          <div class="description">
+            ${unsafeHTML(processedDescription)}
+            ${isTruncated
+              ? html`
+                  <a class="expand-button" @click=${() => this._toggleExpand(key)}>
+                    ${this._expandedWarnings.has(key)
+                      ? localize(this.hass, 'card.show_less')
+                      : localize(this.hass, 'card.show_more')}
+                  </a>
+                `
+              : ''}
+          </div>
           ${'level' in warning &&
           mapUrl &&
           this._config.dwd_map_position !== 'above' &&
@@ -146,6 +162,15 @@ export class NinaDwdCard extends LitElement {
         </div>
       `;
     })}`;
+  }
+
+  private _toggleExpand(key: string): void {
+    if (this._expandedWarnings.has(key)) {
+      this._expandedWarnings.delete(key);
+    } else {
+      this._expandedWarnings.add(key);
+    }
+    this.requestUpdate();
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {

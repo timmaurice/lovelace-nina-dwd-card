@@ -84,8 +84,18 @@
   margin-bottom: 8px;
 }
 
-.description {
-  white-space: pre-wrap;
+.expand-button {
+  color: var(--primary-color);
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.9em;
+  font-weight: bold;
+  margin-left: 4px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .sender {
