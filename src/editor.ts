@@ -7,6 +7,11 @@ import editorStyles from './styles/editor.styles.scss';
 
 // Schema organized into logical sections
 const SCHEMA = [
+  { name: 'title', selector: { text: {} } },
+  {
+    name: 'nina_entity_prefix',
+    selector: { select: { mode: 'dropdown' } },
+  },
   {
     name: 'dwd_device',
     selector: {
@@ -220,22 +225,23 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
       return html``;
     }
 
+    const ninaEntities = Object.keys(this.hass.states).filter((eid) => {
+      const entity = this.hass.entities[eid];
+      // Filter for entities from the 'nina' integration.
+      // This is more reliable than checking attributes.
+      return entity?.platform === 'nina';
+    });
+
     const ninaPrefixesMap = new Map<string, { label: string; value: string }>();
-    Object.keys(this.hass.states)
-      .filter((eid) => {
-        const entity = this.hass.entities[eid];
-        // Filter for entities from the 'nina' integration.
-        // This is more reliable than checking attributes.
-        return entity?.platform === 'nina';
-      })
-      .forEach((eid) => {
-        const prefix = eid.replace(/_\d+$/, '');
-        if (!ninaPrefixesMap.has(prefix)) {
-          const friendlyName = this.hass.states[eid]?.attributes.friendly_name || prefix;
-          const label = friendlyName.replace(/(?:\sWarning)?\s*\d*$/, '').trim();
-          ninaPrefixesMap.set(prefix, { label, value: prefix });
-        }
-      });
+    ninaEntities.forEach((eid) => {
+      const prefix = eid.replace(/_?\d+$/, '');
+      if (!ninaPrefixesMap.has(prefix)) {
+        const friendlyName = this.hass.states[eid]?.attributes.friendly_name || prefix;
+        const label = friendlyName.replace(/(?:\sWarning)?\s*\d*$/, '').trim();
+        ninaPrefixesMap.set(prefix, { label, value: prefix });
+      }
+    });
+
     const ninaPrefixes = Array.from(ninaPrefixesMap.values());
 
     const lang = this.hass.language || 'en';
@@ -370,6 +376,14 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
                 ],
               },
             };
+          } else if (newItem.name === 'nina_entity_prefix') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                clearable: true,
+                options: ninaPrefixes,
+              },
+            };
           }
 
           acc.push(newItem);
@@ -384,34 +398,18 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     return html`
       <ha-card>
         <div class="card-content card-config">
-          <div class="group">
-            <div class="group-header">${localize(this.hass, 'component.nina-dwd-card.editor.groups.core')}</div>
-            <ha-textfield
-              .label=${localize(this.hass, 'component.nina-dwd-card.editor.title')}
-              .value=${this._config.title || ''}
-              .configValue=${'title'}
-              @input=${this._titleChanged}
-            ></ha-textfield>
-            <ha-select
-              .label=${localize(this.hass, 'component.nina-dwd-card.editor.nina_entity_prefix')}
-              .value=${this._config.nina_entity_prefix || ''}
-              .configValue=${'nina_entity_prefix'}
-              @selected=${this._ninaPrefixChanged}
-              @closed=${(ev: Event) => ev.stopPropagation()}
-              clearable
-              fixedMenuPosition
-              naturalMenuWidth
-            >
-              ${ninaPrefixes.map((item) => html`<mwc-list-item .value=${item.value}>${item.label}</mwc-list-item>`)}
-            </ha-select>
-            <ha-form
-              .schema=${schema}
-              .hass=${this.hass}
-              .data=${this._config}
-              .computeLabel=${(s: { name: string }) => localize(this.hass, `component.nina-dwd-card.editor.${s.name}`)}
-              @value-changed=${this._valueChanged}
-            ></ha-form>
-          </div>
+          <ha-form
+            .schema=${schema}
+            .hass=${this.hass}
+            .data=${this._config}
+            .computeLabel=${(s: { name: string }) => {
+              if (s.name === 'title' || s.name === 'nina_entity_prefix') {
+                return localize(this.hass, `component.nina-dwd-card.editor.${s.name}`);
+              }
+              return localize(this.hass, `component.nina-dwd-card.editor.${s.name}`);
+            }}
+            @value-changed=${this._valueChanged}
+          ></ha-form>
           <div class="color-overrides-section">
             <div class="section-header">
               ${localize(this.hass, 'component.nina-dwd-card.editor.theme.color_overrides')}
@@ -457,20 +455,6 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
         </div>
       </ha-card>
     `;
-  }
-
-  private _ninaPrefixChanged(ev: CustomEvent): void {
-    ev.stopPropagation();
-    const target = ev.target as HTMLSelectElement;
-    this._valueChanged({ detail: { value: { nina_entity_prefix: target.value || undefined } } });
-  }
-
-  private _titleChanged(ev: Event): void {
-    const target = ev.target as HTMLInputElement;
-    this._config = { ...this._config, title: target.value };
-    fireEvent(this, 'config-changed', {
-      config: this._config,
-    });
   }
 
   static styles = css`

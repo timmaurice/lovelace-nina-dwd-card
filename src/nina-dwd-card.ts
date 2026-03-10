@@ -556,8 +556,11 @@ export class NinaDwdCard extends LitElement {
     if (!this._config.nina_entity_prefix) return warnings;
 
     // Check a fixed number of NINA entities. The total number of warnings is limited later.
-    for (let i = 1; i <= 10; i++) {
-      const entityId = `${this._config.nina_entity_prefix}_${i}`;
+    for (let i = 1; i <= 20; i++) {
+      let entityId = `${this._config.nina_entity_prefix}_${i}`;
+      if (!this.hass.states[entityId]) {
+        entityId = `${this._config.nina_entity_prefix}${i}`;
+      }
       const stateObj = this.hass.states[entityId];
 
       if (stateObj && stateObj.state === 'on') {
