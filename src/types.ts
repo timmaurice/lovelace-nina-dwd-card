@@ -41,6 +41,8 @@ export interface NinaWarning {
   start: string;
   instruction?: string;
   expires: string;
+  warning_id?: string;
+  sent?: string;
 }
 
 export interface DwdWarning {

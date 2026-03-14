@@ -24,7 +24,10 @@ export const fireEvent = <T>(
 
 export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistant): string {
   try {
-    const startStr = 'start' in warning ? warning.start : '';
+    let startStr = 'start' in warning ? warning.start : '';
+    if (!startStr && 'sent' in warning && warning.sent) {
+      startStr = warning.sent;
+    }
     const endStr = 'expires' in warning ? warning.expires : warning.end;
 
     if (!startStr) return localize(hass, 'card.time_unknown');

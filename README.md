@@ -21,7 +21,7 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Automatically sorts warnings by severity, displaying the most critical alerts first.
 - Formats warning start and end times for readability.
 - Shows a "No Warnings" message when no active warnings are present.
-- Displays sender information for NINA warnings.
+- Displays sender information and a direct link to the official warning page on BUND.DE for NINA warnings.
 - Designed to be fully customizable through the visual editor.
 
 ## AI Translation

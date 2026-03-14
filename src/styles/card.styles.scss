@@ -120,6 +120,26 @@
   }
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.bund-link {
+  color: var(--secondary-text-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  text-decoration: none;
+  font-size: 0.9em;
+  gap: 4px;
+
+  &:hover {
+    color: var(--primary-text-color);
+  }
+}
+
 ha-expansion-panel {
   --expansion-panel-content-padding: 0 12px;
   --expansion-panel-header-padding: 8px 12px;

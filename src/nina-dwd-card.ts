@@ -522,12 +522,25 @@ export class NinaDwdCard extends LitElement {
             ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
             : ''}
       </div>
-      <ha-icon-button
-        class="info-button"
-        .label=${`More info for ${warning.headline}`}
-        @click=${() => this._handleMoreInfo(warning.entity_id)}
-        ><ha-icon icon="mdi:information-outline"></ha-icon
-      ></ha-icon-button>
+      <div class="actions">
+        ${'warning_id' in warning && warning.warning_id
+          ? html`<a
+              class="bund-link"
+              href="https://warnung.bund.de/meldungen/${warning.warning_id}"
+              target="_blank"
+              rel="noopener noreferrer"
+              title=${localize(this.hass, 'card.official_warning_link')}
+            >
+              BUND.DE <ha-icon icon="mdi:open-in-new"></ha-icon>
+            </a>`
+          : ''}
+        <ha-icon-button
+          class="info-button"
+          .label=${`More info for ${warning.headline}`}
+          @click=${() => this._handleMoreInfo(warning.entity_id)}
+          ><ha-icon icon="mdi:information-outline"></ha-icon
+        ></ha-icon-button>
+      </div>
     </div>`;
   }
 
@@ -573,6 +586,8 @@ export class NinaDwdCard extends LitElement {
           start: stateObj.attributes.start,
           expires: stateObj.attributes.expires,
           instruction: stateObj.attributes.instruction || stateObj.attributes.recommended_actions,
+          warning_id: stateObj.attributes.id,
+          sent: stateObj.attributes.sent,
         });
       }
     }

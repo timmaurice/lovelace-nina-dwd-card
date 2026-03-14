@@ -117,6 +117,7 @@
     "time_unknown": "Zeit unbekannt",
     "time_invalid": "Zeit ungültig",
     "source": "Quelle: {sender}",
+    "official_warning_link": "Offizielle Warnung anzeigen",
     "show_more": "Mehr anzeigen",
     "show_less": "Weniger anzeigen"
   }
