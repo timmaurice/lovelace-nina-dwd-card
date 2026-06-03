@@ -1,0 +1,64 @@
+default_config:
+
+lovelace:
+  resource_mode: yaml
+  resources:
+    - url: /local/dist/nina-dwd-card.js
+      type: module
+  dashboards:
+    lovelace:
+      mode: yaml
+      filename: ui-lovelace.yaml
+      title: Overview
+      icon: mdi:view-dashboard
+      show_in_sidebar: true
+
+template:
+  - sensor:
+      - name: dwd_mock_current_warning_level
+        unique_id: dwd_mock_current_warning_level_unique
+        state: "3"
+        attributes:
+          warning_1_headline: "Amtliche Unwetterwarnung vor schwerem Gewitter mit heftigem Starkregen und Hagel"
+          warning_1_description: "Es tritt starker Regen mit Mengen um 20 l/m² pro Stunde sowie Sturmböen bis 80 km/h auf."
+          warning_1_level: 3
+          warning_1_start: "{{ (now() - timedelta(hours=1)).isoformat() }}"
+          warning_1_end: "{{ (now() + timedelta(hours=3)).isoformat() }}"
+          warning_1_instruction: "Achten Sie auf herabstürzende Äste. Vermeiden Sie den Aufenthalt im Freien."
+          warning_1_type: 31
+      - name: dwd_mock_advance_warning_level
+        unique_id: dwd_mock_advance_warning_level_unique
+        state: "4"
+        attributes:
+          warning_1_headline: "Vorabinformation Unwetter vor schwerem Sturm"
+          warning_1_description: "Ab morgen Mittag werden Orkanböen bis 120 km/h erwartet."
+          warning_1_level: 4
+          warning_1_start: "{{ (now() + timedelta(hours=18)).isoformat() }}"
+          warning_1_end: "{{ (now() + timedelta(hours=30)).isoformat() }}"
+          warning_1_instruction: "Sichern Sie lose Gegenstände im Außenbereich."
+          warning_1_type: 15
+  - binary_sensor:
+      - name: warning_berlin_1
+        state: "on"
+        attributes:
+          headline: "Gefahr durch Hochwasser"
+          description: "Infolge von anhaltendem Starkregen kommt es im Stadtgebiet Berlin zu steigenden Pegeln. Vermeiden Sie Keller und Unterführungen."
+          sender: "Katastrophenschutz Berlin"
+          severity: "Severe"
+          start: "{{ (now() - timedelta(hours=2)).isoformat() }}"
+          expires: "{{ (now() + timedelta(days=1)).isoformat() }}"
+          instruction: "Bringen Sie Wertgegenstände aus den Kellern. Sichern Sie tiefliegende Räume."
+          id: "mow.de.ber.12345"
+          sent: "{{ (now() - timedelta(hours=2)).isoformat() }}"
+      - name: warning_berlin_2
+        state: "on"
+        attributes:
+          headline: "Großbrand in Lichtenberg"
+          description: "Aufgrund eines Großbrandes in einer Lagerhalle kommt es zu starker Rauchentwicklung. Fenster und Türen geschlossen halten."
+          sender: "Feuerwehr Berlin"
+          severity: "Moderate"
+          start: "{{ (now() - timedelta(minutes=45)).isoformat() }}"
+          expires: "{{ (now() + timedelta(hours=6)).isoformat() }}"
+          instruction: "Schließen Sie Fenster und Türen. Schalten Sie Belüftungsanlagen ab."
+          id: "mow.de.ber.12346"
+          sent: "{{ (now() - timedelta(minutes=45)).isoformat() }}"

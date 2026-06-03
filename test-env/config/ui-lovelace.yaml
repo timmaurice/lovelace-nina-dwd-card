@@ -1,0 +1,18 @@
+title: Test
+views:
+  - title: Home
+    path: home
+    cards:
+      - type: custom:nina-dwd-card
+        title: NINA/DWD Warnings
+        nina_entity_prefix: binary_sensor.warning_berlin
+        dwd_device: dwd_mock_device
+        dwd_map_land: bbb
+        dwd_map_type: state
+        dwd_map_position: above
+        show_map_without_warnings: true
+  - title: Empty
+    path: empty
+    cards:
+      - type: markdown
+        content: Empty view to test unmounting

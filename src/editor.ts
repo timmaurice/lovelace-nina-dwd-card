@@ -415,41 +415,41 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               ${localize(this.hass, 'component.nina-dwd-card.editor.theme.color_overrides')}
             </div>
             <div class="color-grid">
-              <ha-textfield
+              <ha-input
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.no_warning')}
                 .value=${this._config.color_overrides?.no_warning || ''}
                 .configValue=${'no_warning'}
                 @change=${this._colorOverrideChanged}
                 placeholder="#c5e566"
-              ></ha-textfield>
-              <ha-textfield
+              ></ha-input>
+              <ha-input
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.minor')}
                 .value=${this._config.color_overrides?.minor || ''}
                 .configValue=${'minor'}
                 @change=${this._colorOverrideChanged}
                 placeholder="#ffeb3b"
-              ></ha-textfield>
-              <ha-textfield
+              ></ha-input>
+              <ha-input
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.moderate')}
                 .value=${this._config.color_overrides?.moderate || ''}
                 .configValue=${'moderate'}
                 @change=${this._colorOverrideChanged}
                 placeholder="#fb8c00"
-              ></ha-textfield>
-              <ha-textfield
+              ></ha-input>
+              <ha-input
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.severe')}
                 .value=${this._config.color_overrides?.severe || ''}
                 .configValue=${'severe'}
                 @change=${this._colorOverrideChanged}
                 placeholder="#e53935"
-              ></ha-textfield>
-              <ha-textfield
+              ></ha-input>
+              <ha-input
                 .label=${localize(this.hass, 'component.nina-dwd-card.editor.color_overrides.extreme')}
                 .value=${this._config.color_overrides?.extreme || ''}
                 .configValue=${'extreme'}
                 @change=${this._colorOverrideChanged}
                 placeholder="#880e4f"
-              ></ha-textfield>
+              ></ha-input>
             </div>
           </div>
         </div>

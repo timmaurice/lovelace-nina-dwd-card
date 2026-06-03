@@ -1,0 +1,13 @@
+name: nina-dwd-card-test
+services:
+  test-homeassistant:
+    container_name: ha-nina-dwd-card-test
+    image: homeassistant/home-assistant:stable
+    volumes:
+      - ./config:/config
+      - ../dist:/config/www/dist:ro
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+    ports:
+      - '8135:8123'

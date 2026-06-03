@@ -9,3 +9,9 @@ yarn.lock
 GEMINI.md
 
 *.bak
+
+venv/
+
+test-env/config/*
+!test-env/config/configuration.yaml
+!test-env/config/ui-lovelace.yaml
