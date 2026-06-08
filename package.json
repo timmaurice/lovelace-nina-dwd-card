@@ -37,11 +37,11 @@
     "jsdom": "^29.1.1",
     "lit": "^3.3.3",
     "prettier": "^3.8.3",
-    "rollup": "^4.61.0",
+    "rollup": "^4.61.1",
     "rollup-plugin-lit-css": "^6.0.1",
     "sass": "^1.100.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1",
+    "typescript-eslint": "^8.61.0",
     "vitest": "^4.1.8"
   },
   "dependencies": {
