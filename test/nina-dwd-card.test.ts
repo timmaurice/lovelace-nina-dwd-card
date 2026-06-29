@@ -1105,6 +1105,14 @@ describe('NinaDwdCard', () => {
     });
   });
   describe('Translation', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('should call the translation service when enabled', async () => {
       hass.states['binary_sensor.nina_warnung_1'] = {
         state: 'on',
@@ -1133,8 +1141,8 @@ describe('NinaDwdCard', () => {
       });
       await element.updateComplete;
 
-      // Wait for async translation (sequential with 1s delay)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Wait for async translation
+      await vi.advanceTimersByTimeAsync(1500);
       await element.updateComplete;
 
       expect(callServiceMock).toHaveBeenCalledWith(
@@ -1182,7 +1190,7 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
 
       // Wait for async translation attempt
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await vi.advanceTimersByTimeAsync(1500);
       await element.updateComplete;
 
       expect(callServiceMock).toHaveBeenCalled();
@@ -1193,6 +1201,7 @@ describe('NinaDwdCard', () => {
       // Restore console.error
       consoleErrorSpy.mockRestore();
     });
+
     it('should handle object response from translation service', async () => {
       hass.states['sensor.nina_warning_1'] = {
         state: 'on',
@@ -1224,7 +1233,7 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
 
       // Wait for async translation
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await vi.advanceTimersByTimeAsync(1500);
       await element.updateComplete;
 
       expect(callServiceMock).toHaveBeenCalled();
@@ -1265,8 +1274,8 @@ describe('NinaDwdCard', () => {
 
       await element.updateComplete;
 
-      // Wait for async translation (sequential with 1s delay)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Wait for async translation
+      await vi.advanceTimersByTimeAsync(1500);
       await element.updateComplete;
 
       expect(callServiceMock).toHaveBeenCalled();

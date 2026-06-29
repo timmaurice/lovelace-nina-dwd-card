@@ -1,6 +1,6 @@
 {
   "name": "nina-dwd-card",
-  "version": "1.3.4",
+  "version": "1.4.0",
   "description": "A Home Assistant Lovelace card for NINA and DWD warnings.",
   "homepage": "https://github.com/timmaurice/lovelace-nina-dwd-card#readme",
   "bugs": {
@@ -28,7 +28,8 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
-    "eslint": "^10.5.0",
+    "@types/node": "^26.0.1",
+    "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-lit": "^2.3.1",
     "eslint-plugin-wc": "^3.1.0",
@@ -36,7 +37,7 @@
     "home-assistant-js-websocket": "^9.6.0",
     "jsdom": "^29.1.1",
     "lit": "^3.3.3",
-    "prettier": "^3.8.4",
+    "prettier": "^3.9.3",
     "rollup": "^4.62.2",
     "rollup-plugin-lit-css": "^6.0.1",
     "sass": "^1.101.0",

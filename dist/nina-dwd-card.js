@@ -1,4 +1,4 @@
-function e(e,t,n,i){var r,a=arguments.length,s=a<3?t:null===i?i=Object.getOwnPropertyDescriptor(t,n):i;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)s=Reflect.decorate(e,t,n,i);else for(var o=e.length-1;o>=0;o--)(r=e[o])&&(s=(a<3?r(s):a>3?r(t,n,s):r(t,n))||s);return a>3&&s&&Object.defineProperty(t,n,s),s}console.groupCollapsed("%c⚠️ NINA DWD CARD%cv1.3.4","color: orange; font-weight: bold; background: black; padding: 2px 4px; border-radius: 2px 0 0 2px;","color: white; font-weight: bold; background: dimgray; padding: 2px 4px; border-radius: 0 2px 2px 0;"),console.info("A Home Assistant Lovelace card for NINA and DWD warnings."),console.info("Github:  https://github.com/timmaurice/lovelace-nina-dwd-card.git"),console.info("Sponsor: https://buymeacoffee.com/timmaurice"),console.groupEnd(),"function"==typeof SuppressedError&&SuppressedError;
+function e(e,t,n,i){var r,a=arguments.length,s=a<3?t:null===i?i=Object.getOwnPropertyDescriptor(t,n):i;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)s=Reflect.decorate(e,t,n,i);else for(var o=e.length-1;o>=0;o--)(r=e[o])&&(s=(a<3?r(s):a>3?r(t,n,s):r(t,n))||s);return a>3&&s&&Object.defineProperty(t,n,s),s}console.groupCollapsed("%c⚠️ NINA DWD CARD%cv1.4.0","color: orange; font-weight: bold; background: black; padding: 2px 4px; border-radius: 2px 0 0 2px;","color: white; font-weight: bold; background: dimgray; padding: 2px 4px; border-radius: 0 2px 2px 0;"),console.info("A Home Assistant Lovelace card for NINA and DWD warnings."),console.info("Github:  https://github.com/timmaurice/lovelace-nina-dwd-card.git"),console.info("Sponsor: https://buymeacoffee.com/timmaurice"),console.groupEnd(),"function"==typeof SuppressedError&&SuppressedError;
 /**
  * @license
  * Copyright 2019 Google LLC
@@ -50,11 +50,11 @@ const he=e=>(t,n)=>{void 0!==n?n.addInitializer(()=>{customElements.define(e,t)}
         ${i>0?F`<hr />`:""}
         <div class="warning">
           ${"level"in e&&t&&i===n&&"above"!==this._config.dwd_map_position&&"below"!==this._config.dwd_map_position&&"none"!==this._config.dwd_map_position?F`<div class="map-container" @click=${()=>this._showLargeMap=!0} style="cursor: pointer;">
-                <img class="map-image" src=${t} alt="DWD Warning Map" />
-                ${(()=>{const e=this._calculatePinStyle();return e?F`<div class="map-pin" style=${e}>
-                        <div class="pin-icon"></div>
-                      </div>`:""})()}
-              </div>`:""}
+                  <img class="map-image" src=${t} alt="DWD Warning Map" />
+                  ${(()=>{const e=this._calculatePinStyle();return e?F`<div class="map-pin" style=${e}>
+                          <div class="pin-icon"></div>
+                        </div>`:""})()}
+                </div>`:""}
           <div class="headline" style="color: ${this._getWarningColor(e)}">
             <ha-icon icon=${this._getWarningIcon(e)}></ha-icon> ${s}
           </div>
@@ -62,16 +62,16 @@ const he=e=>(t,n)=>{void 0!==n?n.addInitializer(()=>{customElements.define(e,t)}
           <div class="description">
             ${we(l)}
             ${h?F`
-                  <a class="expand-button" @click=${()=>this._toggleExpand(r)}>
-                    ${this._expandedWarnings.has(r)?xe(this.hass,"card.show_less"):xe(this.hass,"card.show_more")}
-                  </a>
-                `:""}
+                    <a class="expand-button" @click=${()=>this._toggleExpand(r)}>
+                      ${this._expandedWarnings.has(r)?xe(this.hass,"card.show_less"):xe(this.hass,"card.show_more")}
+                    </a>
+                  `:""}
           </div>
           ${"level"in e&&t&&"above"!==this._config.dwd_map_position&&"below"!==this._config.dwd_map_position&&"none"!==this._config.dwd_map_position?F`<div class="clearfix"></div>`:""}
           ${!this._config.hide_instructions&&d?F` <ha-expansion-panel outlined>
-                <div slot="header">${xe(this.hass,"card.recommended_actions")}</div>
-                <div class="instruction">${we(d)}</div>
-              </ha-expansion-panel>`:""}
+                  <div slot="header">${xe(this.hass,"card.recommended_actions")}</div>
+                  <div class="instruction">${we(d)}</div>
+                </ha-expansion-panel>`:""}
           ${this._renderFooter(e)}
         </div>
       `})}`}_toggleExpand(e){this._expandedWarnings.has(e)?this._expandedWarnings.delete(e):this._expandedWarnings.add(e),this.requestUpdate()}updated(e){if(this.hass&&(e.has("hass")||e.has("_config"))){const{ninaWarnings:e,dwdCurrentWarnings:t,dwdAdvanceWarnings:n}=this._collectWarnings(),i=[...e,...t,...n];i.length>0&&this._translateWarnings(i)}}render(){if(!this._config||!this.hass)return F``;const{modeClass:e}=this._getThemeSettings(),{ninaWarnings:t,dwdCurrentWarnings:n,dwdAdvanceWarnings:i}=this._collectWarnings(),r=this._getMapUrl(),a=[...n,...i].length>0,s=e=>this._renderMap(e,r,a),o=this._editMode;let d;return d=this._config.separate_advance_warnings?this._renderSeparateView(t,n,i,e,o,r,s):this._renderCombinedView(t,n,i,e,o,r,s),F` ${d} ${this._showLargeMap&&r?this._renderLightbox(r,e):""} `}_getThemeSettings(){const e=this._config.theme_mode||"auto";if("auto"===e)return{isDarkMode:!!this.hass.themes?.darkMode,modeClass:""};const t="dark"===e;return{isDarkMode:t,modeClass:t?"mode-dark":"mode-light"}}_collectWarnings(){const e=this._getNinaWarnings();let t=[],n=[];if(this._config.dwd_device){const e=this._getDwdEntitiesFromDevice(this._config.dwd_device);e.current&&(t=this._getDwdWarnings(e.current)),e.advance&&(n=this._getDwdWarnings(e.advance))}return{ninaWarnings:e,dwdCurrentWarnings:t,dwdAdvanceWarnings:n}}_getMapUrl(){if(!this._config.dwd_map_land)return;let e;e="region"===this._config.dwd_map_type?`https://www.dwd.de/DWD/warnungen/warnstatus/${this._config.dwd_map_land}.jpg`:`https://www.dwd.de/DWD/warnungen/warnapp_gemeinden/json/warnungen_gemeinde_map_${this._config.dwd_map_land}.png`;return`${e}?${3e5*Math.floor(Date.now()/3e5)}`}_renderDebugOverlay(e){const{padding:t,bounds:n}=e;return F`
@@ -116,8 +116,8 @@ const he=e=>(t,n)=>{void 0!==n?n.addInitializer(()=>{customElements.define(e,t)}
       <div class="map-container" @click=${()=>this._showLargeMap=!0} style="cursor: pointer;">
         <img class="map-image-standalone" src=${t} alt="DWD Warning Map" />
         ${a?F`<div class="map-pin" style=${a}>
-              <div class="pin-icon"></div>
-            </div>`:""}
+                <div class="pin-icon"></div>
+              </div>`:""}
         ${this._config.debug_mode&&r?this._renderDebugOverlay(r):""}
       </div>
     `}_renderLightbox(e,t){return F`
@@ -133,14 +133,14 @@ const he=e=>(t,n)=>{void 0!==n?n.addInitializer(()=>{customElements.define(e,t)}
           ${s("above")}
           <div class="warnings-container">
             ${l.length>0?F`
-                  <div class="sub-header">${xe(this.hass,"card.current_warnings")}</div>
-                  ${this._renderWarnings(l,a)}
-                `:""}
+                    <div class="sub-header">${xe(this.hass,"card.current_warnings")}</div>
+                    ${this._renderWarnings(l,a)}
+                  `:""}
             ${h.length>0?F`
-                  ${l.length>0?F`<hr class="section-divider" />`:""}
-                  <div class="sub-header">${xe(this.hass,"card.advance_warnings")}</div>
-                  ${this._renderWarnings(h,void 0)}
-                `:""}
+                    ${l.length>0?F`<hr class="section-divider" />`:""}
+                    <div class="sub-header">${xe(this.hass,"card.advance_warnings")}</div>
+                    ${this._renderWarnings(h,void 0)}
+                  `:""}
             ${0===l.length&&0===h.length?this._renderNoWarnings():""}
             ${c&&r?F`<div class="no-warnings">${xe(this.hass,"card.hidden_in_view_mode")}</div>`:""}
           </div>
@@ -170,14 +170,14 @@ const he=e=>(t,n)=>{void 0!==n?n.addInitializer(()=>{customElements.define(e,t)}
       </div>
       <div class="actions">
         ${"warning_id"in e&&e.warning_id?F`<a
-              class="bund-link"
-              href="https://warnung.bund.de/meldungen/${e.warning_id}"
-              target="_blank"
-              rel="noopener noreferrer"
-              title=${xe(this.hass,"card.official_warning_link")}
-            >
-              BUND.DE <ha-icon icon="mdi:open-in-new"></ha-icon>
-            </a>`:""}
+                class="bund-link"
+                href="https://warnung.bund.de/meldungen/${e.warning_id}"
+                target="_blank"
+                rel="noopener noreferrer"
+                title=${xe(this.hass,"card.official_warning_link")}
+              >
+                BUND.DE <ha-icon icon="mdi:open-in-new"></ha-icon>
+              </a>`:""}
         <ha-icon-button
           class="info-button"
           .label=${`More info for ${e.headline}`}

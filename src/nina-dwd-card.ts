@@ -117,53 +117,63 @@ export class NinaDwdCard extends LitElement {
       return html`
         ${index > 0 ? html`<hr />` : ''}
         <div class="warning">
-          ${'level' in warning &&
-          mapUrl &&
-          index === firstDwdIndex &&
-          this._config.dwd_map_position !== 'above' &&
-          this._config.dwd_map_position !== 'below' &&
-          this._config.dwd_map_position !== 'none'
-            ? html`<div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
-                <img class="map-image" src=${mapUrl} alt="DWD Warning Map" />
-                ${(() => {
-                  const pinStyle = this._calculatePinStyle();
-                  return pinStyle
-                    ? html`<div class="map-pin" style=${pinStyle}>
-                        <div class="pin-icon"></div>
-                      </div>`
-                    : '';
-                })()}
-              </div>`
-            : ''}
+          ${
+            'level' in warning &&
+            mapUrl &&
+            index === firstDwdIndex &&
+            this._config.dwd_map_position !== 'above' &&
+            this._config.dwd_map_position !== 'below' &&
+            this._config.dwd_map_position !== 'none'
+              ? html`<div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
+                  <img class="map-image" src=${mapUrl} alt="DWD Warning Map" />
+                  ${(() => {
+                    const pinStyle = this._calculatePinStyle();
+                    return pinStyle
+                      ? html`<div class="map-pin" style=${pinStyle}>
+                          <div class="pin-icon"></div>
+                        </div>`
+                      : '';
+                  })()}
+                </div>`
+              : ''
+          }
           <div class="headline" style="color: ${this._getWarningColor(warning)}">
             <ha-icon icon=${this._getWarningIcon(warning)}></ha-icon> ${headline}
           </div>
           <div class="time">${formatTime(warning, this.hass)}</div>
           <div class="description">
             ${unsafeHTML(processedDescription)}
-            ${isTruncated
-              ? html`
-                  <a class="expand-button" @click=${() => this._toggleExpand(key)}>
-                    ${this._expandedWarnings.has(key)
-                      ? localize(this.hass, 'card.show_less')
-                      : localize(this.hass, 'card.show_more')}
-                  </a>
-                `
-              : ''}
+            ${
+              isTruncated
+                ? html`
+                    <a class="expand-button" @click=${() => this._toggleExpand(key)}>
+                      ${
+                        this._expandedWarnings.has(key)
+                          ? localize(this.hass, 'card.show_less')
+                          : localize(this.hass, 'card.show_more')
+                      }
+                    </a>
+                  `
+                : ''
+            }
           </div>
-          ${'level' in warning &&
-          mapUrl &&
-          this._config.dwd_map_position !== 'above' &&
-          this._config.dwd_map_position !== 'below' &&
-          this._config.dwd_map_position !== 'none'
-            ? html`<div class="clearfix"></div>`
-            : ''}
-          ${!this._config.hide_instructions && instruction
-            ? html` <ha-expansion-panel outlined>
-                <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                <div class="instruction">${unsafeHTML(instruction)}</div>
-              </ha-expansion-panel>`
-            : ''}
+          ${
+            'level' in warning &&
+            mapUrl &&
+            this._config.dwd_map_position !== 'above' &&
+            this._config.dwd_map_position !== 'below' &&
+            this._config.dwd_map_position !== 'none'
+              ? html`<div class="clearfix"></div>`
+              : ''
+          }
+          ${
+            !this._config.hide_instructions && instruction
+              ? html` <ha-expansion-panel outlined>
+                  <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
+                  <div class="instruction">${unsafeHTML(instruction)}</div>
+                </ha-expansion-panel>`
+              : ''
+          }
           ${this._renderFooter(warning)}
         </div>
       `;
@@ -369,11 +379,13 @@ export class NinaDwdCard extends LitElement {
     return html`
       <div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
         <img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />
-        ${pinStyle
-          ? html`<div class="map-pin" style=${pinStyle}>
-              <div class="pin-icon"></div>
-            </div>`
-          : ''}
+        ${
+          pinStyle
+            ? html`<div class="map-pin" style=${pinStyle}>
+                <div class="pin-icon"></div>
+              </div>`
+            : ''
+        }
         ${this._config.debug_mode && mapData ? this._renderDebugOverlay(mapData) : ''}
       </div>
     `;
@@ -436,23 +448,29 @@ export class NinaDwdCard extends LitElement {
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">
-            ${processedCurrent.length > 0
-              ? html`
-                  <div class="sub-header">${localize(this.hass, 'card.current_warnings')}</div>
-                  ${this._renderWarnings(processedCurrent, mapUrl)}
-                `
-              : ''}
-            ${processedAdvance.length > 0
-              ? html`
-                  ${processedCurrent.length > 0 ? html`<hr class="section-divider" />` : ''}
-                  <div class="sub-header">${localize(this.hass, 'card.advance_warnings')}</div>
-                  ${this._renderWarnings(processedAdvance, undefined)}
-                `
-              : ''}
+            ${
+              processedCurrent.length > 0
+                ? html`
+                    <div class="sub-header">${localize(this.hass, 'card.current_warnings')}</div>
+                    ${this._renderWarnings(processedCurrent, mapUrl)}
+                  `
+                : ''
+            }
+            ${
+              processedAdvance.length > 0
+                ? html`
+                    ${processedCurrent.length > 0 ? html`<hr class="section-divider" />` : ''}
+                    <div class="sub-header">${localize(this.hass, 'card.advance_warnings')}</div>
+                    ${this._renderWarnings(processedAdvance, undefined)}
+                  `
+                : ''
+            }
             ${processedCurrent.length === 0 && processedAdvance.length === 0 ? this._renderNoWarnings() : ''}
-            ${isHidden && editMode
-              ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
-              : ''}
+            ${
+              isHidden && editMode
+                ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
+                : ''
+            }
           </div>
           ${renderMap('below')}
         </div>
@@ -494,12 +512,16 @@ export class NinaDwdCard extends LitElement {
         <div class="card-content">
           ${renderMap('above')}
           <div class="warnings-container">
-            ${processedWarnings.length === 0
-              ? this._renderNoWarnings()
-              : this._renderWarnings(processedWarnings, mapUrl)}
-            ${isHidden && editMode
-              ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
-              : ''}
+            ${
+              processedWarnings.length === 0
+                ? this._renderNoWarnings()
+                : this._renderWarnings(processedWarnings, mapUrl)
+            }
+            ${
+              isHidden && editMode
+                ? html`<div class="no-warnings">${localize(this.hass, 'card.hidden_in_view_mode')}</div>`
+                : ''
+            }
           </div>
           ${renderMap('below')}
         </div>
@@ -523,24 +545,28 @@ export class NinaDwdCard extends LitElement {
 
     return html`<div class="footer">
       <div class="sender">
-        ${'sender' in warning && warning.sender
-          ? localize(this.hass, 'card.source', { sender: warning.sender })
-          : 'level' in warning
-            ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
-            : ''}
+        ${
+          'sender' in warning && warning.sender
+            ? localize(this.hass, 'card.source', { sender: warning.sender })
+            : 'level' in warning
+              ? localize(this.hass, 'card.source', { sender: 'Deutscher Wetterdienst' })
+              : ''
+        }
       </div>
       <div class="actions">
-        ${'warning_id' in warning && warning.warning_id
-          ? html`<a
-              class="bund-link"
-              href="https://warnung.bund.de/meldungen/${warning.warning_id}"
-              target="_blank"
-              rel="noopener noreferrer"
-              title=${localize(this.hass, 'card.official_warning_link')}
-            >
-              BUND.DE <ha-icon icon="mdi:open-in-new"></ha-icon>
-            </a>`
-          : ''}
+        ${
+          'warning_id' in warning && warning.warning_id
+            ? html`<a
+                class="bund-link"
+                href="https://warnung.bund.de/meldungen/${warning.warning_id}"
+                target="_blank"
+                rel="noopener noreferrer"
+                title=${localize(this.hass, 'card.official_warning_link')}
+              >
+                BUND.DE <ha-icon icon="mdi:open-in-new"></ha-icon>
+              </a>`
+            : ''
+        }
         <ha-icon-button
           class="info-button"
           .label=${`More info for ${warning.headline}`}
