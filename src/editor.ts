@@ -228,8 +228,8 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     const ninaEntities = Object.keys(this.hass.states).filter((eid) => {
       const entity = this.hass.entities[eid];
       // Filter for entities from the 'nina' integration.
-      // This is more reliable than checking attributes.
-      return entity?.platform === 'nina';
+      // We only want the main warning slot entities, which are binary sensors ending with a slot number.
+      return entity?.platform === 'nina' && eid.startsWith('binary_sensor.') && /\d+$/.test(eid);
     });
 
     const ninaPrefixesMap = new Map<string, { label: string; value: string }>();
@@ -237,7 +237,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
       const prefix = eid.replace(/_?\d+$/, '');
       if (!ninaPrefixesMap.has(prefix)) {
         const friendlyName = this.hass.states[eid]?.attributes.friendly_name || prefix;
-        const label = friendlyName.replace(/(?:\sWarning)?\s*\d*$/, '').trim();
+        const label = friendlyName.replace(/(?:\s(?:Warning|Warnung))?\s*\d*$/, '').trim();
         ninaPrefixesMap.set(prefix, { label, value: prefix });
       }
     });
@@ -381,6 +381,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               select: {
                 mode: 'dropdown',
                 clearable: true,
+                multiple: true,
                 options: ninaPrefixes,
               },
             };
@@ -395,13 +396,22 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
 
     const schema = computeSchema(SCHEMA);
 
+    const formData = {
+      ...this._config,
+      nina_entity_prefix: this._config.nina_entity_prefix
+        ? Array.isArray(this._config.nina_entity_prefix)
+          ? this._config.nina_entity_prefix
+          : [this._config.nina_entity_prefix]
+        : [],
+    };
+
     return html`
       <ha-card>
         <div class="card-content card-config">
           <ha-form
             .schema=${schema}
             .hass=${this.hass}
-            .data=${this._config}
+            .data=${formData}
             .computeLabel=${(s: { name: string }) => {
               if (s.name === 'title' || s.name === 'nina_entity_prefix') {
                 return localize(this.hass, `component.nina-dwd-card.editor.${s.name}`);

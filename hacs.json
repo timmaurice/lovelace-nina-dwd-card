@@ -2,5 +2,6 @@
   "name": "NINA and DWD Warnings Card",
   "content_in_root": false,
   "render_readme": true,
-  "filename": "nina-dwd-card.js"
+  "filename": "nina-dwd-card.js",
+  "homeassistant": "2026.6.0"
 }

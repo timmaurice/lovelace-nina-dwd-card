@@ -1,4 +1,29 @@
+homeassistant:
+  name: Berlin
+  latitude: 52.52
+  longitude: 13.40
+  elevation: 34
+  unit_system: metric
+  time_zone: Europe/Berlin
+
 default_config:
+
+python_script:
+
+automation:
+  - alias: 'Mock DWD State on Startup'
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - service: python_script.mock_dwd
+
+  - alias: 'Mock DWD State Periodically'
+    trigger:
+      - platform: time_pattern
+        seconds: '/10'
+    action:
+      - service: python_script.mock_dwd
 
 lovelace:
   resource_mode: yaml
@@ -17,48 +42,28 @@ template:
   - sensor:
       - name: dwd_mock_current_warning_level
         unique_id: dwd_mock_current_warning_level_unique
-        state: '3'
-        attributes:
-          warning_1_headline: 'Amtliche Unwetterwarnung vor schwerem Gewitter mit heftigem Starkregen und Hagel'
-          warning_1_description: 'Es tritt starker Regen mit Mengen um 20 l/m² pro Stunde sowie Sturmböen bis 80 km/h auf.'
-          warning_1_level: 3
-          warning_1_start: '{{ (now() - timedelta(hours=1)).isoformat() }}'
-          warning_1_end: '{{ (now() + timedelta(hours=3)).isoformat() }}'
-          warning_1_instruction: 'Achten Sie auf herabstürzende Äste. Vermeiden Sie den Aufenthalt im Freien.'
-          warning_1_type: 31
-      - name: dwd_mock_advance_warning_level
-        unique_id: dwd_mock_advance_warning_level_unique
         state: '4'
         attributes:
-          warning_1_headline: 'Vorabinformation Unwetter vor schwerem Sturm'
-          warning_1_description: 'Ab morgen Mittag werden Orkanböen bis 120 km/h erwartet.'
+          warning_1_headline: 'Amtliche WARNUNG vor extremer HITZE'
+          warning_1_description: 'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet. Am Montag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet. Heute ist der 4. Tag der Warnsituation in Folge.'
           warning_1_level: 4
-          warning_1_start: '{{ (now() + timedelta(hours=18)).isoformat() }}'
-          warning_1_end: '{{ (now() + timedelta(hours=30)).isoformat() }}'
-          warning_1_instruction: 'Sichern Sie lose Gegenstände im Außenbereich.'
-          warning_1_type: 15
+          warning_1_start: '{{ (now() - timedelta(hours=5.5)).isoformat() }}'
+          warning_1_end: '{{ (now() + timedelta(hours=26)).isoformat() }}'
+          warning_1_instruction: 'Gefahr durch: mögliche erhebliche Frostschäden; Unterkühlung bei längerem Aufenthalt im Freien; einfrierende Wasserleitungen. Handlungsempfehlungen: Frostschutzmaßnahmen ergreifen, z.B. Pflanzen abdecken oder Wasser aus Außenleitungen ablassen; längere Aufenthalte im Freien vermeiden'
+          warning_1_type: 1
+      - name: dwd_mock_advance_warning_level
+        unique_id: dwd_mock_advance_warning_level_unique
+        state: '0'
   - binary_sensor:
       - name: warning_berlin_1
         state: 'on'
         attributes:
-          headline: 'Gefahr durch Hochwasser'
-          description: 'Infolge von anhaltendem Starkregen kommt es im Stadtgebiet Berlin zu steigenden Pegeln. Vermeiden Sie Keller und Unterführungen.'
-          sender: 'Katastrophenschutz Berlin'
-          severity: 'Severe'
-          start: '{{ (now() - timedelta(hours=2)).isoformat() }}'
-          expires: '{{ (now() + timedelta(days=1)).isoformat() }}'
-          instruction: 'Bringen Sie Wertgegenstände aus den Kellern. Sichern Sie tiefliegende Räume.'
+          headline: 'Amtliche WARNUNG vor extremer HITZE'
+          description: 'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.<br/><br/>Am Montag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.<br/><br/>Heute ist der 4. Tag der Warnsituation in Folge.'
+          sender: 'Zentrum für Medizin-Meteorologische Forschung'
+          severity: 'Extreme'
+          start: '{{ (now() - timedelta(hours=7)).isoformat() }}'
+          expires: '{{ (now() + timedelta(hours=26)).isoformat() }}'
+          instruction: 'Gefahr durch: <br/> · mögliche erhebliche Frostschäden<br/> · Unterkühlung bei längerem Aufenthalt im Freien<br/> · einfrierende Wasserleitungen<br/><br/>Handlungsempfehlungen: <br/> · Frostschutzmaßnahmen ergreifen, z.B. Pflanzen abdecken oder Wasser aus Außenleitungen ablassen<br/> · längere Aufenthalte im Freien vermeiden'
           id: 'mow.de.ber.12345'
-          sent: '{{ (now() - timedelta(hours=2)).isoformat() }}'
-      - name: warning_berlin_2
-        state: 'on'
-        attributes:
-          headline: 'Großbrand in Lichtenberg'
-          description: 'Aufgrund eines Großbrandes in einer Lagerhalle kommt es zu starker Rauchentwicklung. Fenster und Türen geschlossen halten.'
-          sender: 'Feuerwehr Berlin'
-          severity: 'Moderate'
-          start: '{{ (now() - timedelta(minutes=45)).isoformat() }}'
-          expires: '{{ (now() + timedelta(hours=6)).isoformat() }}'
-          instruction: 'Schließen Sie Fenster und Türen. Schalten Sie Belüftungsanlagen ab.'
-          id: 'mow.de.ber.12346'
-          sent: '{{ (now() - timedelta(minutes=45)).isoformat() }}'
+          sent: '{{ (now() - timedelta(hours=7)).isoformat() }}'

@@ -6,11 +6,12 @@ views:
       - type: custom:nina-dwd-card
         title: NINA/DWD Warnings
         nina_entity_prefix: binary_sensor.warning_berlin
-        dwd_device: dwd_mock_device
+        dwd_device: e9750244d8de5e2576c1220136ea79ea
         dwd_map_land: bbb
         dwd_map_type: state
-        dwd_map_position: above
+        dwd_map_position: inside
         show_map_without_warnings: true
+        map_pin_zone: zone.home
   - title: Empty
     path: empty
     cards:

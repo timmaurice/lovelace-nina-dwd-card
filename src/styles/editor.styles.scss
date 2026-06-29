@@ -2,6 +2,24 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+ha-form {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+ha-combo-box,
+ha-selector-select,
+ha-select,
+md-input-chip,
+ha-input-chip,
+ha-assist-chip,
+ha-filter-chip {
+  max-width: 100% !important;
 }
 
 .group {

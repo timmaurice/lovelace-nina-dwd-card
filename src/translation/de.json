@@ -18,7 +18,7 @@
       "extreme": "Extrem"
     },
     "title": "Titel (Optional)",
-    "nina_entity_prefix": "NINA Warngebiet",
+    "nina_entity_prefix": "NINA Warngebiet(e)",
     "max_warnings": "Maximale Anzahl an Warnungen",
     "dwd_device": "DWD Warnungs-Gerät",
     "dwd_map_land": "DWD Warnkarte (Bundesland)",
@@ -71,8 +71,8 @@
       "none": "Ausgeblendet"
     },
     "hide_on_level_below_options": {
-      "moderate": "Moderate",
-      "severe": "Severe"
+      "moderate": "Moderat",
+      "severe": "Schwer"
     },
     "theme_mode": "Design Modus",
     "theme_mode_options": {
@@ -120,5 +120,9 @@
     "official_warning_link": "Offizielle Warnung anzeigen",
     "show_more": "Mehr anzeigen",
     "show_less": "Weniger anzeigen"
+  },
+  "errors": {
+    "ai_translation_config_error": "Die KI-Übersetzung ist aktiviert, aber es ist keine KI-Entität konfiguriert oder ausgewählt. Bitte wählen Sie eine KI-Übersetzungsentität im Konfigurationseditor der Karte aus.",
+    "ai_translation_parse_error": "Fehler beim Parsen der Übersetzungs-JSON"
   }
 }

@@ -18,7 +18,7 @@
       "extreme": "Extreme"
     },
     "title": "Title (Optional)",
-    "nina_entity_prefix": "NINA Warning Area",
+    "nina_entity_prefix": "NINA Warning Area(s)",
     "max_warnings": "Max Number of Warnings",
     "dwd_device": "DWD Warnings Device",
     "dwd_map_land": "DWD Warning Map (State)",
@@ -120,5 +120,9 @@
     "official_warning_link": "Official Warning Link",
     "show_more": "Show more",
     "show_less": "Show less"
+  },
+  "errors": {
+    "ai_translation_config_error": "AI Translation is enabled but no AI agent is configured or selected. Please select an AI translation entity in the card configuration editor.",
+    "ai_translation_parse_error": "Failed to parse translation JSON"
   }
 }

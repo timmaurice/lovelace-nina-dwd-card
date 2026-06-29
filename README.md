@@ -88,28 +88,28 @@ You can now add the card to your dashboard.
 
 ## Configuration
 
-| Name                        | Type    | Default      | Description                                                                                                                 |
-| --------------------------- | ------- | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `type`                      | string  | **Required** | `custom:nina-dwd-card`                                                                                                      |
-| `title`                     | string  | `(none)`     | The title of the card.                                                                                                      |
-| `nina_entity_prefix`        | string  | `(none)`     | The NINA warning area prefix, selected via the editor dropdown.                                                             |
-| `max_warnings`              | number  | `5`          | The maximum number of warnings to display on the card.                                                                      |
-| `dwd_device`                | string  | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it.                      |
-| `dwd_map_type`              | string  | `state`      | The type of DWD map to display. Can be `state` (by district) or `region`.                                                   |
-| `dwd_map_land`              | string  | `de`         | The German state ("Bundesland") or region to display the DWD warning map for.                                               |
-| `dwd_map_position`          | string  | `inside`     | The position of the DWD map. Can be `inside` the first warning, `above` or `below` all warnings, or `none` to hide the map. |
-| `map_pin_zone` **(BETA)**   | string  | **Optional** | Entity ID of a Home Assistant zone (e.g., `zone.home`) to mark on the map. Only available when `dwd_map_type` is `state`.   |
-| `show_map_without_warnings` | boolean | `false`      | Shows the map even when there are no warnings. Only works when `dwd_map_position` is `above` or `below`.                    |
-| `hide_on_level_below`       | number  | `(none)`     | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate).                                 |
-| `hide_instructions`         | boolean | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
-| `hide_footer`               | boolean | `false`      | Hides the footer containing the source and info icon.                                                                       |
-| `separate_advance_warnings` | boolean | `false`      | Displays current warnings and advance warnings in separate sections.                                                        |
-| `suppress_warning_text`     | boolean | `false`      | Removes \"Amtliche (Unwetter)warnung vor\" and \"VORABINFORMATION UNWETTER vor\" from the headline.                         |
-| `description_max_length`    | number  | `(none)`     | The maximum number of characters to display in the warning description.                                                     |
-| `font_size`                 | number  | `(none)`     | The font size for the card content in pixels.                                                                               |
-| `hide_when_no_warnings`     | boolean | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                             |
-| `theme_mode`                | string  | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
-| `color_overrides`           | object  | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |
+| Name                        | Type           | Default      | Description                                                                                                                 |
+| --------------------------- | -------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `type`                      | string         | **Required** | `custom:nina-dwd-card`                                                                                                      |
+| `title`                     | string         | `(none)`     | The title of the card.                                                                                                      |
+| `nina_entity_prefix`        | string or list | `(none)`     | The NINA warning area prefix(es), selected via the editor dropdown. Can be a single prefix or an array of prefixes.         |
+| `max_warnings`              | number         | `5`          | The maximum number of warnings to display on the card.                                                                      |
+| `dwd_device`                | string         | `(none)`     | A DWD Weather Warnings device. The card will find the `current` and `advance` warning sensors from it.                      |
+| `dwd_map_type`              | string         | `state`      | The type of DWD map to display. Can be `state` (by district) or `region`.                                                   |
+| `dwd_map_land`              | string         | `de`         | The German state ("Bundesland") or region to display the DWD warning map for.                                               |
+| `dwd_map_position`          | string         | `inside`     | The position of the DWD map. Can be `inside` the first warning, `above` or `below` all warnings, or `none` to hide the map. |
+| `map_pin_zone` **(BETA)**   | string         | **Optional** | Entity ID of a Home Assistant zone (e.g., `zone.home`) to mark on the map. Only available when `dwd_map_type` is `state`.   |
+| `show_map_without_warnings` | boolean        | `false`      | Shows the map even when there are no warnings. Only works when `dwd_map_position` is `above` or `below`.                    |
+| `hide_on_level_below`       | number         | `(none)`     | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate).                                 |
+| `hide_instructions`         | boolean        | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
+| `hide_footer`               | boolean        | `false`      | Hides the footer containing the source and info icon.                                                                       |
+| `separate_advance_warnings` | boolean        | `false`      | Displays current warnings and advance warnings in separate sections.                                                        |
+| `suppress_warning_text`     | boolean        | `false`      | Removes \"Amtliche (Unwetter)warnung vor\" and \"VORABINFORMATION UNWETTER vor\" from the headline.                         |
+| `description_max_length`    | number         | `(none)`     | The maximum number of characters to display in the warning description.                                                     |
+| `font_size`                 | number         | `(none)`     | The font size for the card content in pixels.                                                                               |
+| `hide_when_no_warnings`     | boolean        | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                             |
+| `theme_mode`                | string         | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
+| `color_overrides`           | object         | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |
 
 > [!NOTE]
 > **Debug Mode**: The `debug_mode` option is not available in the visual editor. It can only be configured via YAML. When enabled, it displays an overlay showing the map padding areas and boundary coordinates, which is useful for fine-tuning map positioning.
@@ -119,7 +119,10 @@ You can now add the card to your dashboard.
 ```yaml
 type: custom:nina-dwd-card
 title: Warnings
-nina_entity_prefix: binary_sensor.warning_berlin
+# Can be a single prefix (string) or multiple prefixes (array of strings):
+nina_entity_prefix:
+  - binary_sensor.warning_berlin
+  - binary_sensor.warning_potsdam
 max_warnings: 3
 dwd_device: 1234567890abcdef1234567890abcdef # Device ID for your DWD integration
 dwd_map_land: de # For Germany

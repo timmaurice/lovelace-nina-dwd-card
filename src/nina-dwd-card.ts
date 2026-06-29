@@ -32,6 +32,7 @@ export class NinaDwdCard extends LitElement {
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
   private _cache = new TranslationCache();
+  private _hasLoggedTranslationWarning = false;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -56,7 +57,10 @@ export class NinaDwdCard extends LitElement {
     if (!config) {
       throw new Error('Invalid configuration');
     }
-    if (!config.nina_entity_prefix && !config.dwd_device) {
+    const hasNina = Array.isArray(config.nina_entity_prefix)
+      ? config.nina_entity_prefix.length > 0
+      : !!config.nina_entity_prefix;
+    if (!hasNina && !config.dwd_device) {
       throw new Error('You need to define at least one NINA or DWD entity.');
     }
 
@@ -64,10 +68,12 @@ export class NinaDwdCard extends LitElement {
     if (
       this._config &&
       (this._config.translation_target !== config.translation_target ||
-        this._config.enable_translation !== config.enable_translation)
+        this._config.enable_translation !== config.enable_translation ||
+        this._config.ai_entity_id !== config.ai_entity_id)
     ) {
       this._translations = {};
       this._translationInProgress.clear();
+      this._hasLoggedTranslationWarning = false;
     }
 
     this._config = {
@@ -155,7 +161,7 @@ export class NinaDwdCard extends LitElement {
           ${!this._config.hide_instructions && instruction
             ? html` <ha-expansion-panel outlined>
                 <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                <div class="instruction">${instruction}</div>
+                <div class="instruction">${unsafeHTML(instruction)}</div>
               </ha-expansion-panel>`
             : ''}
           ${this._renderFooter(warning)}
@@ -174,6 +180,7 @@ export class NinaDwdCard extends LitElement {
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
+    if (!this.hass) return;
     if (changedProperties.has('hass') || changedProperties.has('_config')) {
       const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
       const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
@@ -566,29 +573,51 @@ export class NinaDwdCard extends LitElement {
 
   private _getNinaWarnings(): NinaWarning[] {
     const warnings: NinaWarning[] = [];
-    if (!this._config.nina_entity_prefix) return warnings;
+    if (!this.hass) return warnings;
+    const prefixes = Array.isArray(this._config.nina_entity_prefix)
+      ? this._config.nina_entity_prefix
+      : this._config.nina_entity_prefix
+        ? [this._config.nina_entity_prefix]
+        : [];
 
-    // Check a fixed number of NINA entities. The total number of warnings is limited later.
-    for (let i = 1; i <= 20; i++) {
-      let entityId = `${this._config.nina_entity_prefix}_${i}`;
-      if (!this.hass.states[entityId]) {
-        entityId = `${this._config.nina_entity_prefix}${i}`;
-      }
-      const stateObj = this.hass.states[entityId];
+    if (prefixes.length === 0) return warnings;
 
-      if (stateObj && stateObj.state === 'on') {
-        warnings.push({
-          headline: stateObj.attributes.headline,
-          description: stateObj.attributes.description,
-          sender: stateObj.attributes.sender,
-          entity_id: entityId,
-          severity: stateObj.attributes.severity,
-          start: stateObj.attributes.start,
-          expires: stateObj.attributes.expires,
-          instruction: stateObj.attributes.instruction || stateObj.attributes.recommended_actions,
-          warning_id: stateObj.attributes.id,
-          sent: stateObj.attributes.sent,
-        });
+    const seenWarningIds = new Set<string>();
+
+    for (const prefix of prefixes) {
+      if (!prefix) continue;
+      // Check a fixed number of NINA entities. The total number of warnings is limited later.
+      for (let i = 1; i <= 20; i++) {
+        let entityId = `${prefix}_${i}`;
+        if (!this.hass.states[entityId]) {
+          entityId = `${prefix}${i}`;
+        }
+        const stateObj = this.hass.states[entityId];
+
+        if (stateObj && stateObj.state === 'on') {
+          const warningId =
+            stateObj.attributes.id ||
+            stateObj.attributes.warning_id ||
+            `${stateObj.attributes.headline || ''}-${stateObj.attributes.start || ''}-${stateObj.attributes.description || ''}`;
+
+          if (seenWarningIds.has(warningId)) {
+            continue;
+          }
+          seenWarningIds.add(warningId);
+
+          warnings.push({
+            headline: stateObj.attributes.headline,
+            description: stateObj.attributes.description,
+            sender: stateObj.attributes.sender,
+            entity_id: entityId,
+            severity: stateObj.attributes.severity,
+            start: stateObj.attributes.start,
+            expires: stateObj.attributes.expires,
+            instruction: stateObj.attributes.instruction || stateObj.attributes.recommended_actions,
+            warning_id: stateObj.attributes.id,
+            sent: stateObj.attributes.sent,
+          });
+        }
       }
     }
     return warnings;
@@ -659,7 +688,13 @@ export class NinaDwdCard extends LitElement {
       const mergedInGroup: (NinaWarning | DwdWarning)[] = [];
 
       const normalize = (str: string | undefined): string => {
-        return (str || '').replace(/[·•.]/g, '').replace(/;/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        return (str || '')
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/[·•.]/g, '')
+          .replace(/;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
       };
 
       for (const warning of group) {
@@ -916,11 +951,37 @@ export class NinaDwdCard extends LitElement {
               this._cache.set(targetLanguage, key, result);
             }
           } catch (e) {
-            console.warn('NINA-DWD: Failed to parse translation JSON', e);
+            console.warn(`NINA-DWD: ${localize(this.hass, 'errors.ai_translation_parse_error')}`, e);
+            // Save original warning text in translations map so we don't keep retrying this request
+            this._translations = {
+              ...this._translations,
+              [key]: {
+                headline: warning.headline,
+                description: warning.description,
+                instruction: warning.instruction || '',
+              },
+            };
           }
         }
       } catch (e) {
-        console.error('NINA-DWD: Translation failed', e);
+        const message = e && typeof e === 'object' && 'message' in e ? (e.message as string) : '';
+        if (message.includes('No entity_id provided') || message.includes('no preferred entity set')) {
+          if (!this._hasLoggedTranslationWarning) {
+            console.warn(`NINA-DWD: ${localize(this.hass, 'errors.ai_translation_config_error')}`);
+            this._hasLoggedTranslationWarning = true;
+          }
+        } else {
+          console.error('NINA-DWD: Translation failed', e);
+        }
+        // Save original warning text in translations map so we don't keep retrying this request
+        this._translations = {
+          ...this._translations,
+          [key]: {
+            headline: warning.headline,
+            description: warning.description,
+            instruction: warning.instruction || '',
+          },
+        };
       } finally {
         this._translationInProgress.delete(key);
       }
@@ -962,4 +1023,30 @@ window.customCards.push({
   name: 'NINA and DWD Warnings Card',
   preview: true,
   description: 'A card to display warnings from NINA and DWD.',
+  getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
+    if (entityId.startsWith('sensor.nina_')) {
+      const prefix = entityId.replace(/_?\d+$/, '');
+      return {
+        config: {
+          type: 'custom:nina-dwd-card',
+          nina_entity_prefix: [prefix],
+        },
+      };
+    }
+    const entity = hass.entities[entityId];
+    const isDwd =
+      entityId.endsWith('_aktuelle_warnstufe') ||
+      entityId.endsWith('_current_warning_level') ||
+      entityId.endsWith('_vorwarnstufe') ||
+      entityId.endsWith('_advance_warning_level');
+    if (isDwd && entity?.device_id) {
+      return {
+        config: {
+          type: 'custom:nina-dwd-card',
+          dwd_device: entity.device_id,
+        },
+      };
+    }
+    return null;
+  },
 });

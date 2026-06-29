@@ -335,6 +335,27 @@ describe('NinaDwdCard', () => {
       expect(expansionPanel?.textContent).toContain('Stay inside.');
     });
 
+    it('should render instruction accordion with HTML elements unescaped', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'NINA Test Warning',
+          description: 'This is a test.',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+          instruction: 'Stay inside.<br/>Wash hands.',
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const instructionDiv = element.shadowRoot?.querySelector('.instruction');
+      expect(instructionDiv).not.toBeNull();
+      expect(instructionDiv?.innerHTML).toContain('<br>');
+    });
+
     it('should show the footer by default and hide it when hide_footer is true', async () => {
       // Setup a warning to ensure the footer has a chance to render
       hass.states['binary_sensor.nina_warnung_1'] = {
@@ -734,6 +755,84 @@ describe('NinaDwdCard', () => {
 
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
+    });
+
+    it('should merge warnings with same content even if one contains HTML tags (like <br />)', async () => {
+      // Warning 1: Contains HTML tags
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor extremer HITZE',
+          description:
+            'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.<br/><br/>Am Montag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.<br/><br/>Heute ist der 4. Tag der Warnsituation in Folge.',
+          start: new Date().toISOString(),
+        },
+      };
+
+      // Warning 2: Plain text with spaces
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor extremer HITZE',
+          warning_1_description:
+            'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet. Am Montag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet. Heute ist der 4. Tag der Warnsituation in Folge.',
+          warning_1_level: 2,
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
+
+    it('should render the map inside the warning when NINA and DWD warnings are merged and position is inside', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'inside';
+
+      // NINA warning
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor extremer HITZE',
+          description: 'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.',
+          sender: 'Civil Protection',
+          severity: 'Extreme',
+          start: new Date().toISOString(),
+          expires: new Date().toISOString(),
+        },
+      };
+
+      // DWD warning (duplicate)
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor extremer HITZE',
+          warning_1_description: 'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.',
+          warning_1_level: 4,
+          warning_1_start: new Date().toISOString(),
+          warning_1_end: new Date().toISOString(),
+          warning_1_type: 1,
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const mapContainer = element.shadowRoot?.querySelector('.warning .map-container');
+      expect(mapContainer).not.toBeNull();
     });
 
     it('should NOT compare instructions if hide_instructions is enabled', async () => {
@@ -1264,6 +1363,124 @@ describe('NinaDwdCard', () => {
       const lightbox = element.shadowRoot?.querySelector('.lightbox');
       expect(lightbox?.classList.contains('mode-dark')).toBe(false);
       expect(lightbox?.classList.contains('mode-light')).toBe(false);
+    });
+  });
+
+  describe('Multiple NINA Warning Areas', () => {
+    it('should accept an array of prefixes in setConfig', () => {
+      const arrayConfig = {
+        ...config,
+        nina_entity_prefix: ['binary_sensor.nina_warnung_karlsruhe', 'binary_sensor.nina_warnung_baden_baden'],
+      };
+      expect(() => element.setConfig(arrayConfig)).not.toThrow();
+    });
+
+    it('should retrieve warnings from multiple prefixes', async () => {
+      const arrayConfig = {
+        ...config,
+        nina_entity_prefix: ['binary_sensor.nina_warnung_1', 'binary_sensor.nina_warnung_2'],
+      };
+
+      hass.states['binary_sensor.nina_warnung_1_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      hass.states['binary_sensor.nina_warnung_2_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-2',
+          headline: 'Baden-Baden Warning',
+          description: 'Wind warning.',
+          sender: 'DWD',
+          severity: 'Moderate',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(arrayConfig);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(2);
+
+      const headlines = Array.from(warnings || []).map((w) => w.querySelector('.headline')?.textContent?.trim());
+      expect(headlines).toContain('Karlsruhe Warning');
+      expect(headlines).toContain('Baden-Baden Warning');
+    });
+
+    it('should deduplicate warnings from overlapping prefixes', async () => {
+      const arrayConfig = {
+        ...config,
+        nina_entity_prefix: ['binary_sensor.nina_warnung_1', 'binary_sensor.nina_warnung_2'],
+      };
+
+      // Both entities report the exact same warning ID
+      hass.states['binary_sensor.nina_warnung_1_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-shared',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      hass.states['binary_sensor.nina_warnung_2_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-shared',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(arrayConfig);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+    });
+
+    it('should remain backwards compatible with a string prefix', async () => {
+      const stringConfig = {
+        ...config,
+        nina_entity_prefix: 'binary_sensor.nina_warnung_1',
+      };
+
+      hass.states['binary_sensor.nina_warnung_1_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(stringConfig);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+      expect(warnings?.[0].querySelector('.headline')?.textContent?.trim()).toBe('Karlsruhe Warning');
     });
   });
 });
