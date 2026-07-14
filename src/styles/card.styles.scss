@@ -150,6 +150,11 @@ ha-expansion-panel {
   }
 }
 
+.description {
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
 .instruction {
   white-space: pre-wrap;
 }
