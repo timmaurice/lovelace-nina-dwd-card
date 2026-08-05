@@ -43,6 +43,8 @@ export interface NinaWarning {
   expires: string;
   warning_id?: string;
   sent?: string;
+  /** Names of the NINA warning areas this warning was reported for. */
+  areas?: string[];
 }
 
 export interface DwdWarning {
@@ -69,6 +71,7 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   hide_when_no_warnings?: boolean;
   hide_instructions?: boolean;
   hide_footer?: boolean;
+  show_nina_area?: boolean;
   separate_advance_warnings?: boolean;
   hide_on_level_below?: number;
   theme_mode?: 'auto' | 'light' | 'dark';

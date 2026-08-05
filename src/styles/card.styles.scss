@@ -78,6 +78,29 @@
   }
 }
 
+.areas {
+  align-items: center;
+  color: var(--secondary-text-color);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.9em;
+  gap: 4px;
+  margin-bottom: 6px;
+
+  > ha-icon {
+    --mdc-icon-size: 1.2em;
+    flex-shrink: 0;
+  }
+
+  .area-chip {
+    background-color: var(--divider-color);
+    border-radius: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+    padding: 0 8px;
+  }
+}
+
 .time {
   color: var(--secondary-text-color);
   font-size: 0.9em;

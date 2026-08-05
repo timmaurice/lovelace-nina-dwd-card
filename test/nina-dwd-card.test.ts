@@ -1465,6 +1465,169 @@ describe('NinaDwdCard', () => {
       expect(warnings?.length).toBe(1);
     });
 
+    it('should show the area name per warning when show_nina_area is enabled', async () => {
+      const arrayConfig = {
+        ...config,
+        nina_entity_prefix: ['binary_sensor.nina_warnung_1', 'binary_sensor.nina_warnung_2'],
+        show_nina_area: true,
+      };
+
+      hass.states['binary_sensor.nina_warnung_1_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          friendly_name: 'Karlsruhe (Stadt) Warnung 1',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      hass.states['binary_sensor.nina_warnung_2_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-2',
+          friendly_name: 'Baden-Baden Warnung 1',
+          headline: 'Baden-Baden Warning',
+          description: 'Wind warning.',
+          sender: 'DWD',
+          severity: 'Moderate',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(arrayConfig);
+      await element.updateComplete;
+
+      const areas = Array.from(element.shadowRoot?.querySelectorAll('.area-chip') || []).map((a) =>
+        a.textContent?.trim(),
+      );
+      expect(areas).toEqual(expect.arrayContaining(['Karlsruhe (Stadt)', 'Baden-Baden']));
+    });
+
+    it('should not show area names by default', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          friendly_name: 'Karlsruhe Warnung 1',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.areas')).toBeNull();
+    });
+
+    it('should list all areas of a warning reported by several prefixes', async () => {
+      const arrayConfig = {
+        ...config,
+        nina_entity_prefix: ['binary_sensor.nina_warnung_1', 'binary_sensor.nina_warnung_2'],
+        show_nina_area: true,
+      };
+
+      // Both entities report the exact same warning ID for different areas
+      hass.states['binary_sensor.nina_warnung_1_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-shared',
+          friendly_name: 'Karlsruhe Warnung 1',
+          headline: 'Shared Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      hass.states['binary_sensor.nina_warnung_2_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-shared',
+          friendly_name: 'Baden-Baden Warnung 1',
+          headline: 'Shared Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(arrayConfig);
+      await element.updateComplete;
+
+      const warnings = element.shadowRoot?.querySelectorAll('.warning');
+      expect(warnings?.length).toBe(1);
+      const chips = Array.from(warnings?.[0].querySelectorAll('.area-chip') || []).map((c) => c.textContent?.trim());
+      expect(chips).toEqual(['Karlsruhe', 'Baden-Baden']);
+    });
+
+    it('should shorten the district and state suffix but keep it in the tooltip', async () => {
+      const prefixConfig = {
+        ...config,
+        nina_entity_prefix: 'binary_sensor.warning_battenberg',
+        show_nina_area: true,
+      };
+
+      hass.states['binary_sensor.warning_battenberg_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          friendly_name: 'Battenberg (Eder), Stadt (Waldeck-Frankenberg - Hessen) Warning 1',
+          headline: 'Gefahreninformation',
+          description: 'Schutzzonen ASP.',
+          sender: 'DE-HE-KB-W195',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(prefixConfig);
+      await element.updateComplete;
+
+      const chip = element.shadowRoot?.querySelector('.area-chip');
+      expect(chip?.textContent?.trim()).toBe('Battenberg (Eder), Stadt');
+      expect(chip?.getAttribute('title')).toBe('Battenberg (Eder), Stadt (Waldeck-Frankenberg - Hessen)');
+    });
+
+    it('should fall back to the prefix when the entity has no friendly name', async () => {
+      const prefixConfig = {
+        ...config,
+        nina_entity_prefix: 'binary_sensor.nina_warnung_karlsruhe',
+        show_nina_area: true,
+      };
+
+      hass.states['binary_sensor.nina_warnung_karlsruhe_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          headline: 'Karlsruhe Warning',
+          description: 'Rain warning.',
+          sender: 'DWD',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(prefixConfig);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.areas')?.textContent?.trim()).toBe('Karlsruhe');
+    });
+
     it('should remain backwards compatible with a string prefix', async () => {
       const stringConfig = {
         ...config,

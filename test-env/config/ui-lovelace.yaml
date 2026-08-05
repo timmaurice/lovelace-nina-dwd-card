@@ -12,6 +12,20 @@ views:
         dwd_map_position: inside
         show_map_without_warnings: true
         map_pin_zone: zone.home
+  - title: NINA Areas
+    path: nina-areas
+    cards:
+      - type: custom:nina-dwd-card
+        title: 'Areas shown (show_nina_area: true)'
+        nina_entity_prefix:
+          - binary_sensor.battenberg_eder_stadt_waldeck_frankenberg_hessen_warning
+          - binary_sensor.rosenheim_stadt_rosenheim_bayern_warning
+        show_nina_area: true
+      - type: custom:nina-dwd-card
+        title: show_nina_area off (before)
+        nina_entity_prefix:
+          - binary_sensor.battenberg_eder_stadt_waldeck_frankenberg_hessen_warning
+          - binary_sensor.rosenheim_stadt_rosenheim_bayern_warning
   - title: Empty
     path: empty
     cards:

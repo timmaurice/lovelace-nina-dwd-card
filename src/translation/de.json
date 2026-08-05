@@ -31,6 +31,7 @@
     "description_max_length": "Maximale Länge der Beschreibung",
     "font_size": "Schriftgröße",
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
+    "show_nina_area": "NINA-Warngebiet pro Warnung anzeigen",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",
     "separate_advance_warnings": "Aktuelle und Vorab-Warnungen trennen",

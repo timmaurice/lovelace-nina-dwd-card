@@ -67,3 +67,64 @@ template:
           instruction: 'Gefahr durch: <br/> · mögliche erhebliche Frostschäden<br/> · Unterkühlung bei längerem Aufenthalt im Freien<br/> · einfrierende Wasserleitungen<br/><br/>Handlungsempfehlungen: <br/> · Frostschutzmaßnahmen ergreifen, z.B. Pflanzen abdecken oder Wasser aus Außenleitungen ablassen<br/> · längere Aufenthalte im Freien vermeiden'
           id: 'mow.de.ber.12345'
           sent: '{{ (now() - timedelta(hours=7)).isoformat() }}'
+
+      # --- Mock NINA areas for testing `show_nina_area` (issue #60) -------------
+      # Entity names mimic the real NINA integration: "<Region> Warning <n>",
+      # so the card derives the area label from the friendly name.
+      # Warning content below is the real live NINA payload (fetched 2026-08-05)
+      # for Waldeck-Frankenberg (Battenberg (Eder)) and Rosenheim.
+      - name: 'Battenberg (Eder), Stadt (Waldeck-Frankenberg - Hessen) Warning 1'
+        unique_id: nina_mock_battenberg_1
+        state: 'on'
+        attributes:
+          headline: 'Einrichtung von Schutzzonen zur Bekämpfung der Afrikanischen Schweinepest (ASP) - Süd-westlicher Bereich des Landkreises Waldeck-Frankenberg'
+          description: 'Informationen über die Afrikanische Schweinepest und der Schutzzonen finden Sie unter https://www.landkreis-waldeck-frankenberg.de/schweinepest/'
+          sender: 'DE-HE-KB-W195'
+          severity: 'Minor'
+          start: '2026-03-04T10:32:16+01:00'
+          instruction: 'Berühren Sie keine toten Tiere. Melden Sie Funde von toten Wildtieren den Behörden.'
+          id: 'mow.DE-HE-KS-SE106-20260304-106-000'
+          sent: '2026-03-04T10:32:16+01:00'
+
+      - name: 'Rosenheim, Stadt (Rosenheim - Bayern) Warning 1'
+        unique_id: nina_mock_rosenheim_1
+        state: 'on'
+        attributes:
+          headline: 'Warnung vor hoher Waldbrandgefahr - Landkreis Rosenheim, Stadt Rosenheim und Landkreis Miesbach'
+          description: 'In den kommenden Tagen herrscht sehr hohe Waldbrandgefahr.<br/><br/>Die Stadt und der Landkreis Rosenheim sowie der Landkreis Miesbach weisen darauf hin, dass daher gem. § 3 Abs. 1 der VVB (Verordnung über die Verhütung von Bränden) ein Anzünden von Daxenfeuern bis zu einer Herabsetzung der amtlichen Gefahrenstufe verboten ist.<br/><br/>Ferner ist zu beachten, dass keine offenen Feuer in Wäldern erlaubt sind sowie bei offenem Feuer in der Nähe von Wäldern ein Sicherheitsabstand von mindestens 100 Meter einzuhalten ist.'
+          sender: 'DE-BY-RO-W136'
+          severity: 'Minor'
+          start: '2026-07-30T13:03:34+02:00'
+          instruction: 'Machen Sie im Freien kein Feuer.'
+          id: 'mow.DE-BY-RO-W136-20260730-000'
+          sent: '2026-07-30T13:03:34+02:00'
+
+      # Synthetic warning present in BOTH areas with the same warning id, to test
+      # that one entry is rendered listing both area names.
+      - name: 'Battenberg (Eder), Stadt (Waldeck-Frankenberg - Hessen) Warning 2'
+        unique_id: nina_mock_battenberg_2
+        state: 'on'
+        attributes:
+          headline: 'Amtliche WARNUNG vor SCHWEREM GEWITTER'
+          description: 'Es treten Gewitter mit Sturmböen um 85 km/h und Starkregen um 20 l/m² pro Stunde auf.'
+          sender: 'Deutscher Wetterdienst'
+          severity: 'Severe'
+          start: '{{ (now() - timedelta(hours=1)).isoformat() }}'
+          expires: '{{ (now() + timedelta(hours=5)).isoformat() }}'
+          instruction: 'Bringen Sie Gegenstände im Freien in Sicherheit.'
+          id: 'mow.de.test.shared.0001'
+          sent: '{{ (now() - timedelta(hours=1)).isoformat() }}'
+
+      - name: 'Rosenheim, Stadt (Rosenheim - Bayern) Warning 2'
+        unique_id: nina_mock_rosenheim_2
+        state: 'on'
+        attributes:
+          headline: 'Amtliche WARNUNG vor SCHWEREM GEWITTER'
+          description: 'Es treten Gewitter mit Sturmböen um 85 km/h und Starkregen um 20 l/m² pro Stunde auf.'
+          sender: 'Deutscher Wetterdienst'
+          severity: 'Severe'
+          start: '{{ (now() - timedelta(hours=1)).isoformat() }}'
+          expires: '{{ (now() + timedelta(hours=5)).isoformat() }}'
+          instruction: 'Bringen Sie Gegenstände im Freien in Sicherheit.'
+          id: 'mow.de.test.shared.0001'
+          sent: '{{ (now() - timedelta(hours=1)).isoformat() }}'

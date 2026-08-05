@@ -3,6 +3,50 @@ import { localize } from './localize';
 
 export const WARNING_PREFIX_REGEX = /^(Amtliche (Unwetter)?warnung vor |VORABINFORMATION UNWETTER vor )/i;
 
+// Trailing "Warning 1" / "Warnung 3" / bare slot number of a NINA entity name.
+const NINA_SLOT_SUFFIX_REGEX = /(?:\s(?:Warning|Warnung))?\s*\d*$/;
+
+const NINA_NOISE_WORDS = ['nina', 'warning', 'warnung'];
+
+/**
+ * Derives a human readable area name for a NINA entity.
+ *
+ * Prefers the friendly name of the entity with its warning slot suffix removed
+ * (e.g. "Karlsruhe (Stadt) Warnung 1" -> "Karlsruhe (Stadt)"). Falls back to the
+ * entity prefix, prettified (e.g. "binary_sensor.nina_warnung_karlsruhe" -> "Karlsruhe").
+ *
+ * @param friendlyName The friendly name of the warning slot entity, if available.
+ * @param entityPrefix The configured NINA entity prefix.
+ */
+export function getNinaAreaName(friendlyName: string | undefined, entityPrefix: string): string {
+  if (friendlyName) {
+    const label = friendlyName.replace(NINA_SLOT_SUFFIX_REGEX, '').trim();
+    if (label) return label;
+  }
+
+  const objectId = entityPrefix.split('.').pop() || entityPrefix;
+  const words = objectId.split('_').filter(Boolean);
+  const meaningful = words.filter((word) => !NINA_NOISE_WORDS.includes(word.toLowerCase()));
+  const parts = meaningful.length > 0 ? meaningful : words;
+
+  return parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
+// Trailing "(<District> - <State>)" of a NINA area name. The " - " separator is
+// what distinguishes it from a parenthetical that belongs to the place name
+// itself, e.g. "Battenberg (Eder)".
+const NINA_DISTRICT_SUFFIX_REGEX = /\s*\([^()]+ - [^()]+\)\s*$/;
+
+/**
+ * Shortens a NINA area name for display by dropping the district and state suffix,
+ * e.g. "Battenberg (Eder), Stadt (Waldeck-Frankenberg - Hessen)" -> "Battenberg (Eder), Stadt".
+ *
+ * @param area The full NINA area name.
+ */
+export function shortenNinaAreaName(area: string): string {
+  return area.replace(NINA_DISTRICT_SUFFIX_REGEX, '').trim() || area;
+}
+
 /**
  * Dispatches a custom event with an optional detail value.
  *

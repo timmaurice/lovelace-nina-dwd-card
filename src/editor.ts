@@ -89,6 +89,10 @@ const SCHEMA = [
         },
       },
       {
+        name: 'show_nina_area',
+        selector: { boolean: {} },
+      },
+      {
         name: 'hide_instructions',
         selector: { boolean: {} },
       },
@@ -244,6 +248,10 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
 
     const ninaPrefixes = Array.from(ninaPrefixesMap.values());
 
+    const hasNinaAreas = Array.isArray(this._config.nina_entity_prefix)
+      ? this._config.nina_entity_prefix.length > 0
+      : !!this._config.nina_entity_prefix;
+
     const lang = this.hass.language || 'en';
     const mapType = this._config.dwd_map_type || 'state';
     const langOptionsKey = mapType === 'region' ? 'dwd_map_region_options' : 'dwd_map_land_options';
@@ -273,6 +281,9 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
         (acc, item) => {
           // Filtering Logic
           if (item.name === 'map_pin_zone' && this._config.dwd_map_type !== 'state') {
+            return acc;
+          }
+          if (item.name === 'show_nina_area' && !hasNinaAreas) {
             return acc;
           }
           if (

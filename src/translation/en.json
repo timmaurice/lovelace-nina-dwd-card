@@ -31,6 +31,7 @@
     "description_max_length": "Max description length",
     "font_size": "Font size",
     "hide_on_level_below": "Hide warnings with a level below",
+    "show_nina_area": "Show NINA warning area per warning",
     "hide_instructions": "Hide recommended actions",
     "hide_footer": "Hide footer with source and info icon",
     "separate_advance_warnings": "Separate current and advance warnings",

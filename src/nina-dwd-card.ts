@@ -2,7 +2,7 @@ import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { fireEvent, formatTime, WARNING_PREFIX_REGEX } from './utils';
+import { fireEvent, formatTime, getNinaAreaName, shortenNinaAreaName, WARNING_PREFIX_REGEX } from './utils';
 import { localize } from './localize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
@@ -140,6 +140,7 @@ export class NinaDwdCard extends LitElement {
           <div class="headline" style="color: ${this._getWarningColor(warning)}">
             <ha-icon icon=${this._getWarningIcon(warning)}></ha-icon> ${headline}
           </div>
+          ${this._renderAreas(warning)}
           <div class="time">${formatTime(warning, this.hass)}</div>
           <div class="description">
             ${unsafeHTML(processedDescription)}
@@ -178,6 +179,24 @@ export class NinaDwdCard extends LitElement {
         </div>
       `;
     })}`;
+  }
+
+  /**
+   * Renders the NINA area(s) a warning was reported for.
+   * Only shown when `show_nina_area` is enabled and the warning carries area information.
+   */
+  private _renderAreas(warning: NinaWarning | DwdWarning): TemplateResult | string {
+    if (!this._config.show_nina_area) return '';
+
+    const areas = 'areas' in warning ? warning.areas : undefined;
+    if (!areas?.length) return '';
+
+    // Each area gets its own chip: NINA area names contain commas, so a joined
+    // text line would be ambiguous. The full name stays available as a tooltip.
+    return html`<div class="areas">
+      <ha-icon icon="mdi:map-marker"></ha-icon>
+      ${areas.map((area) => html`<span class="area-chip" title=${area}>${shortenNinaAreaName(area)}</span>`)}
+    </div>`;
   }
 
   private _toggleExpand(key: string): void {
@@ -608,7 +627,7 @@ export class NinaDwdCard extends LitElement {
 
     if (prefixes.length === 0) return warnings;
 
-    const seenWarningIds = new Set<string>();
+    const warningsById = new Map<string, NinaWarning>();
 
     for (const prefix of prefixes) {
       if (!prefix) continue;
@@ -626,12 +645,19 @@ export class NinaDwdCard extends LitElement {
             stateObj.attributes.warning_id ||
             `${stateObj.attributes.headline || ''}-${stateObj.attributes.start || ''}-${stateObj.attributes.description || ''}`;
 
-          if (seenWarningIds.has(warningId)) {
+          const area = getNinaAreaName(stateObj.attributes.friendly_name, prefix);
+
+          const known = warningsById.get(warningId);
+          if (known) {
+            // The same warning can cover several configured areas. Keep one entry
+            // but remember every area it was reported for.
+            if (area && !known.areas!.includes(area)) {
+              known.areas!.push(area);
+            }
             continue;
           }
-          seenWarningIds.add(warningId);
 
-          warnings.push({
+          const warning: NinaWarning = {
             headline: stateObj.attributes.headline,
             description: stateObj.attributes.description,
             sender: stateObj.attributes.sender,
@@ -642,7 +668,11 @@ export class NinaDwdCard extends LitElement {
             instruction: stateObj.attributes.instruction || stateObj.attributes.recommended_actions,
             warning_id: stateObj.attributes.id,
             sent: stateObj.attributes.sent,
-          });
+            areas: area ? [area] : [],
+          };
+
+          warningsById.set(warningId, warning);
+          warnings.push(warning);
         }
       }
     }
@@ -712,6 +742,14 @@ export class NinaDwdCard extends LitElement {
       // We need to compare description and instruction
       // We can use a simple O(N^2) approach or sort/map. Given small N usually, simple loop is fine.
       const mergedInGroup: (NinaWarning | DwdWarning)[] = [];
+
+      // Warnings merged into one entry can originate from different NINA areas.
+      const mergeAreas = (target: NinaWarning | DwdWarning, source: NinaWarning | DwdWarning): void => {
+        const sourceAreas = 'areas' in source ? source.areas : undefined;
+        if (!sourceAreas?.length) return;
+        const targetAreas = ('areas' in target ? target.areas : undefined) || [];
+        (target as NinaWarning).areas = [...targetAreas, ...sourceAreas.filter((a) => !targetAreas.includes(a))];
+      };
 
       const normalize = (str: string | undefined): string => {
         return (str || '')
@@ -795,6 +833,8 @@ export class NinaDwdCard extends LitElement {
                 }
               }
             }
+
+            mergeAreas(existing, warning);
 
             merged = true;
             break;
