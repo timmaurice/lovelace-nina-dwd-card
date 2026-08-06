@@ -68,6 +68,10 @@ const SCHEMA = [
         selector: { select: { mode: 'dropdown' } },
       },
       {
+        name: 'hide_headlines_containing',
+        selector: { text: { multiple: true } },
+      },
+      {
         name: 'description_max_length',
         selector: {
           number: {
@@ -180,6 +184,11 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     if (!this.hass || !this._config) return;
     const changedValue = ev.detail.value;
     const newConfig = { ...this._config, ...changedValue } as NinaDwdCardConfig;
+
+    // Drop the option once the last fragment was removed.
+    if ('hide_headlines_containing' in changedValue && !newConfig.hide_headlines_containing?.length) {
+      delete newConfig.hide_headlines_containing;
+    }
 
     // If dwd_device is being cleared, also remove the map setting.
     if ('dwd_device' in changedValue && !newConfig.dwd_device) {

@@ -48,6 +48,23 @@ export function shortenNinaAreaName(area: string): string {
 }
 
 /**
+ * Checks whether a headline contains one of the fragments and should therefore be hidden,
+ * e.g. "hitze" hides "Amtliche WARNUNG vor extremer HITZE". Blank fragments are ignored.
+ *
+ * @param headline The headline of the warning.
+ * @param fragments The configured headline fragments to hide.
+ */
+export function isHeadlineHidden(headline: string, fragments: string[] | undefined): boolean {
+  if (!fragments?.length) return false;
+
+  const haystack = (headline || '').toLowerCase();
+  return fragments.some((fragment) => {
+    const needle = fragment?.trim().toLowerCase();
+    return !!needle && haystack.includes(needle);
+  });
+}
+
+/**
  * Dispatches a custom event with an optional detail value.
  *
  * @param node The element to dispatch the event from.

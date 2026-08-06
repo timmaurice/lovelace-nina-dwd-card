@@ -2,7 +2,14 @@ import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { fireEvent, formatTime, getNinaAreaName, shortenNinaAreaName, WARNING_PREFIX_REGEX } from './utils';
+import {
+  fireEvent,
+  formatTime,
+  getNinaAreaName,
+  isHeadlineHidden,
+  shortenNinaAreaName,
+  WARNING_PREFIX_REGEX,
+} from './utils';
 import { localize } from './localize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
@@ -284,7 +291,17 @@ export class NinaDwdCard extends LitElement {
         dwdAdvanceWarnings = this._getDwdWarnings(deviceEntities.advance);
       }
     }
-    return { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings };
+
+    // Filtered here and not in _processWarnings, so hidden warnings are not translated either.
+    const fragments = this._config.hide_headlines_containing;
+    const visible = <T extends NinaWarning | DwdWarning>(warnings: T[]): T[] =>
+      fragments?.length ? warnings.filter((warning) => !isHeadlineHidden(warning.headline, fragments)) : warnings;
+
+    return {
+      ninaWarnings: visible(ninaWarnings),
+      dwdCurrentWarnings: visible(dwdCurrentWarnings),
+      dwdAdvanceWarnings: visible(dwdAdvanceWarnings),
+    };
   }
 
   private _getMapUrl(): string | undefined {

@@ -101,6 +101,7 @@ You can now add the card to your dashboard.
 | `map_pin_zone` **(BETA)**   | string         | **Optional** | Entity ID of a Home Assistant zone (e.g., `zone.home`) to mark on the map. Only available when `dwd_map_type` is `state`.   |
 | `show_map_without_warnings` | boolean        | `false`      | Shows the map even when there are no warnings. Only works when `dwd_map_position` is `above` or `below`.                    |
 | `hide_on_level_below`       | number         | `(none)`     | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate).                                 |
+| `hide_headlines_containing` | list           | `(none)`     | Hides warnings whose headline contains one of these fragments (case-insensitive), e.g. `Hitze`.                             |
 | `show_nina_area`            | boolean        | `false`      | Shows the NINA warning area(s) a warning was reported for, so multiple areas can share one card.                            |
 | `hide_instructions`         | boolean        | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
 | `hide_footer`               | boolean        | `false`      | Hides the footer containing the source and info icon.                                                                       |
@@ -131,6 +132,9 @@ dwd_map_type: state
 dwd_map_position: above
 show_map_without_warnings: true # Keep map visible even without warnings
 hide_on_level_below: 2 # Filters out warnings with level "Minor" (1)
+hide_headlines_containing: # Hides warnings whose headline contains one of these (case-insensitive)
+  - Hitze
+  - Frost
 show_nina_area: true # Shows which NINA area each warning belongs to
 hide_instructions: false
 hide_footer: false

@@ -547,6 +547,62 @@ describe('NinaDwdCard', () => {
       expect(renderedHeadlines).not.toContain('Minor Warning');
     });
 
+    describe('hide_headlines_containing', () => {
+      beforeEach(() => {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: {
+            headline: 'Amtliche WARNUNG vor extremer HITZE',
+            severity: 'Extreme',
+            start: new Date().toISOString(),
+          },
+        };
+        hass.entities['sensor.berlin_current_warning_level'] = {
+          entity_id: 'sensor.berlin_current_warning_level',
+          device_id: 'mock-dwd-device',
+        };
+        hass.states['sensor.berlin_current_warning_level'] = {
+          state: '1',
+          attributes: {
+            warning_1_headline: 'Amtliche Warnung vor STURMBÖEN',
+            warning_1_level: 2,
+            warning_1_start: new Date().toISOString(),
+            warning_2_headline: 'Hitzewarnung',
+            warning_2_level: 3,
+            warning_2_start: new Date().toISOString(),
+          },
+        };
+      });
+
+      const renderedHeadlines = () =>
+        Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) => el.textContent?.trim());
+
+      it('should hide NINA and DWD warnings whose headline contains a fragment', async () => {
+        element.hass = hass;
+        element.setConfig({ ...config, hide_headlines_containing: ['hitze'] });
+        await element.updateComplete;
+
+        expect(renderedHeadlines()).toEqual(['Amtliche Warnung vor STURMBÖEN']);
+      });
+
+      it('should ignore blank fragments so nothing is hidden by accident', async () => {
+        element.hass = hass;
+        element.setConfig({ ...config, hide_headlines_containing: ['', '   '] });
+        await element.updateComplete;
+
+        expect(renderedHeadlines()).toHaveLength(3);
+      });
+
+      it('should show the no-warnings text when every warning is hidden', async () => {
+        element.hass = hass;
+        element.setConfig({ ...config, hide_headlines_containing: ['Hitze', 'STURMBÖEN'] });
+        await element.updateComplete;
+
+        expect(renderedHeadlines()).toHaveLength(0);
+        expect(element.shadowRoot?.querySelector('.no-warnings')).not.toBeNull();
+      });
+    });
+
     it('should merge warnings with identical content but different times', async () => {
       // Warning 1: Starts earlier
       hass.states['binary_sensor.nina_warnung_1'] = {

@@ -26,6 +26,30 @@ views:
         nina_entity_prefix:
           - binary_sensor.battenberg_eder_stadt_waldeck_frankenberg_hessen_warning
           - binary_sensor.rosenheim_stadt_rosenheim_bayern_warning
+  - title: Hidden Headlines
+    path: hidden-headlines
+    cards:
+      - type: custom:nina-dwd-card
+        title: No filter (before)
+        nina_entity_prefix:
+          - binary_sensor.battenberg_eder_stadt_waldeck_frankenberg_hessen_warning
+          - binary_sensor.rosenheim_stadt_rosenheim_bayern_warning
+      # Only the thunderstorm warning should remain.
+      - type: custom:nina-dwd-card
+        title: 'Filtered (hide_headlines_containing)'
+        nina_entity_prefix:
+          - binary_sensor.battenberg_eder_stadt_waldeck_frankenberg_hessen_warning
+          - binary_sensor.rosenheim_stadt_rosenheim_bayern_warning
+        hide_headlines_containing:
+          - Waldbrand
+          - Schweinepest
+      - type: custom:nina-dwd-card
+        title: 'Hitze hidden (issue #61)'
+        nina_entity_prefix: binary_sensor.warning_berlin
+        dwd_device: e9750244d8de5e2576c1220136ea79ea
+        dwd_map_position: none
+        hide_headlines_containing:
+          - Hitze
   - title: Empty
     path: empty
     cards:

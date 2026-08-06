@@ -74,6 +74,7 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   show_nina_area?: boolean;
   separate_advance_warnings?: boolean;
   hide_on_level_below?: number;
+  hide_headlines_containing?: string[];
   theme_mode?: 'auto' | 'light' | 'dark';
   color_overrides?: {
     no_warning?: string;
