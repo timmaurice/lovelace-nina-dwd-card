@@ -11,6 +11,7 @@ import {
   WARNING_PREFIX_REGEX,
 } from './utils';
 import { localize } from './localize';
+import { sanitizeHtml } from './sanitize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
 import { EVENT_CODE_ICONS } from './icons';
@@ -150,7 +151,7 @@ export class NinaDwdCard extends LitElement {
           ${this._renderAreas(warning)}
           <div class="time">${formatTime(warning, this.hass)}</div>
           <div class="description">
-            ${unsafeHTML(processedDescription)}
+            ${unsafeHTML(sanitizeHtml(processedDescription))}
             ${
               isTruncated
                 ? html`
@@ -178,7 +179,7 @@ export class NinaDwdCard extends LitElement {
             !this._config.hide_instructions && instruction
               ? html` <ha-expansion-panel outlined>
                   <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                  <div class="instruction">${unsafeHTML(instruction)}</div>
+                  <div class="instruction">${unsafeHTML(sanitizeHtml(instruction))}</div>
                 </ha-expansion-panel>`
               : ''
           }
