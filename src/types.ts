@@ -9,10 +9,20 @@ export interface LovelaceCardConfig {
   [key: string]: any;
 }
 
+export interface LovelaceGridOptions {
+  columns?: number | 'full';
+  min_columns?: number;
+  max_columns?: number;
+  rows?: number | 'auto';
+  min_rows?: number;
+  max_rows?: number;
+}
+
 export interface LovelaceCard extends HTMLElement {
   hass?: HomeAssistant;
   setConfig(config: LovelaceCardConfig): void;
   getCardSize?(): number | Promise<number>;
+  getGridOptions?(): LovelaceGridOptions;
 }
 
 export interface LovelaceCardEditor extends HTMLElement {
@@ -33,8 +43,10 @@ declare global {
 }
 
 export interface NinaWarning {
-  headline: string;
-  description: string;
+  /** NINA does not guarantee a headline; it can be missing or empty. */
+  headline?: string | null;
+  /** NINA does not guarantee a description; it can be missing or empty. */
+  description?: string | null;
   sender: string;
   entity_id: string;
   severity: 'Minor' | 'Moderate' | 'Severe' | 'Extreme' | 'Unknown';
@@ -48,8 +60,10 @@ export interface NinaWarning {
 }
 
 export interface DwdWarning {
-  headline: string;
-  description: string;
+  /** The DWD integration does not guarantee a headline; it can be missing or empty. */
+  headline?: string | null;
+  /** The DWD integration does not guarantee a description; it can be missing or empty. */
+  description?: string | null;
   entity_id: string;
   level: number;
   start: string;
@@ -75,6 +89,8 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   separate_advance_warnings?: boolean;
   hide_on_level_below?: number;
   hide_headlines_containing?: string[];
+  /** Hides warnings whose end time has passed. Defaults to true. */
+  hide_expired?: boolean;
   theme_mode?: 'auto' | 'light' | 'dark';
   color_overrides?: {
     no_warning?: string;

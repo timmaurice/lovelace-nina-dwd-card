@@ -34,8 +34,8 @@ lovelace:
     lovelace:
       mode: yaml
       filename: ui-lovelace.yaml
-      title: Overview
-      icon: mdi:view-dashboard
+      title: Warnungen
+      icon: mdi:shield-alert
       show_in_sidebar: true
 
 template:

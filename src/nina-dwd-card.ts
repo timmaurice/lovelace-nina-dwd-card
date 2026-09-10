@@ -1,16 +1,30 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
+import type {
+  HomeAssistant,
+  LovelaceCardEditor,
+  LovelaceGridOptions,
+  NinaDwdCardConfig,
+  NinaWarning,
+  DwdWarning,
+} from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import {
+  asOptionalString,
   fireEvent,
   formatTime,
   getNinaAreaName,
+  getWarningEndTime,
+  getWarningHeadline,
   isHeadlineHidden,
+  isNinaWarningSlotEntity,
+  isWarningExpired,
+  ninaPrefixFromSlotEntity,
   shortenNinaAreaName,
-  WARNING_PREFIX_REGEX,
+  stripWarningPrefix,
 } from './utils';
 import { localize } from './localize';
+import { sanitizeHtml } from './sanitize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
 import { EVENT_CODE_ICONS } from './icons';
@@ -23,6 +37,18 @@ const SEVERITY_COLORS: Record<number, string> = {
   3: '#e53935' /* Severe */,
   4: '#880e4f' /* Extreme */,
 };
+
+/** Number of warning slots probed per NINA prefix and per DWD sensor. */
+const MAX_WARNING_SLOTS = 20;
+
+/** Grid rows a single rendered warning takes up, used by `getCardSize`. */
+const CARD_SIZE_PER_WARNING = 3;
+
+/** Grid rows a standalone map takes up, used by `getCardSize`. */
+const CARD_SIZE_MAP = 4;
+
+/** Upper bound for the expiry re-render timer (six hours). */
+const MAX_EXPIRY_TIMER_MS = 6 * 60 * 60 * 1000;
 
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
@@ -40,35 +66,44 @@ export class NinaDwdCard extends LitElement {
   private _error: string | undefined;
   private _cache = new TranslationCache();
   private _hasLoggedTranslationWarning = false;
+  private _expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Set when the expiry timer has to be rescheduled without a `hass` change. */
+  private _expiryRefreshPending = false;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
     return document.createElement('nina-dwd-card-editor') as LovelaceCardEditor;
   }
 
-  public static getStubConfig(): NinaDwdCardConfig {
-    return {
-      title: 'Warnings',
-      type: 'custom:nina-dwd-card',
-      nina_entity_prefix: '',
-      max_warnings: 5,
-      dwd_device: '',
-      theme_mode: 'auto',
-      hide_when_no_warnings: false,
-      enable_translation: false,
-      translation_target: 'English',
-    };
+  /**
+   * Builds the configuration the card picker previews.
+   *
+   * It has to be a configuration `setConfig` accepts, so the preview shows the
+   * card and not an error, and it must not write defaults into the user's YAML:
+   * every option the card defaults to internally stays out of the stub.
+   *
+   * @param hass The Home Assistant object, if the picker passes one.
+   * @param entities The entity ids the picker suggests, if any.
+   */
+  public static getStubConfig(hass?: HomeAssistant, entities?: string[]): NinaDwdCardConfig {
+    const config: NinaDwdCardConfig = { type: 'custom:nina-dwd-card' };
+
+    const candidates = entities?.length ? entities : Object.keys(hass?.states ?? {});
+    // The first warning slot of a NINA area, so the preview starts at the top of
+    // the list rather than in the middle of it.
+    const firstSlot = candidates.find((entityId) => isNinaWarningSlotEntity(entityId) && /(?:^|_)1$/.test(entityId));
+    if (firstSlot) {
+      config.nina_entity_prefix = [ninaPrefixFromSlotEntity(firstSlot)];
+    }
+
+    return config;
   }
 
   public setConfig(config: NinaDwdCardConfig): void {
     if (!config) {
+      // Not localized: Home Assistant calls `setConfig` before it assigns
+      // `hass`, so there is no language to localize into here.
       throw new Error('Invalid configuration');
-    }
-    const hasNina = Array.isArray(config.nina_entity_prefix)
-      ? config.nina_entity_prefix.length > 0
-      : !!config.nina_entity_prefix;
-    if (!hasNina && !config.dwd_device) {
-      throw new Error('You need to define at least one NINA or DWD entity.');
     }
 
     // Reset translations if configuration changes that affects translation
@@ -98,19 +133,85 @@ export class NinaDwdCard extends LitElement {
     this.requestUpdate();
   }
 
+  /**
+   * Whether the configuration names any warning source.
+   *
+   * A configuration without one is not an error - it is the state the card
+   * picker previews and the state a half-finished editor session is in - so it
+   * renders a hint instead of throwing a red error card.
+   */
+  private _hasWarningSource(): boolean {
+    const prefix = this._config.nina_entity_prefix;
+    const hasNina = Array.isArray(prefix) ? prefix.some((entry) => !!entry) : !!prefix;
+    return hasNina || !!this._config.dwd_device;
+  }
+
+  private _renderNotConfigured(modeClass: string): TemplateResult {
+    return html`
+      <ha-card class=${modeClass}>
+        ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
+        <div class="card-content">
+          <div class="no-warnings">${localize(this.hass, 'errors.no_entities_configured')}</div>
+        </div>
+      </ha-card>
+    `;
+  }
+
+  /**
+   * The height the card claims in the masonry layout.
+   *
+   * @returns The number of ~50px rows the card needs.
+   */
+  public getCardSize(): number {
+    if (!this._config || !this.hass) return CARD_SIZE_PER_WARNING;
+
+    const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+    // Mirrors the render path: the separate view processes the current and the
+    // advance list on their own, so each is capped at `max_warnings` and the
+    // card can render up to twice as many warnings as the combined view.
+    const count = this._config.separate_advance_warnings
+      ? this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings]).length +
+        this._processWarnings([...dwdAdvanceWarnings]).length
+      : this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]).length;
+
+    const standaloneMap =
+      this._getMapUrl() && (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
+        ? CARD_SIZE_MAP
+        : 0;
+
+    // `hide_when_no_warnings` renders nothing at all, so claiming a row would
+    // leave a phantom gap in the masonry layout.
+    if (
+      count === 0 &&
+      this._config.hide_when_no_warnings &&
+      !(this._config.show_map_without_warnings && standaloneMap)
+    ) {
+      return 0;
+    }
+
+    const header = this._config.title ? 1 : 0;
+
+    return header + standaloneMap + Math.max(1, count * CARD_SIZE_PER_WARNING);
+  }
+
+  /**
+   * The card's behaviour in the sections layout: full width, height from content.
+   */
+  public getGridOptions(): LovelaceGridOptions {
+    return { columns: 12, min_columns: 6, rows: 'auto' };
+  }
+
   private _renderWarnings(warnings: (NinaWarning | DwdWarning)[], mapUrl: string | undefined): TemplateResult {
     const firstDwdIndex = warnings.findIndex((w) => 'level' in w);
 
     return html`${warnings.map((warning, index) => {
       const key = this._getWarningKey(warning);
       const translation = this._translations[key];
-      let headline = translation?.headline || warning.headline;
-      const description = translation?.description || warning.description;
+      // A warning is not guaranteed to carry a headline or a description, and a
+      // single incomplete one must not throw and take every other warning with it.
+      const description = translation?.description || warning.description || '';
       const instruction = translation?.instruction || warning.instruction;
-
-      if (this._config.suppress_warning_text) {
-        headline = headline.replace(WARNING_PREFIX_REGEX, '');
-      }
+      const headline = this._getDisplayHeadline(warning, description);
 
       let processedDescription = description;
       let isTruncated = false;
@@ -132,7 +233,7 @@ export class NinaDwdCard extends LitElement {
             this._config.dwd_map_position !== 'below' &&
             this._config.dwd_map_position !== 'none'
               ? html`<div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
-                  <img class="map-image" src=${mapUrl} alt="DWD Warning Map" />
+                  <img class="map-image" src=${mapUrl} alt=${localize(this.hass, 'card.map_alt')} />
                   ${(() => {
                     const pinStyle = this._calculatePinStyle();
                     return pinStyle
@@ -150,7 +251,7 @@ export class NinaDwdCard extends LitElement {
           ${this._renderAreas(warning)}
           <div class="time">${formatTime(warning, this.hass)}</div>
           <div class="description">
-            ${unsafeHTML(processedDescription)}
+            ${unsafeHTML(sanitizeHtml(processedDescription))}
             ${
               isTruncated
                 ? html`
@@ -178,7 +279,7 @@ export class NinaDwdCard extends LitElement {
             !this._config.hide_instructions && instruction
               ? html` <ha-expansion-panel outlined>
                   <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
-                  <div class="instruction">${unsafeHTML(instruction)}</div>
+                  <div class="instruction">${unsafeHTML(sanitizeHtml(instruction))}</div>
                 </ha-expansion-panel>`
               : ''
           }
@@ -216,14 +317,80 @@ export class NinaDwdCard extends LitElement {
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
-    if (!this.hass) return;
-    if (changedProperties.has('hass') || changedProperties.has('_config')) {
-      const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
-      const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
-      if (allWarnings.length > 0) {
-        this._translateWarnings(allWarnings);
-      }
+    if (!this.hass || !this._config) return;
+
+    const dataChanged = changedProperties.has('hass') || changedProperties.has('_config');
+    // Only `hass` and the config can change the warnings, so a render caused by
+    // a lightbox or expansion toggle must not walk them again. The exception is
+    // a render the expiry timer asked for: it left no timer behind, and the next
+    // one is scheduled here.
+    if (!dataChanged && !this._expiryRefreshPending) return;
+    this._expiryRefreshPending = false;
+
+    const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+    const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
+
+    if (dataChanged && allWarnings.length > 0) {
+      this._translateWarnings(allWarnings);
     }
+
+    this._scheduleExpiryRefresh(allWarnings);
+  }
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    // `disconnectedCallback` cleared the timer, and a re-attach - switching back
+    // to a Lovelace view - does not re-render, so `updated()` would never
+    // schedule a new one.
+    if (this.hass && this._config) {
+      const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+      this._scheduleExpiryRefresh([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]);
+    }
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._clearExpiryTimer();
+  }
+
+  private _clearExpiryTimer(): void {
+    if (this._expiryTimer !== undefined) {
+      clearTimeout(this._expiryTimer);
+      this._expiryTimer = undefined;
+    }
+  }
+
+  /**
+   * Re-renders the card when the next displayed warning ends.
+   *
+   * Without this an expired warning would linger until the integration polls
+   * again - up to five minutes for NINA, and indefinitely for a DWD sensor
+   * whose other attributes do not change.
+   *
+   * @param warnings The warnings currently displayed.
+   */
+  private _scheduleExpiryRefresh(warnings: (NinaWarning | DwdWarning)[]): void {
+    this._clearExpiryTimer();
+    if (this._config?.hide_expired === false) return;
+
+    const now = Date.now();
+    const nextEnd = warnings
+      .map((warning) => getWarningEndTime(warning))
+      .filter((end): end is number => end !== undefined && end > now)
+      .sort((a, b) => a - b)[0];
+
+    if (nextEnd === undefined) return;
+
+    // Capped: `setTimeout` overflows beyond ~24.8 days, and a long-running
+    // warning is better re-checked periodically than trusted to one timer.
+    const delay = Math.min(nextEnd - now + 1000, MAX_EXPIRY_TIMER_MS);
+    this._expiryTimer = setTimeout(() => {
+      this._expiryTimer = undefined;
+      // The next timer is scheduled from `updated()` after this render, which
+      // this flag tells it to do even though no data changed.
+      this._expiryRefreshPending = true;
+      this.requestUpdate();
+    }, delay);
   }
 
   protected render(): TemplateResult {
@@ -232,6 +399,11 @@ export class NinaDwdCard extends LitElement {
     }
 
     const { modeClass } = this._getThemeSettings();
+
+    if (!this._hasWarningSource()) {
+      return this._renderNotConfigured(modeClass);
+    }
+
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
     const mapUrl = this._getMapUrl();
 
@@ -292,10 +464,33 @@ export class NinaDwdCard extends LitElement {
       }
     }
 
-    // Filtered here and not in _processWarnings, so hidden warnings are not translated either.
+    // Filtered here and not in _processWarnings, so hidden warnings are not
+    // translated either. That also puts the filter ahead of the duplicate merge,
+    // which keeps the earliest start and the latest end of a group: an already
+    // ended segment no longer contributes its start, so a merged entry can show
+    // a later start than it did before. That is the intended reading - the
+    // displayed window describes what is still in force, and the start of a
+    // segment that has ended is history.
     const fragments = this._config.hide_headlines_containing;
+    const hideExpired = this._config.hide_expired !== false;
+    const now = Date.now();
+    const unexpired = <T extends NinaWarning | DwdWarning>(warnings: T[]): T[] =>
+      hideExpired ? warnings.filter((warning) => !isWarningExpired(warning, now)) : warnings;
     const visible = <T extends NinaWarning | DwdWarning>(warnings: T[]): T[] =>
-      fragments?.length ? warnings.filter((warning) => !isHeadlineHidden(warning.headline, fragments)) : warnings;
+      fragments?.length
+        ? unexpired(warnings).filter(
+            // Matched against the resolved source headline: a warning without a
+            // headline is filtered by the description shown in its place. This is
+            // deliberately not the rendered text in two configurations - with
+            // `suppress_warning_text` the filter still sees the un-stripped
+            // headline ("Amtliche Warnung vor Sturm", not "Sturm"), and with
+            // `enable_translation` it sees the source language while the user
+            // reads the translation. Fragments are therefore written against the
+            // headline as the entity reports it.
+            (warning) =>
+              !isHeadlineHidden(getWarningHeadline(warning.headline, warning.description, this.hass), fragments),
+          )
+        : unexpired(warnings);
 
     return {
       ninaWarnings: visible(ninaWarnings),
@@ -326,33 +521,33 @@ export class NinaDwdCard extends LitElement {
         <div
           class="debug-region"
           style="top: 0; left: 0; right: 0; height: ${padding.top}%;"
-          title="Top Padding: ${padding.top}%"
+          title=${`${localize(this.hass, 'card.debug.top')}: ${padding.top}%`}
         >
-          Top: ${padding.top}%
+          ${localize(this.hass, 'card.debug.top')}: ${padding.top}%
         </div>
         <div
           class="debug-region"
           style="bottom: 0; left: 0; right: 0; height: ${padding.bottom}%;"
-          title="Bottom Padding: ${padding.bottom}%"
+          title=${`${localize(this.hass, 'card.debug.bottom')}: ${padding.bottom}%`}
         >
-          Bottom: ${padding.bottom}%
+          ${localize(this.hass, 'card.debug.bottom')}: ${padding.bottom}%
         </div>
         <div
           class="debug-region"
           style="top: 0; bottom: 0; left: 0; width: ${padding.left}%;"
-          title="Left Padding: ${padding.left}%"
+          title=${`${localize(this.hass, 'card.debug.left')}: ${padding.left}%`}
         >
-          Left: ${padding.left}%
+          ${localize(this.hass, 'card.debug.left')}: ${padding.left}%
         </div>
         <div
           class="debug-region"
           style="top: 0; bottom: 0; right: 0; width: ${padding.right}%;"
-          title="Right Padding: ${padding.right}%"
+          title=${`${localize(this.hass, 'card.debug.right')}: ${padding.right}%`}
         >
-          Right: ${padding.right}%
+          ${localize(this.hass, 'card.debug.right')}: ${padding.right}%
         </div>
         <div class="debug-info">
-          <div><strong>Map Bounds:</strong></div>
+          <div><strong>${localize(this.hass, 'card.debug.map_bounds')}:</strong></div>
           <div>N: ${bounds.maxLat}°</div>
           <div>S: ${bounds.minLat}°</div>
           <div>E: ${bounds.maxLon}°</div>
@@ -414,7 +609,7 @@ export class NinaDwdCard extends LitElement {
 
     return html`
       <div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
-        <img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />
+        <img class="map-image-standalone" src=${mapUrl} alt=${localize(this.hass, 'card.map_alt')} />
         ${
           pinStyle
             ? html`<div class="map-pin" style=${pinStyle}>
@@ -431,7 +626,7 @@ export class NinaDwdCard extends LitElement {
     return html`
       <div class="lightbox ${modeClass}" @click=${() => (this._showLargeMap = false)}>
         <div class="lightbox-content">
-          <img src=${mapUrl} alt="Enlarged DWD Warning Map" />
+          <img src=${mapUrl} alt=${localize(this.hass, 'card.map_alt_large')} />
         </div>
       </div>
     `;
@@ -605,7 +800,7 @@ export class NinaDwdCard extends LitElement {
         }
         <ha-icon-button
           class="info-button"
-          .label=${`More info for ${warning.headline}`}
+          .label=${localize(this.hass, 'card.more_info', { headline: this._getDisplayHeadline(warning) })}
           @click=${() => this._handleMoreInfo(warning.entity_id)}
           ><ha-icon icon="mdi:information-outline"></ha-icon
         ></ha-icon-button>
@@ -648,8 +843,11 @@ export class NinaDwdCard extends LitElement {
 
     for (const prefix of prefixes) {
       if (!prefix) continue;
-      // Check a fixed number of NINA entities. The total number of warnings is limited later.
-      for (let i = 1; i <= 20; i++) {
+      // Every slot is probed, not just the ones up to the first gap: a user can
+      // disable the NINA slot entities they do not need, and an integration
+      // reload can leave the registry without slot 1 while slot 2 is still
+      // there. The total number of rendered warnings is limited later.
+      for (let i = 1; i <= MAX_WARNING_SLOTS; i++) {
         let entityId = `${prefix}_${i}`;
         if (!this.hass.states[entityId]) {
           entityId = `${prefix}${i}`;
@@ -657,10 +855,20 @@ export class NinaDwdCard extends LitElement {
         const stateObj = this.hass.states[entityId];
 
         if (stateObj && stateObj.state === 'on') {
+          // `hass.states` is untyped, so every attribute has to be narrowed here,
+          // at the boundary where the data enters the card. A headline that is a
+          // number or an array would otherwise reach the render path typed as a
+          // string and throw on the first string operation.
+          const headline = asOptionalString(stateObj.attributes.headline);
+          const description = asOptionalString(stateObj.attributes.description);
+          const instruction =
+            asOptionalString(stateObj.attributes.instruction) ??
+            asOptionalString(stateObj.attributes.recommended_actions);
+
           const warningId =
             stateObj.attributes.id ||
             stateObj.attributes.warning_id ||
-            `${stateObj.attributes.headline || ''}-${stateObj.attributes.start || ''}-${stateObj.attributes.description || ''}`;
+            `${headline || ''}-${stateObj.attributes.start || ''}-${description || ''}`;
 
           const area = getNinaAreaName(stateObj.attributes.friendly_name, prefix);
 
@@ -675,14 +883,14 @@ export class NinaDwdCard extends LitElement {
           }
 
           const warning: NinaWarning = {
-            headline: stateObj.attributes.headline,
-            description: stateObj.attributes.description,
+            headline,
+            description,
             sender: stateObj.attributes.sender,
             entity_id: entityId,
             severity: stateObj.attributes.severity,
             start: stateObj.attributes.start,
             expires: stateObj.attributes.expires,
-            instruction: stateObj.attributes.instruction || stateObj.attributes.recommended_actions,
+            instruction,
             warning_id: stateObj.attributes.id,
             sent: stateObj.attributes.sent,
             areas: area ? [area] : [],
@@ -704,24 +912,28 @@ export class NinaDwdCard extends LitElement {
     if (!stateObj || stateObj.state === '0') return warnings;
 
     // The state of the sensor indicates the highest warning level, not the number of warnings.
-    // We iterate until we no longer find warning attributes. Let's assume a max of 20.
-    for (let i = 1; i <= 20; i++) {
-      const headline = stateObj.attributes[`warning_${i}_headline`];
-      if (headline) {
-        warnings.push({
-          headline: headline,
-          description: stateObj.attributes[`warning_${i}_description`],
-          entity_id: entityId,
-          level: stateObj.attributes[`warning_${i}_level`],
-          start: stateObj.attributes[`warning_${i}_start`],
-          end: stateObj.attributes[`warning_${i}_end`],
-          instruction: stateObj.attributes[`warning_${i}_instruction`],
-          event: stateObj.attributes[`warning_${i}_type`],
-        });
-      } else {
-        // Stop when we don't find a headline for the current index.
+    // We iterate until we no longer find warning attributes.
+    for (let i = 1; i <= MAX_WARNING_SLOTS; i++) {
+      const rawHeadline = stateObj.attributes[`warning_${i}_headline`];
+      // An absent or empty headline attribute marks the end of the list. A
+      // headline that is present but not a string does not: the warning exists,
+      // it is just malformed, so it is kept and rendered without a headline.
+      if (rawHeadline === undefined || rawHeadline === null || rawHeadline === '') {
         break;
       }
+
+      // The DWD attributes are as untyped as the NINA ones, so they are narrowed
+      // at the same boundary. Anything that is not a string counts as absent.
+      warnings.push({
+        headline: asOptionalString(rawHeadline),
+        description: asOptionalString(stateObj.attributes[`warning_${i}_description`]),
+        entity_id: entityId,
+        level: stateObj.attributes[`warning_${i}_level`],
+        start: stateObj.attributes[`warning_${i}_start`],
+        end: stateObj.attributes[`warning_${i}_end`],
+        instruction: asOptionalString(stateObj.attributes[`warning_${i}_instruction`]),
+        event: stateObj.attributes[`warning_${i}_type`],
+      });
     }
 
     return warnings;
@@ -732,8 +944,8 @@ export class NinaDwdCard extends LitElement {
 
     const deduplicatedWarnings = new Map<string, (NinaWarning | DwdWarning)[]>();
 
-    const getWarningKey = (headline: string): string => {
-      return headline.replace(WARNING_PREFIX_REGEX, '').toLowerCase().trim();
+    const getWarningKey = (headline: string | undefined | null): string => {
+      return stripWarningPrefix(headline).toLowerCase().trim();
     };
 
     // Group by headline
@@ -768,7 +980,7 @@ export class NinaDwdCard extends LitElement {
         (target as NinaWarning).areas = [...targetAreas, ...sourceAreas.filter((a) => !targetAreas.includes(a))];
       };
 
-      const normalize = (str: string | undefined): string => {
+      const normalize = (str: string | undefined | null): string => {
         return (str || '')
           .replace(/<[^>]*>/g, ' ')
           .replace(/[·•.]/g, '')
@@ -956,14 +1168,11 @@ export class NinaDwdCard extends LitElement {
       this._translationInProgress.add(key);
 
       try {
-        let headlineForTranslation = warning.headline;
-        if (this._config.suppress_warning_text) {
-          headlineForTranslation = headlineForTranslation.replace(WARNING_PREFIX_REGEX, '');
-        }
+        const headlineForTranslation = this._getDisplayHeadline(warning);
 
         const prompt = DEFAULT_AI_PROMPT.replace('{{ target_language }}', targetLanguage)
           .replace('{{ headline }}', headlineForTranslation)
-          .replace('{{ description }}', warning.description)
+          .replace('{{ description }}', warning.description || '')
           .replace('{{ instruction }}', warning.instruction || '');
 
         const serviceData: Record<string, unknown> = {
@@ -1019,8 +1228,8 @@ export class NinaDwdCard extends LitElement {
             if (translation) {
               const translationObj = translation as Record<string, string>;
               const result = {
-                headline: translationObj.headline || warning.headline,
-                description: translationObj.description || warning.description,
+                headline: translationObj.headline || warning.headline || '',
+                description: translationObj.description || warning.description || '',
                 instruction: translationObj.instruction || warning.instruction || '',
               };
 
@@ -1039,8 +1248,8 @@ export class NinaDwdCard extends LitElement {
             this._translations = {
               ...this._translations,
               [key]: {
-                headline: warning.headline,
-                description: warning.description,
+                headline: warning.headline || '',
+                description: warning.description || '',
                 instruction: warning.instruction || '',
               },
             };
@@ -1060,8 +1269,8 @@ export class NinaDwdCard extends LitElement {
         this._translations = {
           ...this._translations,
           [key]: {
-            headline: warning.headline,
-            description: warning.description,
+            headline: warning.headline || '',
+            description: warning.description || '',
             instruction: warning.instruction || '',
           },
         };
@@ -1074,9 +1283,29 @@ export class NinaDwdCard extends LitElement {
     }
   }
 
+  /**
+   * Resolves the headline exactly as it is rendered for a warning: translated if a
+   * translation is available, falling back to the description when the warning
+   * carries no headline, and with the "Amtliche Warnung vor" prefix stripped when
+   * `suppress_warning_text` is set.
+   *
+   * Everything that has to agree with the visible headline - the info button's
+   * aria-label, the translation prompt - goes through here.
+   *
+   * @param warning The warning to resolve the headline for.
+   * @param description An already resolved description, if the caller has one.
+   */
+  private _getDisplayHeadline(warning: NinaWarning | DwdWarning, description?: string): string {
+    const translation = this._translations[this._getWarningKey(warning)];
+    const resolvedDescription = description ?? translation?.description ?? warning.description ?? '';
+    const headline = getWarningHeadline(translation?.headline || warning.headline, resolvedDescription, this.hass);
+
+    return this._config?.suppress_warning_text ? stripWarningPrefix(headline) : headline;
+  }
+
   private _getWarningKey(warning: NinaWarning | DwdWarning): string {
     // Use a combination of properties to create a unique key for translation caching
-    return `${warning.headline}|${warning.description}|${warning.instruction || ''}`;
+    return `${warning.headline || ''}|${warning.description || ''}|${warning.instruction || ''}`;
   }
 
   private _getWarningIcon(warning: NinaWarning | DwdWarning): string {
@@ -1107,12 +1336,14 @@ window.customCards.push({
   preview: true,
   description: 'A card to display warnings from NINA and DWD.',
   getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
-    if (entityId.startsWith('sensor.nina_')) {
-      const prefix = entityId.replace(/_?\d+$/, '');
+    // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
+    // which the integration does not create - its warning slots are binary
+    // sensors - so a NINA entity never produced a suggestion.
+    if (isNinaWarningSlotEntity(entityId)) {
       return {
         config: {
           type: 'custom:nina-dwd-card',
-          nina_entity_prefix: [prefix],
+          nina_entity_prefix: [ninaPrefixFromSlotEntity(entityId)],
         },
       };
     }

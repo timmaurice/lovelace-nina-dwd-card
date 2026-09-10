@@ -27,6 +27,7 @@
     "map_pin_zone": "Kartenmarkierung Zone (BETA)",
     "show_map_without_warnings": "Karte auch ohne Warnungen anzeigen",
     "hide_when_no_warnings": "Dashboard-Karte ausblenden, wenn keine Warnungen vorliegen",
+    "hide_expired": "Abgelaufene Warnungen ausblenden",
     "suppress_warning_text": "'Amtliche Warnung vor' und 'Vorabinformation Unwetter vor' entfernen",
     "description_max_length": "Maximale Länge der Beschreibung",
     "font_size": "Schriftgröße",
@@ -121,10 +122,22 @@
     "source": "Quelle: {sender}",
     "official_warning_link": "Offizielle Warnung anzeigen",
     "show_more": "Mehr anzeigen",
-    "show_less": "Weniger anzeigen"
+    "show_less": "Weniger anzeigen",
+    "headline_missing": "Warnung",
+    "map_alt": "DWD-Warnkarte",
+    "map_alt_large": "Vergrößerte DWD-Warnkarte",
+    "more_info": "Weitere Informationen zu {headline}",
+    "debug": {
+      "top": "Abstand oben",
+      "bottom": "Abstand unten",
+      "left": "Abstand links",
+      "right": "Abstand rechts",
+      "map_bounds": "Kartengrenzen"
+    }
   },
   "errors": {
     "ai_translation_config_error": "Die KI-Übersetzung ist aktiviert, aber es ist keine KI-Entität konfiguriert oder ausgewählt. Bitte wählen Sie eine KI-Übersetzungsentität im Konfigurationseditor der Karte aus.",
-    "ai_translation_parse_error": "Fehler beim Parsen der Übersetzungs-JSON"
+    "ai_translation_parse_error": "Fehler beim Parsen der Übersetzungs-JSON",
+    "no_entities_configured": "Bitte wählen Sie in der Kartenkonfiguration mindestens ein NINA-Warngebiet oder ein DWD-Gerät aus."
   }
 }

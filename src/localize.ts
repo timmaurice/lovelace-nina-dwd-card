@@ -23,8 +23,12 @@ function _getTranslation(language: string, keys: string[]): string | undefined {
   return typeof translation === 'string' ? translation : undefined;
 }
 
-export function localize(hass: HomeAssistant, key: string, placeholders: Record<string, string | number> = {}): string {
-  const lang = hass.language || 'en';
+export function localize(
+  hass: HomeAssistant | undefined,
+  key: string,
+  placeholders: Record<string, string | number> = {},
+): string {
+  const lang = hass?.language || 'en';
   const translationKey = key.replace('component.nina-dwd-card.', '');
   const keyParts = translationKey.split('.');
 

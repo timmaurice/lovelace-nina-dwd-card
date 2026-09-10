@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../src/nina-dwd-card';
 import { NinaDwdCard } from '../src/nina-dwd-card';
-import { HomeAssistant, NinaDwdCardConfig, HaCard } from '../src/types';
+import { DwdWarning, HomeAssistant, NinaDwdCardConfig, HaCard, NinaWarning } from '../src/types';
+import { getWarningHeadline, isHeadlineHidden, stripWarningPrefix } from '../src/utils';
 
 // Mock console.info
 vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -41,6 +42,9 @@ const createMockHass = (): HomeAssistant =>
     },
   }) as unknown as HomeAssistant;
 
+/** A timestamp relative to now, for warnings that must not count as expired. */
+const hoursFromNow = (hours: number): string => new Date(Date.now() + hours * 3_600_000).toISOString();
+
 describe('NinaDwdCard', () => {
   let element: NinaDwdCard;
   let hass: HomeAssistant;
@@ -71,9 +75,17 @@ describe('NinaDwdCard', () => {
       expect(element.tagName.toLowerCase()).toBe('nina-dwd-card');
     });
 
-    it('should throw an error if no entities are provided', () => {
-      expect(() => element.setConfig({ type: 'custom:nina-dwd-card' })).toThrow(
-        'You need to define at least one NINA or DWD entity.',
+    it('should render a configuration hint instead of throwing when no entities are provided', async () => {
+      // A configuration without a warning source is what the card picker
+      // previews, so it must render something rather than a red error card.
+      expect(() => element.setConfig({ type: 'custom:nina-dwd-card' })).not.toThrow();
+
+      element.hass = hass;
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('ha-card')).not.toBeNull();
+      expect(element.shadowRoot?.querySelector('.no-warnings')?.textContent?.trim()).toBe(
+        'Select at least one NINA warning area or a DWD device in the card configuration.',
       );
     });
   });
@@ -426,6 +438,289 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  describe('Incomplete Warnings', () => {
+    it('should still render valid warnings when another warning has no headline', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          // no headline attribute at all
+          description: 'A warning without a headline.',
+          sender: 'Broken Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Valid Warning',
+          description: 'This one is fine.',
+          sender: 'Test Sender',
+          severity: 'Severe',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const headlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
+      );
+      expect(headlines).toHaveLength(2);
+      expect(headlines).toContain('Valid Warning');
+    });
+
+    it('should still render valid warnings when a NINA headline is a number', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          // Malformed: the integration reported a number instead of a string.
+          headline: 42,
+          description: 'A warning with a numeric headline.',
+          sender: 'Broken Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Valid Warning',
+          description: 'This one is fine.',
+          sender: 'Test Sender',
+          severity: 'Severe',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const headlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
+      );
+      expect(headlines).toHaveLength(2);
+      expect(headlines).toContain('Valid Warning');
+      // The malformed headline is treated as absent: the description takes its place.
+      expect(headlines).toContain('A warning with a numeric headline.');
+    });
+
+    it('should still render valid warnings when a NINA headline is an array', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          // Malformed: the integration reported a list instead of a string.
+          headline: ['Amtliche Warnung vor Sturm'],
+          description: 'A warning with an array headline.',
+          sender: 'Broken Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Valid Warning',
+          description: 'This one is fine.',
+          sender: 'Test Sender',
+          severity: 'Severe',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const headlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
+      );
+      expect(headlines).toHaveLength(2);
+      expect(headlines).toContain('Valid Warning');
+      expect(headlines).toContain('A warning with an array headline.');
+    });
+
+    it('should still render valid warnings when a DWD headline is a number or an array', async () => {
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 7,
+          warning_1_description: 'A DWD warning with a numeric headline.',
+          warning_1_level: 1,
+          warning_1_start: new Date().toISOString(),
+          warning_2_headline: ['Amtliche Warnung vor Frost'],
+          warning_2_description: 'A DWD warning with an array headline.',
+          warning_2_level: 2,
+          warning_2_start: new Date().toISOString(),
+          warning_3_headline: 'Valid DWD Warning',
+          warning_3_description: 'This one is fine.',
+          warning_3_level: 3,
+          warning_3_start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig({ type: 'custom:nina-dwd-card', dwd_device: 'mock-dwd-device' });
+      await element.updateComplete;
+
+      const headlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
+      );
+      expect(headlines).toHaveLength(3);
+      expect(headlines).toContain('Valid DWD Warning');
+      expect(headlines).toContain('A DWD warning with a numeric headline.');
+      expect(headlines).toContain('A DWD warning with an array headline.');
+    });
+
+    it('should not hide a warning whose headline is malformed when a filter is configured', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 99,
+          description: 'A warning with a numeric headline.',
+          sender: 'Broken Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig({ ...config, hide_headlines_containing: ['hitze'] });
+      await element.updateComplete;
+
+      const headlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
+      );
+      expect(headlines).toEqual(['A warning with a numeric headline.']);
+    });
+
+    it('should fall back to the description when a warning has no headline', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: '   ',
+          description: '<p>Heavy rain expected.</p>',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Heavy rain expected.');
+    });
+
+    it('should render a generic headline when a warning carries neither headline nor description', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning).not.toBeNull();
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Warning');
+      expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('Source: Test Sender');
+    });
+
+    it('should render a headline-less warning when suppress_warning_text is enabled', async () => {
+      config.suppress_warning_text = true;
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          description: 'Amtliche Warnung vor Sturm',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Sturm');
+    });
+
+    it('should label the info button with the headline that is displayed', async () => {
+      config.suppress_warning_text = true;
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          description: 'Amtliche Warnung vor Sturm',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      const displayedHeadline = warning?.querySelector('.headline')?.textContent?.trim();
+      const infoButton = warning?.querySelector('.info-button') as (HTMLElement & { label?: string }) | null;
+
+      expect(displayedHeadline).toBe('Sturm');
+      expect(infoButton?.label).toBe(`More info for ${displayedHeadline}`);
+    });
+
+    it('should label the info button with the translated headline', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche Warnung vor Sturm',
+          description: 'Es stürmt.',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      hass.callService = vi.fn().mockResolvedValue({
+        result: JSON.stringify({ headline: 'Official storm warning', description: 'It is stormy.' }),
+      });
+      element.hass = hass;
+      element.setConfig({ ...config, enable_translation: true, ai_entity_id: 'ai_task.test' });
+      await element.updateComplete;
+      await vi.waitFor(() => {
+        const label = (element.shadowRoot?.querySelector('.info-button') as (HTMLElement & { label?: string }) | null)
+          ?.label;
+        expect(label).toBe('More info for Official storm warning');
+      });
+    });
+
+    it('should render a warning without a description when description_max_length is set', async () => {
+      config.description_max_length = 10;
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Warning without description',
+          sender: 'Test Sender',
+          severity: 'Minor',
+          start: new Date().toISOString(),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.warning');
+      expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('Warning without description');
+      expect(warning?.querySelector('.description')?.textContent?.trim()).toBe('');
+    });
+  });
+
   describe('Filtering and Deduplication', () => {
     it('should show both NINA and DWD warnings even if NINA sender is DWD (if not exact duplicate)', async () => {
       // NINA warning from DWD
@@ -585,6 +880,24 @@ describe('NinaDwdCard', () => {
         expect(renderedHeadlines()).toEqual(['Amtliche Warnung vor STURMBÖEN']);
       });
 
+      it('should hide a headline-less warning by the description shown in its place', async () => {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: {
+            // No headline: the card displays the description as the headline, so the
+            // filter has to match that same text.
+            description: 'Extreme Hitze erwartet.',
+            severity: 'Extreme',
+            start: new Date().toISOString(),
+          },
+        };
+        element.hass = hass;
+        element.setConfig({ ...config, hide_headlines_containing: ['hitze'] });
+        await element.updateComplete;
+
+        expect(renderedHeadlines()).toEqual(['Amtliche Warnung vor STURMBÖEN']);
+      });
+
       it('should ignore blank fragments so nothing is hidden by accident', async () => {
         element.hass = hass;
         element.setConfig({ ...config, hide_headlines_containing: ['', '   '] });
@@ -613,7 +926,7 @@ describe('NinaDwdCard', () => {
           sender: 'DWD',
           severity: 'Severe',
           start: '2026-01-08T17:00:00',
-          expires: '2026-01-09T09:00:00',
+          expires: hoursFromNow(6),
         },
       };
 
@@ -626,7 +939,7 @@ describe('NinaDwdCard', () => {
           sender: 'DWD',
           severity: 'Severe',
           start: '2026-01-08T21:00:00',
-          expires: '2026-01-09T09:00:00',
+          expires: hoursFromNow(6),
         },
       };
 
@@ -683,7 +996,7 @@ describe('NinaDwdCard', () => {
           description: 'Same Description',
           sender: 'DWD',
           start: '2026-01-08T17:00:00',
-          expires: '2026-01-09T09:00:00',
+          expires: hoursFromNow(6),
         },
       };
 
@@ -699,7 +1012,7 @@ describe('NinaDwdCard', () => {
           warning_1_description: 'Same Description',
           warning_1_level: 2, // Marks it as DWD
           warning_1_start: '2026-01-08T18:00:00',
-          warning_1_end: '2026-01-09T10:00:00',
+          warning_1_end: hoursFromNow(7),
         },
       };
 
@@ -862,7 +1175,7 @@ describe('NinaDwdCard', () => {
           sender: 'Civil Protection',
           severity: 'Extreme',
           start: new Date().toISOString(),
-          expires: new Date().toISOString(),
+          expires: hoursFromNow(3),
         },
       };
 
@@ -878,7 +1191,7 @@ describe('NinaDwdCard', () => {
           warning_1_description: 'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.',
           warning_1_level: 4,
           warning_1_start: new Date().toISOString(),
-          warning_1_end: new Date().toISOString(),
+          warning_1_end: hoursFromNow(3),
           warning_1_type: 1,
         },
       };
@@ -1709,6 +2022,530 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
       expect(warnings?.[0].querySelector('.headline')?.textContent?.trim()).toBe('Karlsruhe Warning');
+    });
+  });
+
+  describe('Expired warnings', () => {
+    const activeWarning = {
+      headline: 'Amtliche WARNUNG vor STURM',
+      description: 'Es treten Sturmböen auf.',
+      sender: 'Deutscher Wetterdienst',
+      severity: 'Severe',
+    };
+
+    it('should not render a NINA warning that has already expired', async () => {
+      // The finding: a warning whose `expires` was two hours in the past was
+      // still on the card, because the integration only polls every 5 minutes.
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-8), expires: hoursFromNow(-2) },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+      expect(element.shadowRoot?.querySelector('.no-warnings')).not.toBeNull();
+    });
+
+    it('should not render a DWD warning whose end time has passed', async () => {
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor FROST',
+          warning_1_description: 'Es tritt Frost auf.',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-9),
+          warning_1_end: hoursFromNow(-3),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+    });
+
+    it('should keep running warnings and warnings without an end time', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(5) },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: { ...activeWarning, headline: 'Amtliche WARNUNG vor HOCHWASSER', start: hoursFromNow(-1) },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(2);
+    });
+
+    it('should keep expired warnings when hide_expired is disabled', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-8), expires: hoursFromNow(-2) },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, hide_expired: false });
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+    });
+
+    it('should drop a warning by itself once its end time passes', async () => {
+      vi.useFakeTimers();
+      try {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(1) },
+        };
+
+        element.hass = hass;
+        element.setConfig(config);
+        await element.updateComplete;
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+
+        // No new `hass` object, no state change - only time passing.
+        await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+        await element.updateComplete;
+
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Switching Lovelace views detaches and re-attaches the card. The detach
+    // clears the timer, and the re-attach does not re-render, so nothing else
+    // would ever schedule it again.
+    it('should drop a warning by itself after the card was re-attached', async () => {
+      vi.useFakeTimers();
+      try {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(1) },
+        };
+
+        element.hass = hass;
+        element.setConfig(config);
+        await element.updateComplete;
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+
+        element.remove();
+        document.body.appendChild(element);
+        await element.updateComplete;
+
+        await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+        await element.updateComplete;
+
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // `updated()` re-walks the warnings, which only a `hass` or config change
+    // can have changed - a render caused by the lightbox opening must not.
+    it('should not re-walk the warnings when only the view state changes', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(5) },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, dwd_map_land: 'hes' });
+      await element.updateComplete;
+
+      const internals = element as unknown as { _collectWarnings: () => unknown; _showLargeMap: boolean };
+      const spy = vi.spyOn(internals, '_collectWarnings');
+
+      internals._showLargeMap = true;
+      await element.updateComplete;
+
+      // Once, from `render()`.
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Home Assistant card API', () => {
+    it('should report a card size that grows with the number of warnings', async () => {
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+      const emptySize = element.getCardSize();
+      expect(emptySize).toBeGreaterThan(0);
+
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor STURM',
+          description: 'Es treten Sturmböen auf.',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+          expires: hoursFromNow(5),
+        },
+      };
+      element.hass = { ...hass };
+      await element.updateComplete;
+
+      expect(element.getCardSize()).toBeGreaterThan(emptySize);
+    });
+
+    // The separate view slices the current and the advance list to
+    // `max_warnings` each, so the reported size has to count them the same way.
+    it('should report the size of both lists with separate_advance_warnings', async () => {
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.entities['sensor.berlin_advance_warning_level'] = {
+        entity_id: 'sensor.berlin_advance_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '2',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor STURM',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-1),
+          warning_1_end: hoursFromNow(5),
+        },
+      };
+      hass.states['sensor.berlin_advance_warning_level'] = {
+        state: '2',
+        attributes: {
+          warning_1_headline: 'Vorabinformation FROST',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(20),
+          warning_1_end: hoursFromNow(30),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({
+        type: 'custom:nina-dwd-card',
+        dwd_device: 'mock-dwd-device',
+        separate_advance_warnings: true,
+        max_warnings: 1,
+      });
+      await element.updateComplete;
+
+      const rendered = element.shadowRoot?.querySelectorAll('.warning').length ?? 0;
+      expect(rendered).toBe(2);
+      expect(element.getCardSize()).toBe(rendered * 3);
+    });
+
+    // Nothing is rendered, so claiming a row leaves a phantom gap in masonry.
+    it('should report no size when the card hides itself', async () => {
+      element.hass = hass;
+      element.setConfig({
+        type: 'custom:nina-dwd-card',
+        nina_entity_prefix: ['binary_sensor.nina_warnung'],
+        hide_when_no_warnings: true,
+      });
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('ha-card')).toBeNull();
+      expect(element.getCardSize()).toBe(0);
+    });
+
+    it('should report a card size before a configuration is set', () => {
+      expect(element.getCardSize()).toBeGreaterThan(0);
+    });
+
+    it('should report grid options for the sections layout', () => {
+      expect(element.getGridOptions()).toEqual({ columns: 12, min_columns: 6, rows: 'auto' });
+    });
+
+    it('should offer a stub config the card itself accepts', () => {
+      hass.states['binary_sensor.nina_warnung_1'] = { state: 'off', attributes: {} };
+
+      const stub = NinaDwdCard.getStubConfig(hass);
+
+      expect(stub.nina_entity_prefix).toEqual(['binary_sensor.nina_warnung']);
+      expect(() => element.setConfig(stub)).not.toThrow();
+    });
+
+    it('should not write defaults into the stub config', () => {
+      const stub = NinaDwdCard.getStubConfig(hass);
+
+      // Only what the user actually has to configure ends up in their YAML.
+      expect(Object.keys(stub)).toEqual(['type']);
+    });
+
+    // `getStubConfig` and `getEntitySuggestion` are the two picker entry points
+    // and used to disagree: the suggestion matched `sensor.nina_*`, which the
+    // integration does not create, so a NINA entity never produced one.
+    it('should suggest a config for a NINA warning slot entity', () => {
+      const registration = (
+        window.customCards as Array<{
+          type: string;
+          getEntitySuggestion?: (
+            hass: HomeAssistant,
+            entityId: string,
+          ) => { config: NinaDwdCardConfig } | null | undefined;
+        }>
+      ).find((card) => card.type === 'nina-dwd-card');
+
+      expect(registration?.getEntitySuggestion?.(hass, 'binary_sensor.warning_berlin_2')?.config).toEqual({
+        type: 'custom:nina-dwd-card',
+        nina_entity_prefix: ['binary_sensor.warning_berlin'],
+      });
+      // The stub built from the same entity agrees with it.
+      expect(NinaDwdCard.getStubConfig(undefined, ['binary_sensor.warning_berlin_1']).nina_entity_prefix).toEqual([
+        'binary_sensor.warning_berlin',
+      ]);
+      expect(registration?.getEntitySuggestion?.(hass, 'sensor.something_else')).toBeNull();
+    });
+
+    it('should reject an empty configuration in English, before hass is set', () => {
+      const fresh = document.createElement('nina-dwd-card') as NinaDwdCard;
+
+      expect(() => fresh.setConfig(undefined as unknown as NinaDwdCardConfig)).toThrow('Invalid configuration');
+    });
+
+    it('should detect the NINA prefix from the entity ids the picker offers', () => {
+      const stub = NinaDwdCard.getStubConfig(undefined, [
+        'sensor.something_else',
+        'binary_sensor.warning_berlin_1',
+        'binary_sensor.warning_berlin_2',
+      ]);
+
+      expect(stub.nina_entity_prefix).toEqual(['binary_sensor.warning_berlin']);
+    });
+  });
+
+  describe('Localization of the rendered card', () => {
+    beforeEach(() => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor STURM',
+          description: 'Es treten Sturmböen auf.',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+          expires: hoursFromNow(5),
+        },
+      };
+    });
+
+    it('should localize the map alt text and the info button label', async () => {
+      hass.language = 'de';
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '2',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor FROST',
+          warning_1_description: 'Es tritt Frost auf.',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-1),
+          warning_1_end: hoursFromNow(5),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, dwd_map_land: 'de', dwd_map_position: 'above' });
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.map-image-standalone')?.getAttribute('alt')).toBe('DWD-Warnkarte');
+      const infoButton = element.shadowRoot?.querySelector<HTMLElement & { label: string }>('.info-button');
+      expect(infoButton?.label).toContain('Weitere Informationen zu');
+    });
+
+    it('should localize the enlarged map alt text', async () => {
+      hass.language = 'de';
+      element.hass = hass;
+      element.setConfig({
+        ...config,
+        dwd_map_land: 'de',
+        dwd_map_position: 'above',
+        show_map_without_warnings: true,
+      });
+      await element.updateComplete;
+
+      element.shadowRoot?.querySelector<HTMLElement>('.map-container')?.click();
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.lightbox img')?.getAttribute('alt')).toBe('Vergrößerte DWD-Warnkarte');
+    });
+  });
+
+  describe('Update paths', () => {
+    const renderSpy = (): ReturnType<typeof vi.spyOn> =>
+      vi.spyOn(element as unknown as { render: () => unknown }, 'render');
+
+    const ninaWarning = (headline: string) => ({
+      state: 'on',
+      attributes: {
+        headline,
+        description: 'Es treten Sturmböen auf.',
+        severity: 'Severe',
+        start: hoursFromNow(-1),
+        expires: hoursFromNow(5),
+      },
+    });
+
+    beforeEach(() => {
+      hass.states['binary_sensor.nina_warnung_1'] = ninaWarning('Amtliche WARNUNG vor STURM');
+    });
+
+    // The card renders on every `hass` swap. A `shouldUpdate` gate that compares
+    // only the entities the card currently resolves cannot see a change that
+    // makes an entity resolvable in the first place - a registry entry arriving,
+    // an entity vanishing - and it silently freezes the map's cache buster.
+    it('should re-render on an unrelated hass update', async () => {
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const spy = renderSpy();
+      element.hass = {
+        ...hass,
+        states: { ...hass.states, 'light.kitchen': { state: 'on', attributes: {} } },
+      } as HomeAssistant;
+      await element.updateComplete;
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('should re-render when a warning entity changes', async () => {
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const spy = renderSpy();
+      element.hass = {
+        ...hass,
+        states: {
+          ...hass.states,
+          'binary_sensor.nina_warnung_1': ninaWarning('Amtliche WARNUNG vor HOCHWASSER'),
+        },
+      } as HomeAssistant;
+      await element.updateComplete;
+
+      expect(spy).toHaveBeenCalled();
+      expect(element.shadowRoot?.querySelector('.headline')?.textContent).toContain('HOCHWASSER');
+    });
+
+    // The DWD entity ids are resolved through `hass.entities`, which is empty
+    // until the entity registry has loaded. The update that fills it differs
+    // from its predecessor in nothing else.
+    it('should render a dwd_device warning once the entity registry arrives', async () => {
+      const registryEntry = {
+        'sensor.berlin_current_warning_level': {
+          entity_id: 'sensor.berlin_current_warning_level',
+          device_id: 'mock-dwd-device',
+        },
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'DWD Registry Warning',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-1),
+          warning_1_end: hoursFromNow(5),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ type: 'custom:nina-dwd-card', dwd_device: 'mock-dwd-device' });
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+
+      element.hass = { ...hass, entities: registryEntry } as unknown as HomeAssistant;
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+      expect(element.shadowRoot?.querySelector('.headline')?.textContent).toContain('DWD Registry Warning');
+    });
+
+    // An integration reload, a removed area or a rename takes the entity away.
+    // The card must notice the entity it was rendering is gone.
+    it('should drop a warning whose entity has vanished', async () => {
+      element.hass = hass;
+      element.setConfig({ type: 'custom:nina-dwd-card', nina_entity_prefix: ['binary_sensor.nina_warnung'] });
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+
+      element.hass = { ...hass, states: {} } as unknown as HomeAssistant;
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+    });
+
+    // Users disable the NINA slot entities they do not need, so slot 2 can be
+    // absent while slot 3 holds a live warning.
+    it('should render warning slots that follow a gap', async () => {
+      hass.states['binary_sensor.nina_warnung_3'] = ninaWarning('Amtliche WARNUNG vor HOCHWASSER');
+
+      element.hass = hass;
+      element.setConfig({ type: 'custom:nina-dwd-card', nina_entity_prefix: ['binary_sensor.nina_warnung'] });
+      await element.updateComplete;
+
+      const headlines = [...(element.shadowRoot?.querySelectorAll('.headline') ?? [])].map((n) => n.textContent ?? '');
+      expect(headlines.length).toBe(2);
+      expect(headlines.some((h) => h.includes('STURM'))).toBe(true);
+      expect(headlines.some((h) => h.includes('HOCHWASSER'))).toBe(true);
+    });
+  });
+
+  // These assertions are enforced by `tsc --noEmit` as much as by vitest: the
+  // warning objects below would not compile if `headline` and `description` were
+  // declared as required non-nullable strings again, which is the type hole that
+  // allowed the missing-headline crash in the first place.
+  describe('Warning type contract', () => {
+    it('should accept NINA and DWD warnings that carry no headline and no description', () => {
+      const nina: NinaWarning = {
+        sender: 'Test Sender',
+        entity_id: 'binary_sensor.nina_warnung_1',
+        severity: 'Minor',
+        start: new Date().toISOString(),
+        expires: new Date().toISOString(),
+      };
+      const dwd: DwdWarning = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        level: 1,
+        start: new Date().toISOString(),
+        end: new Date().toISOString(),
+      };
+
+      expect(nina.headline).toBeUndefined();
+      expect(dwd.description).toBeUndefined();
+      expect(getWarningHeadline(nina.headline, nina.description, hass)).toBe('Warning');
+      expect(getWarningHeadline(dwd.headline, dwd.description, hass)).toBe('Warning');
+    });
+
+    it('should accept a null headline and description', () => {
+      const warning: NinaWarning = {
+        headline: null,
+        description: null,
+        sender: 'Test Sender',
+        entity_id: 'binary_sensor.nina_warnung_1',
+        severity: 'Minor',
+        start: new Date().toISOString(),
+        expires: new Date().toISOString(),
+      };
+
+      expect(stripWarningPrefix(warning.headline)).toBe('');
+      expect(isHeadlineHidden(warning.headline, ['hitze'])).toBe(false);
+    });
+
+    it('should resolve a headline without a hass object', () => {
+      expect(getWarningHeadline(undefined, undefined, undefined)).toBe('Warning');
+      expect(getWarningHeadline(undefined, '<p>Heavy rain expected.</p>', undefined)).toBe('Heavy rain expected.');
     });
   });
 });

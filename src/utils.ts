@@ -51,10 +51,13 @@ export function shortenNinaAreaName(area: string): string {
  * Checks whether a headline contains one of the fragments and should therefore be hidden,
  * e.g. "hitze" hides "Amtliche WARNUNG vor extremer HITZE". Blank fragments are ignored.
  *
- * @param headline The headline of the warning.
+ * Tolerates a missing headline for the same reason as {@link stripWarningPrefix}:
+ * callers pass the resolved headline, which is not guaranteed to exist.
+ *
+ * @param headline The headline of the warning, if available.
  * @param fragments The configured headline fragments to hide.
  */
-export function isHeadlineHidden(headline: string, fragments: string[] | undefined): boolean {
+export function isHeadlineHidden(headline: string | undefined | null, fragments: string[] | undefined): boolean {
   if (!fragments?.length) return false;
 
   const haystack = (headline || '').toLowerCase();
@@ -62,6 +65,56 @@ export function isHeadlineHidden(headline: string, fragments: string[] | undefin
     const needle = fragment?.trim().toLowerCase();
     return !!needle && haystack.includes(needle);
   });
+}
+
+/** Longest description snippet used as a stand-in headline. */
+const HEADLINE_FALLBACK_MAX_LENGTH = 80;
+
+/**
+ * Removes the "Amtliche Warnung vor" style prefix from a headline.
+ *
+ * Tolerates a missing headline on purpose: NINA and DWD entities do not
+ * guarantee the attribute, and a single incomplete warning must never be able
+ * to throw and blank the whole card.
+ *
+ * @param headline The headline of the warning, if available.
+ */
+export function stripWarningPrefix(headline: string | undefined | null): string {
+  return (headline || '').replace(WARNING_PREFIX_REGEX, '');
+}
+
+/**
+ * Resolves the text to display as the headline of a warning.
+ *
+ * A warning without a headline is rendered with what it does carry instead of
+ * being dropped: the first line of its description, or a generic label when
+ * even that is missing.
+ *
+ * @param headline The headline of the warning, if available.
+ * @param description The description of the warning, if available.
+ * @param hass The Home Assistant object, used for the generic label. Optional on
+ *   purpose: this function must not throw before `hass` has been set.
+ */
+export function getWarningHeadline(
+  headline: string | undefined | null,
+  description: string | undefined | null,
+  hass: HomeAssistant | undefined,
+): string {
+  const text = (headline || '').trim();
+  if (text) return text;
+
+  // The description is HTML, so tags are stripped before it is used as a title.
+  const fromDescription = (description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (fromDescription) {
+    return fromDescription.length > HEADLINE_FALLBACK_MAX_LENGTH
+      ? `${fromDescription.substring(0, HEADLINE_FALLBACK_MAX_LENGTH).trim()}...`
+      : fromDescription;
+  }
+
+  return localize(hass, 'card.headline_missing');
 }
 
 /**
@@ -83,6 +136,49 @@ export const fireEvent = <T>(
   node.dispatchEvent(event);
 };
 
+/**
+ * Resolves the end of a warning in milliseconds.
+ *
+ * NINA reports `expires`, the DWD integration reports `end`. A missing or
+ * unparsable value yields `undefined`, which callers must read as "no known
+ * end" and never as "already over".
+ *
+ * @param warning The warning to read the end time from.
+ */
+export function getWarningEndTime(warning: NinaWarning | DwdWarning): number | undefined {
+  const raw = 'expires' in warning ? warning.expires : 'end' in warning ? warning.end : undefined;
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+
+  const time = new Date(raw).getTime();
+  return Number.isNaN(time) ? undefined : time;
+}
+
+/**
+ * Checks whether a warning has already ended.
+ *
+ * Both source integrations poll (the NINA one every five minutes), so an
+ * entity can stay `on` well past the end of its warning. A warning without a
+ * known end time is never considered expired.
+ *
+ * @param warning The warning to check.
+ * @param now The reference timestamp in milliseconds, defaults to the current time.
+ */
+export function isWarningExpired(warning: NinaWarning | DwdWarning, now: number = Date.now()): boolean {
+  const end = getWarningEndTime(warning);
+  return end !== undefined && end < now;
+}
+
+/**
+ * A day distance beyond which a weekday alone no longer identifies a date.
+ *
+ * Three: weekday names repeat every seven days, so today plus or minus three
+ * days is the widest window in which one name means exactly one date. A wider
+ * one is ambiguous - with today a Thursday, "Tue" would be both two days ago
+ * and five days ahead.
+ */
+const WEEKDAY_ONLY_MAX_DAY_DISTANCE = 3;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistant): string {
   try {
     let startStr = 'start' in warning ? warning.start : '';
@@ -101,6 +197,15 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
       minute: 'numeric',
     };
 
+    // The user's 12h/24h preference from their Home Assistant profile. The two
+    // other values HA offers ('language', 'system') deliberately fall through to
+    // whatever the locale implies.
+    if (hass.locale?.time_format === 'am_pm') {
+      timeFormat.hour12 = true;
+    } else if (hass.locale?.time_format === 'twenty_four') {
+      timeFormat.hour12 = false;
+    }
+
     const getDayString = (date: Date): string => {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -116,6 +221,18 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
       if (checkDay.getTime() === tomorrow.getTime()) {
         return localize(hass, 'card.tomorrow');
       }
+      // A weekday alone only identifies a day inside the current week. Warnings
+      // can run for months (African swine fever zones, water shortages), and
+      // "Wed, 10:32" for a date in March reads as this week.
+      const dayDistance = Math.round((checkDay.getTime() - today.getTime()) / MS_PER_DAY);
+      if (Math.abs(dayDistance) > WEEKDAY_ONLY_MAX_DAY_DISTANCE) {
+        const dateFormat: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'numeric' };
+        if (date.getFullYear() !== now.getFullYear()) {
+          dateFormat.year = 'numeric';
+        }
+        return new Intl.DateTimeFormat(hass.locale.language, dateFormat).format(date);
+      }
+
       return new Intl.DateTimeFormat(hass.locale.language, { weekday: 'short' }).format(date);
     };
 
@@ -138,4 +255,45 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
     console.error('NINA-DWD: Error formatting time', e);
     return localize(hass, 'card.time_invalid');
   }
+}
+
+/**
+ * Narrows an untyped entity attribute to a string.
+ *
+ * `hass.states` is `Record<string, any>`, so every attribute an integration
+ * reports arrives untyped. A malformed warning attribute (a number, an array,
+ * an object) would otherwise be assigned straight into a warning and blow up in
+ * the first string operation that touches it. Anything that is not a string is
+ * therefore treated as absent, exactly like a missing attribute.
+ *
+ * @param value The raw attribute value.
+ */
+export function asOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Whether an entity id looks like a NINA warning slot.
+ *
+ * Used by the two card-picker entry points, which see an entity id before the
+ * card has a `hass` to look the platform up in. The integration names its
+ * entities after the area, in either language
+ * ("binary_sensor.warning_berlin_1", "binary_sensor.nina_warnung_1"), so the
+ * warning word can sit anywhere in the object id and only the trailing slot
+ * number is fixed. The editor has a `hass` and filters on
+ * `platform === 'nina'` instead, which is authoritative.
+ *
+ * @param entityId The entity id to test.
+ */
+export function isNinaWarningSlotEntity(entityId: string): boolean {
+  return entityId.startsWith('binary_sensor.') && /(?:warning|warnung)/i.test(entityId) && /(?:^|_)\d+$/.test(entityId);
+}
+
+/**
+ * The configurable prefix of a NINA warning slot entity id.
+ *
+ * @param entityId A NINA warning slot entity id.
+ */
+export function ninaPrefixFromSlotEntity(entityId: string): string {
+  return entityId.replace(/_?\d+$/, '');
 }

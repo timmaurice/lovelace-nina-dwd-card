@@ -15,3 +15,9 @@ venv/
 test-env/config/*
 !test-env/config/configuration.yaml
 !test-env/config/ui-lovelace.yaml
+# Playwright
+test-results/
+playwright-report/
+
+# Local machine compose override (corporate CA, local paths)
+test-env/docker-compose.override.yml
