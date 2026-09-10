@@ -1,4 +1,4 @@
-import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
+import { LitElement, html, TemplateResult, PropertyValues, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type {
   HomeAssistant,
@@ -35,6 +35,9 @@ const SEVERITY_COLORS: Record<number, string> = {
   3: '#e53935' /* Severe */,
   4: '#880e4f' /* Extreme */,
 };
+
+/** Safety cap for the per-prefix warning slot scan. */
+const MAX_WARNING_SLOTS = 100;
 
 /** Grid rows a single rendered warning takes up, used by `getCardSize`. */
 const CARD_SIZE_PER_WARNING = 3;
@@ -293,6 +296,71 @@ export class NinaDwdCard extends LitElement {
       this._expandedWarnings.add(key);
     }
     this.requestUpdate();
+  }
+
+  /**
+   * Collects the entity ids whose state the rendered card depends on.
+   *
+   * Used to decide whether a `hass` update is worth a re-render: Home Assistant
+   * hands the card a new `hass` object on every state change in the whole
+   * system, and re-evaluating every warning each time is pure waste.
+   */
+  private _relevantEntityIds(): string[] {
+    const ids: string[] = [];
+    if (!this._config || !this.hass) return ids;
+
+    const prefixes = Array.isArray(this._config.nina_entity_prefix)
+      ? this._config.nina_entity_prefix
+      : this._config.nina_entity_prefix
+        ? [this._config.nina_entity_prefix]
+        : [];
+
+    for (const prefix of prefixes) {
+      if (!prefix) continue;
+      for (let i = 1; i <= MAX_WARNING_SLOTS; i++) {
+        const withSeparator = `${prefix}_${i}`;
+        const withoutSeparator = `${prefix}${i}`;
+        if (this.hass.states[withSeparator]) {
+          ids.push(withSeparator);
+        } else if (this.hass.states[withoutSeparator]) {
+          ids.push(withoutSeparator);
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (this._config.dwd_device) {
+      const { current, advance } = this._getDwdEntitiesFromDevice(this._config.dwd_device);
+      if (current) ids.push(current);
+      if (advance) ids.push(advance);
+    }
+
+    if (this._config.map_pin_zone) ids.push(this._config.map_pin_zone);
+
+    return ids;
+  }
+
+  protected shouldUpdate(changedProperties: PropertyValues): boolean {
+    if (!this._config) return true;
+    // Anything other than a plain `hass` swap (config, edit mode, expansion
+    // state, a manual `requestUpdate`) always renders.
+    if (changedProperties.size !== 1 || !changedProperties.has('hass')) return true;
+
+    const oldHass = changedProperties.get('hass') as HomeAssistant | undefined;
+    // No previous object, or the very same object mutated in place: there is
+    // nothing to compare, so render.
+    if (!oldHass || oldHass === this.hass) return true;
+
+    if (
+      oldHass.themes !== this.hass.themes ||
+      oldHass.language !== this.hass.language ||
+      oldHass.locale !== this.hass.locale
+    ) {
+      return true;
+    }
+
+    return this._relevantEntityIds().some((entityId) => oldHass.states[entityId] !== this.hass.states[entityId]);
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
@@ -796,15 +864,18 @@ export class NinaDwdCard extends LitElement {
 
     for (const prefix of prefixes) {
       if (!prefix) continue;
-      // Check a fixed number of NINA entities. The total number of warnings is limited later.
-      for (let i = 1; i <= 20; i++) {
+      // NINA numbers its warning slots from 1 without gaps, so the first
+      // missing slot ends the area. The cap only guards against a prefix that
+      // happens to match an unbounded naming scheme.
+      for (let i = 1; i <= MAX_WARNING_SLOTS; i++) {
         let entityId = `${prefix}_${i}`;
         if (!this.hass.states[entityId]) {
           entityId = `${prefix}${i}`;
         }
         const stateObj = this.hass.states[entityId];
+        if (!stateObj) break;
 
-        if (stateObj && stateObj.state === 'on') {
+        if (stateObj.state === 'on') {
           // `hass.states` is untyped, so every attribute has to be narrowed here,
           // at the boundary where the data enters the card. A headline that is a
           // number or an array would otherwise reach the render path typed as a
@@ -862,8 +933,8 @@ export class NinaDwdCard extends LitElement {
     if (!stateObj || stateObj.state === '0') return warnings;
 
     // The state of the sensor indicates the highest warning level, not the number of warnings.
-    // We iterate until we no longer find warning attributes. Let's assume a max of 20.
-    for (let i = 1; i <= 20; i++) {
+    // We iterate until we no longer find warning attributes.
+    for (let i = 1; i <= MAX_WARNING_SLOTS; i++) {
       const rawHeadline = stateObj.attributes[`warning_${i}_headline`];
       // An absent or empty headline attribute marks the end of the list. A
       // headline that is present but not a string does not: the warning exists,

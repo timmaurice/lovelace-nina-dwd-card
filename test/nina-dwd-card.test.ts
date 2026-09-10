@@ -2243,6 +2243,88 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  describe('Update efficiency', () => {
+    const renderSpy = (): ReturnType<typeof vi.spyOn> =>
+      vi.spyOn(element as unknown as { render: () => unknown }, 'render');
+
+    beforeEach(() => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor STURM',
+          description: 'Es treten Sturmböen auf.',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+          expires: hoursFromNow(5),
+        },
+      };
+    });
+
+    it('should not re-render when an unrelated entity changes', async () => {
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const spy = renderSpy();
+      element.hass = {
+        ...hass,
+        states: { ...hass.states, 'light.kitchen': { state: 'on', attributes: {} } },
+      } as HomeAssistant;
+      await element.updateComplete;
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should re-render when a warning entity changes', async () => {
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const spy = renderSpy();
+      element.hass = {
+        ...hass,
+        states: {
+          ...hass.states,
+          'binary_sensor.nina_warnung_1': {
+            state: 'on',
+            attributes: {
+              headline: 'Amtliche WARNUNG vor HOCHWASSER',
+              description: 'Die Pegel steigen.',
+              severity: 'Severe',
+              start: hoursFromNow(-1),
+              expires: hoursFromNow(5),
+            },
+          },
+        },
+      } as HomeAssistant;
+      await element.updateComplete;
+
+      expect(spy).toHaveBeenCalled();
+      expect(element.shadowRoot?.querySelector('.headline')?.textContent).toContain('HOCHWASSER');
+    });
+
+    it('should stop scanning warning slots at the first gap', async () => {
+      // NINA numbers its slots without gaps, so slot 3 without a slot 2 is not
+      // a warning of the same area.
+      hass.states['binary_sensor.nina_warnung_3'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor HOCHWASSER',
+          description: 'Die Pegel steigen.',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+          expires: hoursFromNow(5),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+    });
+  });
+
   // These assertions are enforced by `tsc --noEmit` as much as by vitest: the
   // warning objects below would not compile if `headline` and `description` were
   // declared as required non-nullable strings again, which is the type hole that
