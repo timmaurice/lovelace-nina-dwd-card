@@ -42,6 +42,9 @@ const createMockHass = (): HomeAssistant =>
     },
   }) as unknown as HomeAssistant;
 
+/** A timestamp relative to now, for warnings that must not count as expired. */
+const hoursFromNow = (hours: number): string => new Date(Date.now() + hours * 3_600_000).toISOString();
+
 describe('NinaDwdCard', () => {
   let element: NinaDwdCard;
   let hass: HomeAssistant;
@@ -915,7 +918,7 @@ describe('NinaDwdCard', () => {
           sender: 'DWD',
           severity: 'Severe',
           start: '2026-01-08T17:00:00',
-          expires: '2026-01-09T09:00:00',
+          expires: hoursFromNow(6),
         },
       };
 
@@ -928,7 +931,7 @@ describe('NinaDwdCard', () => {
           sender: 'DWD',
           severity: 'Severe',
           start: '2026-01-08T21:00:00',
-          expires: '2026-01-09T09:00:00',
+          expires: hoursFromNow(6),
         },
       };
 
@@ -985,7 +988,7 @@ describe('NinaDwdCard', () => {
           description: 'Same Description',
           sender: 'DWD',
           start: '2026-01-08T17:00:00',
-          expires: '2026-01-09T09:00:00',
+          expires: hoursFromNow(6),
         },
       };
 
@@ -1001,7 +1004,7 @@ describe('NinaDwdCard', () => {
           warning_1_description: 'Same Description',
           warning_1_level: 2, // Marks it as DWD
           warning_1_start: '2026-01-08T18:00:00',
-          warning_1_end: '2026-01-09T10:00:00',
+          warning_1_end: hoursFromNow(7),
         },
       };
 
@@ -1164,7 +1167,7 @@ describe('NinaDwdCard', () => {
           sender: 'Civil Protection',
           severity: 'Extreme',
           start: new Date().toISOString(),
-          expires: new Date().toISOString(),
+          expires: hoursFromNow(3),
         },
       };
 
@@ -1180,7 +1183,7 @@ describe('NinaDwdCard', () => {
           warning_1_description: 'Am Sonntag wird eine extreme Wärmebelastung bis zu einer Höhe von 400m erwartet.',
           warning_1_level: 4,
           warning_1_start: new Date().toISOString(),
-          warning_1_end: new Date().toISOString(),
+          warning_1_end: hoursFromNow(3),
           warning_1_type: 1,
         },
       };
@@ -2011,6 +2014,107 @@ describe('NinaDwdCard', () => {
       const warnings = element.shadowRoot?.querySelectorAll('.warning');
       expect(warnings?.length).toBe(1);
       expect(warnings?.[0].querySelector('.headline')?.textContent?.trim()).toBe('Karlsruhe Warning');
+    });
+  });
+
+  describe('Expired warnings', () => {
+    const activeWarning = {
+      headline: 'Amtliche WARNUNG vor STURM',
+      description: 'Es treten Sturmböen auf.',
+      sender: 'Deutscher Wetterdienst',
+      severity: 'Severe',
+    };
+
+    it('should not render a NINA warning that has already expired', async () => {
+      // The finding: a warning whose `expires` was two hours in the past was
+      // still on the card, because the integration only polls every 5 minutes.
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-8), expires: hoursFromNow(-2) },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+      expect(element.shadowRoot?.querySelector('.no-warnings')).not.toBeNull();
+    });
+
+    it('should not render a DWD warning whose end time has passed', async () => {
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor FROST',
+          warning_1_description: 'Es tritt Frost auf.',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-9),
+          warning_1_end: hoursFromNow(-3),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+    });
+
+    it('should keep running warnings and warnings without an end time', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(5) },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: { ...activeWarning, headline: 'Amtliche WARNUNG vor HOCHWASSER', start: hoursFromNow(-1) },
+      };
+
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(2);
+    });
+
+    it('should keep expired warnings when hide_expired is disabled', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-8), expires: hoursFromNow(-2) },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, hide_expired: false });
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+    });
+
+    it('should drop a warning by itself once its end time passes', async () => {
+      vi.useFakeTimers();
+      try {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(1) },
+        };
+
+        element.hass = hass;
+        element.setConfig(config);
+        await element.updateComplete;
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+
+        // No new `hass` object, no state change - only time passing.
+        await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+        await element.updateComplete;
+
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

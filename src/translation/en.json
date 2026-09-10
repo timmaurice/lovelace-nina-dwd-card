@@ -27,6 +27,7 @@
     "map_pin_zone": "Map Pin Zone (BETA)",
     "show_map_without_warnings": "Show map even without warnings",
     "hide_when_no_warnings": "Hide card when no warnings",
+    "hide_expired": "Hide expired warnings",
     "suppress_warning_text": "Suppress 'Amtliche Warnung vor' and 'Vorabinformation Unwetter vor'",
     "description_max_length": "Max description length",
     "font_size": "Font size",

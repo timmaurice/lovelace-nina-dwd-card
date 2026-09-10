@@ -136,6 +136,42 @@ export const fireEvent = <T>(
   node.dispatchEvent(event);
 };
 
+/**
+ * Resolves the end of a warning in milliseconds.
+ *
+ * NINA reports `expires`, the DWD integration reports `end`. A missing or
+ * unparsable value yields `undefined`, which callers must read as "no known
+ * end" and never as "already over".
+ *
+ * @param warning The warning to read the end time from.
+ */
+export function getWarningEndTime(warning: NinaWarning | DwdWarning): number | undefined {
+  const raw = 'expires' in warning ? warning.expires : 'end' in warning ? warning.end : undefined;
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+
+  const time = new Date(raw).getTime();
+  return Number.isNaN(time) ? undefined : time;
+}
+
+/**
+ * Checks whether a warning has already ended.
+ *
+ * Both source integrations poll (the NINA one every five minutes), so an
+ * entity can stay `on` well past the end of its warning. A warning without a
+ * known end time is never considered expired.
+ *
+ * @param warning The warning to check.
+ * @param now The reference timestamp in milliseconds, defaults to the current time.
+ */
+export function isWarningExpired(warning: NinaWarning | DwdWarning, now: number = Date.now()): boolean {
+  const end = getWarningEndTime(warning);
+  return end !== undefined && end < now;
+}
+
+/** A day distance beyond which a weekday alone no longer identifies a date. */
+const WEEKDAY_ONLY_MAX_DAY_DISTANCE = 6;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistant): string {
   try {
     let startStr = 'start' in warning ? warning.start : '';
@@ -154,6 +190,15 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
       minute: 'numeric',
     };
 
+    // The user's 12h/24h preference from their Home Assistant profile. The two
+    // other values HA offers ('language', 'system') deliberately fall through to
+    // whatever the locale implies.
+    if (hass.locale?.time_format === 'am_pm') {
+      timeFormat.hour12 = true;
+    } else if (hass.locale?.time_format === 'twenty_four') {
+      timeFormat.hour12 = false;
+    }
+
     const getDayString = (date: Date): string => {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -169,6 +214,18 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
       if (checkDay.getTime() === tomorrow.getTime()) {
         return localize(hass, 'card.tomorrow');
       }
+      // A weekday alone only identifies a day inside the current week. Warnings
+      // can run for months (African swine fever zones, water shortages), and
+      // "Wed, 10:32" for a date in March reads as this week.
+      const dayDistance = Math.round((checkDay.getTime() - today.getTime()) / MS_PER_DAY);
+      if (Math.abs(dayDistance) > WEEKDAY_ONLY_MAX_DAY_DISTANCE) {
+        const dateFormat: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'numeric' };
+        if (date.getFullYear() !== now.getFullYear()) {
+          dateFormat.year = 'numeric';
+        }
+        return new Intl.DateTimeFormat(hass.locale.language, dateFormat).format(date);
+      }
+
       return new Intl.DateTimeFormat(hass.locale.language, { weekday: 'short' }).format(date);
     };
 

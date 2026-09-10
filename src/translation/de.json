@@ -27,6 +27,7 @@
     "map_pin_zone": "Kartenmarkierung Zone (BETA)",
     "show_map_without_warnings": "Karte auch ohne Warnungen anzeigen",
     "hide_when_no_warnings": "Dashboard-Karte ausblenden, wenn keine Warnungen vorliegen",
+    "hide_expired": "Abgelaufene Warnungen ausblenden",
     "suppress_warning_text": "'Amtliche Warnung vor' und 'Vorabinformation Unwetter vor' entfernen",
     "description_max_length": "Maximale Länge der Beschreibung",
     "font_size": "Schriftgröße",

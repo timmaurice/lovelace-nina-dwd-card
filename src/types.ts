@@ -79,6 +79,8 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   separate_advance_warnings?: boolean;
   hide_on_level_below?: number;
   hide_headlines_containing?: string[];
+  /** Hides warnings whose end time has passed. Defaults to true. */
+  hide_expired?: boolean;
   theme_mode?: 'auto' | 'light' | 'dark';
   color_overrides?: {
     no_warning?: string;

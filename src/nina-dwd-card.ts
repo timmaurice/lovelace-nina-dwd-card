@@ -7,8 +7,10 @@ import {
   fireEvent,
   formatTime,
   getNinaAreaName,
+  getWarningEndTime,
   getWarningHeadline,
   isHeadlineHidden,
+  isWarningExpired,
   shortenNinaAreaName,
   stripWarningPrefix,
 } from './utils';
@@ -27,6 +29,9 @@ const SEVERITY_COLORS: Record<number, string> = {
   4: '#880e4f' /* Extreme */,
 };
 
+/** Upper bound for the expiry re-render timer (six hours). */
+const MAX_EXPIRY_TIMER_MS = 6 * 60 * 60 * 1000;
+
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
 
@@ -43,6 +48,7 @@ export class NinaDwdCard extends LitElement {
   private _error: string | undefined;
   private _cache = new TranslationCache();
   private _hasLoggedTranslationWarning = false;
+  private _expiryTimer: ReturnType<typeof setTimeout> | undefined;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -217,14 +223,60 @@ export class NinaDwdCard extends LitElement {
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
-    if (!this.hass) return;
+    if (!this.hass || !this._config) return;
+    const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+    const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
+
     if (changedProperties.has('hass') || changedProperties.has('_config')) {
-      const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
-      const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
       if (allWarnings.length > 0) {
         this._translateWarnings(allWarnings);
       }
     }
+
+    this._scheduleExpiryRefresh(allWarnings);
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._clearExpiryTimer();
+  }
+
+  private _clearExpiryTimer(): void {
+    if (this._expiryTimer !== undefined) {
+      clearTimeout(this._expiryTimer);
+      this._expiryTimer = undefined;
+    }
+  }
+
+  /**
+   * Re-renders the card when the next displayed warning ends.
+   *
+   * Without this an expired warning would linger until the integration polls
+   * again - up to five minutes for NINA, and indefinitely for a DWD sensor
+   * whose other attributes do not change.
+   *
+   * @param warnings The warnings currently displayed.
+   */
+  private _scheduleExpiryRefresh(warnings: (NinaWarning | DwdWarning)[]): void {
+    this._clearExpiryTimer();
+    if (this._config?.hide_expired === false) return;
+
+    const now = Date.now();
+    const nextEnd = warnings
+      .map((warning) => getWarningEndTime(warning))
+      .filter((end): end is number => end !== undefined && end > now)
+      .sort((a, b) => a - b)[0];
+
+    if (nextEnd === undefined) return;
+
+    // Capped: `setTimeout` overflows beyond ~24.8 days, and a long-running
+    // warning is better re-checked periodically than trusted to one timer.
+    const delay = Math.min(nextEnd - now + 1000, MAX_EXPIRY_TIMER_MS);
+    this._expiryTimer = setTimeout(() => {
+      this._expiryTimer = undefined;
+      // The next timer is scheduled from `updated()` after this render.
+      this.requestUpdate();
+    }, delay);
   }
 
   protected render(): TemplateResult {
@@ -295,9 +347,13 @@ export class NinaDwdCard extends LitElement {
 
     // Filtered here and not in _processWarnings, so hidden warnings are not translated either.
     const fragments = this._config.hide_headlines_containing;
+    const hideExpired = this._config.hide_expired !== false;
+    const now = Date.now();
+    const unexpired = <T extends NinaWarning | DwdWarning>(warnings: T[]): T[] =>
+      hideExpired ? warnings.filter((warning) => !isWarningExpired(warning, now)) : warnings;
     const visible = <T extends NinaWarning | DwdWarning>(warnings: T[]): T[] =>
       fragments?.length
-        ? warnings.filter(
+        ? unexpired(warnings).filter(
             // Matched against the resolved source headline: a warning without a
             // headline is filtered by the description shown in its place. This is
             // deliberately not the rendered text in two configurations - with
@@ -309,7 +365,7 @@ export class NinaDwdCard extends LitElement {
             (warning) =>
               !isHeadlineHidden(getWarningHeadline(warning.headline, warning.description, this.hass), fragments),
           )
-        : warnings;
+        : unexpired(warnings);
 
     return {
       ninaWarnings: visible(ninaWarnings),

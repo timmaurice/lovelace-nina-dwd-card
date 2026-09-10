@@ -113,6 +113,10 @@ const SCHEMA = [
         selector: { boolean: {} },
       },
       {
+        name: 'hide_expired',
+        selector: { boolean: {} },
+      },
+      {
         name: 'suppress_warning_text',
         selector: { boolean: {} },
       },

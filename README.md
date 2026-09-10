@@ -19,7 +19,8 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
   - Prioritizes the original DWD alert over NINA rebroadcasts.
   - Merges identical warnings (same headline, description, instruction) with different time ranges into a single entry with the earliest start and latest end time.
 - Automatically sorts warnings by severity, displaying the most critical alerts first.
-- Formats warning start and end times for readability.
+- Formats warning start and end times for readability, with the date spelled out for warnings outside the current week.
+- Hides warnings that have already ended, without waiting for the next integration poll.
 - Shows a "No Warnings" message when no active warnings are present.
 - Displays sender information and a direct link to the official warning page on BUND.DE for NINA warnings.
 - Designed to be fully customizable through the visual editor.
@@ -110,6 +111,7 @@ You can now add the card to your dashboard.
 | `description_max_length`    | number         | `(none)`     | The maximum number of characters to display in the warning description.                                                     |
 | `font_size`                 | number         | `(none)`     | The font size for the card content in pixels.                                                                               |
 | `hide_when_no_warnings`     | boolean        | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                             |
+| `hide_expired`              | boolean        | `true`       | Hides warnings whose end time has passed, and drops them the moment they expire instead of waiting for the next poll.       |
 | `theme_mode`                | string         | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
 | `color_overrides`           | object         | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |
 
@@ -140,6 +142,7 @@ hide_instructions: false
 hide_footer: false
 separate_advance_warnings: true
 hide_when_no_warnings: true
+hide_expired: true # Drops warnings that have already ended (default)
 theme_mode: auto
 color_overrides:
   severe: '#ff0000'

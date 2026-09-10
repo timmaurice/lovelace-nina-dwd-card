@@ -2,7 +2,7 @@ import { test, expect } from './fixtures/hass';
 import { removeState, setState, useDashboard } from './helpers/homeassistant';
 
 const PREFIX = 'binary_sensor.e2e_card_warning';
-const ENTITIES = [`${PREFIX}_1`, `${PREFIX}_2`];
+const ENTITIES = [`${PREFIX}_1`, `${PREFIX}_2`, `${PREFIX}_3`];
 
 /**
  * The attribute names below are the ones the NINA integration really puts on a
@@ -28,6 +28,19 @@ const FLOOD = {
   id: 'mow.de.e2e.card.0002',
 };
 
+/**
+ * A warning the integration still reports as `on` although it ended two hours
+ * ago - NINA polls every five minutes, so this is the normal state of things
+ * for a while after a warning ends.
+ */
+const EXPIRED = {
+  headline: 'Amtliche WARNUNG vor GLAETTE',
+  description: 'Es tritt gebietsweise Glätte auf.',
+  sender: 'Deutscher Wetterdienst',
+  severity: 'Minor',
+  id: 'mow.de.e2e.card.0003',
+};
+
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 
 let urlPath: string;
@@ -46,6 +59,14 @@ test.beforeAll(async () => {
     start: hoursFromNow(-2),
     expires: hoursFromNow(8),
     sent: hoursFromNow(-2),
+  });
+
+  await setState(ENTITIES[2], 'on', {
+    friendly_name: 'E2E Town (E2E District - Testland) Warning 3',
+    ...EXPIRED,
+    start: hoursFromNow(-8),
+    expires: hoursFromNow(-2),
+    sent: hoursFromNow(-8),
   });
 
   urlPath = await useDashboard('card', {
@@ -84,6 +105,15 @@ test.describe('The card on a real dashboard', () => {
     await expect(card.locator('.description').first()).toContainText('Sturmböen um 85 km/h');
     await expect(card.locator('.no-warnings')).toHaveCount(0);
     expect(consoleErrors).toEqual([]);
+  });
+
+  test('leaves out a warning that has already ended', async ({ page }) => {
+    await page.goto(`/${urlPath}/0`);
+
+    const card = page.locator('nina-dwd-card');
+    await expect(card.locator('.headline')).toHaveCount(2, { timeout: 60_000 });
+    // The sensor is still `on`, the warning ended two hours ago.
+    await expect(card.locator('.headline', { hasText: 'GLAETTE' })).toHaveCount(0);
   });
 
   test('comes back after leaving the view and returning', async ({ page }) => {
