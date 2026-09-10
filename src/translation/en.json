@@ -138,7 +138,6 @@
   "errors": {
     "ai_translation_config_error": "AI Translation is enabled but no AI agent is configured or selected. Please select an AI translation entity in the card configuration editor.",
     "ai_translation_parse_error": "Failed to parse translation JSON",
-    "no_entities_configured": "Select at least one NINA warning area or a DWD device in the card configuration.",
-    "invalid_configuration": "Invalid configuration"
+    "no_entities_configured": "Select at least one NINA warning area or a DWD device in the card configuration."
   }
 }
