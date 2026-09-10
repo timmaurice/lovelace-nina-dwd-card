@@ -6,3 +6,6 @@ node_modules
 
 # Lockfiles
 package-lock.json
+# Playwright's captured session (generated, gitignored)
+test/e2e/.auth.json
+test/e2e/.storage-state.json
