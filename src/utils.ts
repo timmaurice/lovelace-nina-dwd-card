@@ -168,8 +168,15 @@ export function isWarningExpired(warning: NinaWarning | DwdWarning, now: number 
   return end !== undefined && end < now;
 }
 
-/** A day distance beyond which a weekday alone no longer identifies a date. */
-const WEEKDAY_ONLY_MAX_DAY_DISTANCE = 6;
+/**
+ * A day distance beyond which a weekday alone no longer identifies a date.
+ *
+ * Three: weekday names repeat every seven days, so today plus or minus three
+ * days is the widest window in which one name means exactly one date. A wider
+ * one is ambiguous - with today a Thursday, "Tue" would be both two days ago
+ * and five days ahead.
+ */
+const WEEKDAY_ONLY_MAX_DAY_DISTANCE = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistant): string {

@@ -87,6 +87,21 @@ describe('formatTime', () => {
     expect(formatted).toMatch(/^[^,]+, \d{1,2}:\d{2}$/);
   });
 
+  it('adds the date once the weekday name is ambiguous', () => {
+    // Weekday names repeat every seven days, so five days ahead carries the
+    // same name as two days ago.
+    const fiveDaysOn = new Date(Date.now() + 5 * 24 * 3_600_000);
+    fiveDaysOn.setHours(10, 32, 0, 0);
+
+    const formatted = formatTime(
+      ninaWarning({ start: fiveDaysOn.toISOString(), expires: undefined as unknown as string }),
+      hass(),
+    );
+
+    expect(formatted).not.toMatch(/^[^,]+, \d{1,2}:\d{2}$/);
+    expect(formatted).toContain(String(fiveDaysOn.getDate()));
+  });
+
   it('adds the date for a warning older than a week', () => {
     // The finding: a warning sent in March showed as "Mi, 10:32" and read as if
     // it had happened this week.
