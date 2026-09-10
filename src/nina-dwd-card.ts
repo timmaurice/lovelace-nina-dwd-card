@@ -65,6 +65,8 @@ export class NinaDwdCard extends LitElement {
   private _cache = new TranslationCache();
   private _hasLoggedTranslationWarning = false;
   private _expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Set when the expiry timer has to be rescheduled without a `hass` change. */
+  private _expiryRefreshPending = false;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -300,16 +302,34 @@ export class NinaDwdCard extends LitElement {
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
     if (!this.hass || !this._config) return;
+
+    const dataChanged = changedProperties.has('hass') || changedProperties.has('_config');
+    // Only `hass` and the config can change the warnings, so a render caused by
+    // a lightbox or expansion toggle must not walk them again. The exception is
+    // a render the expiry timer asked for: it left no timer behind, and the next
+    // one is scheduled here.
+    if (!dataChanged && !this._expiryRefreshPending) return;
+    this._expiryRefreshPending = false;
+
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
     const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
 
-    if (changedProperties.has('hass') || changedProperties.has('_config')) {
-      if (allWarnings.length > 0) {
-        this._translateWarnings(allWarnings);
-      }
+    if (dataChanged && allWarnings.length > 0) {
+      this._translateWarnings(allWarnings);
     }
 
     this._scheduleExpiryRefresh(allWarnings);
+  }
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    // `disconnectedCallback` cleared the timer, and a re-attach - switching back
+    // to a Lovelace view - does not re-render, so `updated()` would never
+    // schedule a new one.
+    if (this.hass && this._config) {
+      const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+      this._scheduleExpiryRefresh([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]);
+    }
   }
 
   public disconnectedCallback(): void {
@@ -350,7 +370,9 @@ export class NinaDwdCard extends LitElement {
     const delay = Math.min(nextEnd - now + 1000, MAX_EXPIRY_TIMER_MS);
     this._expiryTimer = setTimeout(() => {
       this._expiryTimer = undefined;
-      // The next timer is scheduled from `updated()` after this render.
+      // The next timer is scheduled from `updated()` after this render, which
+      // this flag tells it to do even though no data changed.
+      this._expiryRefreshPending = true;
       this.requestUpdate();
     }, delay);
   }

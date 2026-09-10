@@ -2124,6 +2124,57 @@ describe('NinaDwdCard', () => {
         vi.useRealTimers();
       }
     });
+
+    // Switching Lovelace views detaches and re-attaches the card. The detach
+    // clears the timer, and the re-attach does not re-render, so nothing else
+    // would ever schedule it again.
+    it('should drop a warning by itself after the card was re-attached', async () => {
+      vi.useFakeTimers();
+      try {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(1) },
+        };
+
+        element.hass = hass;
+        element.setConfig(config);
+        await element.updateComplete;
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+
+        element.remove();
+        document.body.appendChild(element);
+        await element.updateComplete;
+
+        await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+        await element.updateComplete;
+
+        expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // `updated()` re-walks the warnings, which only a `hass` or config change
+    // can have changed - a render caused by the lightbox opening must not.
+    it('should not re-walk the warnings when only the view state changes', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { ...activeWarning, start: hoursFromNow(-1), expires: hoursFromNow(5) },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, dwd_map_land: 'hes' });
+      await element.updateComplete;
+
+      const internals = element as unknown as { _collectWarnings: () => unknown; _showLargeMap: boolean };
+      const spy = vi.spyOn(internals, '_collectWarnings');
+
+      internals._showLargeMap = true;
+      await element.updateComplete;
+
+      // Once, from `render()`.
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('Home Assistant card API', () => {
