@@ -114,6 +114,9 @@ You can now add the card to your dashboard.
 | `hide_expired`              | boolean        | `true`       | Hides warnings whose end time has passed, and drops them the moment they expire instead of waiting for the next poll.       |
 | `theme_mode`                | string         | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
 | `color_overrides`           | object         | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |
+| `enable_translation`        | boolean        | `false`      | Translates headline, description and recommended actions with an AI Task entity. See [AI Translation](#ai-translation).     |
+| `translation_target`        | string         | `English`    | The language warnings are translated into, selected from the editor dropdown (e.g. `French`, `Bavarian`).                   |
+| `ai_entity_id`              | string         | `(none)`     | The `ai_task` entity used for the translation. Without it Home Assistant's preferred AI Task entity is used.                |
 
 > [!NOTE]
 > **Debug Mode**: The `debug_mode` option is not available in the visual editor. It can only be configured via YAML. When enabled, it displays an overlay showing the map padding areas and boundary coordinates, which is useful for fine-tuning map positioning.
