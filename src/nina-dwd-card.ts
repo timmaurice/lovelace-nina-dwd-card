@@ -167,13 +167,30 @@ export class NinaDwdCard extends LitElement {
     if (!this._config || !this.hass) return CARD_SIZE_PER_WARNING;
 
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
-    const count = this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]).length;
+    // Mirrors the render path: the separate view processes the current and the
+    // advance list on their own, so each is capped at `max_warnings` and the
+    // card can render up to twice as many warnings as the combined view.
+    const count = this._config.separate_advance_warnings
+      ? this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings]).length +
+        this._processWarnings([...dwdAdvanceWarnings]).length
+      : this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]).length;
 
-    const header = this._config.title ? 1 : 0;
     const standaloneMap =
       this._getMapUrl() && (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
         ? CARD_SIZE_MAP
         : 0;
+
+    // `hide_when_no_warnings` renders nothing at all, so claiming a row would
+    // leave a phantom gap in the masonry layout.
+    if (
+      count === 0 &&
+      this._config.hide_when_no_warnings &&
+      !(this._config.show_map_without_warnings && standaloneMap)
+    ) {
+      return 0;
+    }
+
+    const header = this._config.title ? 1 : 0;
 
     return header + standaloneMap + Math.max(1, count * CARD_SIZE_PER_WARNING);
   }

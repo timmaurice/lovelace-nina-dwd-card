@@ -2201,6 +2201,64 @@ describe('NinaDwdCard', () => {
       expect(element.getCardSize()).toBeGreaterThan(emptySize);
     });
 
+    // The separate view slices the current and the advance list to
+    // `max_warnings` each, so the reported size has to count them the same way.
+    it('should report the size of both lists with separate_advance_warnings', async () => {
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.entities['sensor.berlin_advance_warning_level'] = {
+        entity_id: 'sensor.berlin_advance_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '2',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor STURM',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-1),
+          warning_1_end: hoursFromNow(5),
+        },
+      };
+      hass.states['sensor.berlin_advance_warning_level'] = {
+        state: '2',
+        attributes: {
+          warning_1_headline: 'Vorabinformation FROST',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(20),
+          warning_1_end: hoursFromNow(30),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({
+        type: 'custom:nina-dwd-card',
+        dwd_device: 'mock-dwd-device',
+        separate_advance_warnings: true,
+        max_warnings: 1,
+      });
+      await element.updateComplete;
+
+      const rendered = element.shadowRoot?.querySelectorAll('.warning').length ?? 0;
+      expect(rendered).toBe(2);
+      expect(element.getCardSize()).toBe(rendered * 3);
+    });
+
+    // Nothing is rendered, so claiming a row leaves a phantom gap in masonry.
+    it('should report no size when the card hides itself', async () => {
+      element.hass = hass;
+      element.setConfig({
+        type: 'custom:nina-dwd-card',
+        nina_entity_prefix: ['binary_sensor.nina_warnung'],
+        hide_when_no_warnings: true,
+      });
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('ha-card')).toBeNull();
+      expect(element.getCardSize()).toBe(0);
+    });
+
     it('should report a card size before a configuration is set', () => {
       expect(element.getCardSize()).toBeGreaterThan(0);
     });
