@@ -2243,24 +2243,30 @@ describe('NinaDwdCard', () => {
     });
   });
 
-  describe('Update efficiency', () => {
+  describe('Update paths', () => {
     const renderSpy = (): ReturnType<typeof vi.spyOn> =>
       vi.spyOn(element as unknown as { render: () => unknown }, 'render');
 
-    beforeEach(() => {
-      hass.states['binary_sensor.nina_warnung_1'] = {
-        state: 'on',
-        attributes: {
-          headline: 'Amtliche WARNUNG vor STURM',
-          description: 'Es treten Sturmböen auf.',
-          severity: 'Severe',
-          start: hoursFromNow(-1),
-          expires: hoursFromNow(5),
-        },
-      };
+    const ninaWarning = (headline: string) => ({
+      state: 'on',
+      attributes: {
+        headline,
+        description: 'Es treten Sturmböen auf.',
+        severity: 'Severe',
+        start: hoursFromNow(-1),
+        expires: hoursFromNow(5),
+      },
     });
 
-    it('should not re-render when an unrelated entity changes', async () => {
+    beforeEach(() => {
+      hass.states['binary_sensor.nina_warnung_1'] = ninaWarning('Amtliche WARNUNG vor STURM');
+    });
+
+    // The card renders on every `hass` swap. A `shouldUpdate` gate that compares
+    // only the entities the card currently resolves cannot see a change that
+    // makes an entity resolvable in the first place - a registry entry arriving,
+    // an entity vanishing - and it silently freezes the map's cache buster.
+    it('should re-render on an unrelated hass update', async () => {
       element.hass = hass;
       element.setConfig(config);
       await element.updateComplete;
@@ -2272,7 +2278,7 @@ describe('NinaDwdCard', () => {
       } as HomeAssistant;
       await element.updateComplete;
 
-      expect(spy).not.toHaveBeenCalled();
+      expect(spy).toHaveBeenCalled();
     });
 
     it('should re-render when a warning entity changes', async () => {
@@ -2285,16 +2291,7 @@ describe('NinaDwdCard', () => {
         ...hass,
         states: {
           ...hass.states,
-          'binary_sensor.nina_warnung_1': {
-            state: 'on',
-            attributes: {
-              headline: 'Amtliche WARNUNG vor HOCHWASSER',
-              description: 'Die Pegel steigen.',
-              severity: 'Severe',
-              start: hoursFromNow(-1),
-              expires: hoursFromNow(5),
-            },
-          },
+          'binary_sensor.nina_warnung_1': ninaWarning('Amtliche WARNUNG vor HOCHWASSER'),
         },
       } as HomeAssistant;
       await element.updateComplete;
@@ -2303,25 +2300,65 @@ describe('NinaDwdCard', () => {
       expect(element.shadowRoot?.querySelector('.headline')?.textContent).toContain('HOCHWASSER');
     });
 
-    it('should stop scanning warning slots at the first gap', async () => {
-      // NINA numbers its slots without gaps, so slot 3 without a slot 2 is not
-      // a warning of the same area.
-      hass.states['binary_sensor.nina_warnung_3'] = {
-        state: 'on',
+    // The DWD entity ids are resolved through `hass.entities`, which is empty
+    // until the entity registry has loaded. The update that fills it differs
+    // from its predecessor in nothing else.
+    it('should render a dwd_device warning once the entity registry arrives', async () => {
+      const registryEntry = {
+        'sensor.berlin_current_warning_level': {
+          entity_id: 'sensor.berlin_current_warning_level',
+          device_id: 'mock-dwd-device',
+        },
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
         attributes: {
-          headline: 'Amtliche WARNUNG vor HOCHWASSER',
-          description: 'Die Pegel steigen.',
-          severity: 'Severe',
-          start: hoursFromNow(-1),
-          expires: hoursFromNow(5),
+          warning_1_headline: 'DWD Registry Warning',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-1),
+          warning_1_end: hoursFromNow(5),
         },
       };
 
       element.hass = hass;
-      element.setConfig(config);
+      element.setConfig({ type: 'custom:nina-dwd-card', dwd_device: 'mock-dwd-device' });
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+
+      element.hass = { ...hass, entities: registryEntry } as unknown as HomeAssistant;
       await element.updateComplete;
 
       expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+      expect(element.shadowRoot?.querySelector('.headline')?.textContent).toContain('DWD Registry Warning');
+    });
+
+    // An integration reload, a removed area or a rename takes the entity away.
+    // The card must notice the entity it was rendering is gone.
+    it('should drop a warning whose entity has vanished', async () => {
+      element.hass = hass;
+      element.setConfig({ type: 'custom:nina-dwd-card', nina_entity_prefix: ['binary_sensor.nina_warnung'] });
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+
+      element.hass = { ...hass, states: {} } as unknown as HomeAssistant;
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(0);
+    });
+
+    // Users disable the NINA slot entities they do not need, so slot 2 can be
+    // absent while slot 3 holds a live warning.
+    it('should render warning slots that follow a gap', async () => {
+      hass.states['binary_sensor.nina_warnung_3'] = ninaWarning('Amtliche WARNUNG vor HOCHWASSER');
+
+      element.hass = hass;
+      element.setConfig({ type: 'custom:nina-dwd-card', nina_entity_prefix: ['binary_sensor.nina_warnung'] });
+      await element.updateComplete;
+
+      const headlines = [...(element.shadowRoot?.querySelectorAll('.headline') ?? [])].map((n) => n.textContent ?? '');
+      expect(headlines.length).toBe(2);
+      expect(headlines.some((h) => h.includes('STURM'))).toBe(true);
+      expect(headlines.some((h) => h.includes('HOCHWASSER'))).toBe(true);
     });
   });
 
