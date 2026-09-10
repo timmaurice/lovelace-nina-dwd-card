@@ -2283,6 +2283,37 @@ describe('NinaDwdCard', () => {
       expect(Object.keys(stub)).toEqual(['type']);
     });
 
+    // `getStubConfig` and `getEntitySuggestion` are the two picker entry points
+    // and used to disagree: the suggestion matched `sensor.nina_*`, which the
+    // integration does not create, so a NINA entity never produced one.
+    it('should suggest a config for a NINA warning slot entity', () => {
+      const registration = (
+        window.customCards as Array<{
+          type: string;
+          getEntitySuggestion?: (
+            hass: HomeAssistant,
+            entityId: string,
+          ) => { config: NinaDwdCardConfig } | null | undefined;
+        }>
+      ).find((card) => card.type === 'nina-dwd-card');
+
+      expect(registration?.getEntitySuggestion?.(hass, 'binary_sensor.warning_berlin_2')?.config).toEqual({
+        type: 'custom:nina-dwd-card',
+        nina_entity_prefix: ['binary_sensor.warning_berlin'],
+      });
+      // The stub built from the same entity agrees with it.
+      expect(NinaDwdCard.getStubConfig(undefined, ['binary_sensor.warning_berlin_1']).nina_entity_prefix).toEqual([
+        'binary_sensor.warning_berlin',
+      ]);
+      expect(registration?.getEntitySuggestion?.(hass, 'sensor.something_else')).toBeNull();
+    });
+
+    it('should reject an empty configuration in English, before hass is set', () => {
+      const fresh = document.createElement('nina-dwd-card') as NinaDwdCard;
+
+      expect(() => fresh.setConfig(undefined as unknown as NinaDwdCardConfig)).toThrow('Invalid configuration');
+    });
+
     it('should detect the NINA prefix from the entity ids the picker offers', () => {
       const stub = NinaDwdCard.getStubConfig(undefined, [
         'sensor.something_else',

@@ -17,7 +17,9 @@ import {
   getWarningEndTime,
   getWarningHeadline,
   isHeadlineHidden,
+  isNinaWarningSlotEntity,
   isWarningExpired,
+  ninaPrefixFromSlotEntity,
   shortenNinaAreaName,
   stripWarningPrefix,
 } from './utils';
@@ -87,16 +89,11 @@ export class NinaDwdCard extends LitElement {
     const config: NinaDwdCardConfig = { type: 'custom:nina-dwd-card' };
 
     const candidates = entities?.length ? entities : Object.keys(hass?.states ?? {});
-    // The first warning slot of a NINA area. The integration names its entities
-    // after the area, in either language ("binary_sensor.warning_berlin_1",
-    // "binary_sensor.nina_warnung_1"), so the warning word can sit anywhere in
-    // the object id and only the trailing slot number is fixed.
-    const firstSlot = candidates.find(
-      (entityId) =>
-        entityId.startsWith('binary_sensor.') && /(?:warning|warnung)/i.test(entityId) && /(?:^|_)1$/.test(entityId),
-    );
+    // The first warning slot of a NINA area, so the preview starts at the top of
+    // the list rather than in the middle of it.
+    const firstSlot = candidates.find((entityId) => isNinaWarningSlotEntity(entityId) && /(?:^|_)1$/.test(entityId));
     if (firstSlot) {
-      config.nina_entity_prefix = [firstSlot.replace(/_?1$/, '')];
+      config.nina_entity_prefix = [ninaPrefixFromSlotEntity(firstSlot)];
     }
 
     return config;
@@ -104,7 +101,9 @@ export class NinaDwdCard extends LitElement {
 
   public setConfig(config: NinaDwdCardConfig): void {
     if (!config) {
-      throw new Error(localize(this.hass, 'errors.invalid_configuration'));
+      // Not localized: Home Assistant calls `setConfig` before it assigns
+      // `hass`, so there is no language to localize into here.
+      throw new Error('Invalid configuration');
     }
 
     // Reset translations if configuration changes that affects translation
@@ -1331,12 +1330,14 @@ window.customCards.push({
   preview: true,
   description: 'A card to display warnings from NINA and DWD.',
   getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
-    if (entityId.startsWith('sensor.nina_')) {
-      const prefix = entityId.replace(/_?\d+$/, '');
+    // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
+    // which the integration does not create - its warning slots are binary
+    // sensors - so a NINA entity never produced a suggestion.
+    if (isNinaWarningSlotEntity(entityId)) {
       return {
         config: {
           type: 'custom:nina-dwd-card',
-          nina_entity_prefix: [prefix],
+          nina_entity_prefix: [ninaPrefixFromSlotEntity(entityId)],
         },
       };
     }

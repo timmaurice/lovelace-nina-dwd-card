@@ -271,3 +271,29 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
 export function asOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
+
+/**
+ * Whether an entity id looks like a NINA warning slot.
+ *
+ * Used by the two card-picker entry points, which see an entity id before the
+ * card has a `hass` to look the platform up in. The integration names its
+ * entities after the area, in either language
+ * ("binary_sensor.warning_berlin_1", "binary_sensor.nina_warnung_1"), so the
+ * warning word can sit anywhere in the object id and only the trailing slot
+ * number is fixed. The editor has a `hass` and filters on
+ * `platform === 'nina'` instead, which is authoritative.
+ *
+ * @param entityId The entity id to test.
+ */
+export function isNinaWarningSlotEntity(entityId: string): boolean {
+  return entityId.startsWith('binary_sensor.') && /(?:warning|warnung)/i.test(entityId) && /(?:^|_)\d+$/.test(entityId);
+}
+
+/**
+ * The configurable prefix of a NINA warning slot entity id.
+ *
+ * @param entityId A NINA warning slot entity id.
+ */
+export function ninaPrefixFromSlotEntity(entityId: string): string {
+  return entityId.replace(/_?\d+$/, '');
+}
