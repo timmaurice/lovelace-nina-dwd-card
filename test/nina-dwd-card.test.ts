@@ -75,9 +75,17 @@ describe('NinaDwdCard', () => {
       expect(element.tagName.toLowerCase()).toBe('nina-dwd-card');
     });
 
-    it('should throw an error if no entities are provided', () => {
-      expect(() => element.setConfig({ type: 'custom:nina-dwd-card' })).toThrow(
-        'You need to define at least one NINA or DWD entity.',
+    it('should render a configuration hint instead of throwing when no entities are provided', async () => {
+      // A configuration without a warning source is what the card picker
+      // previews, so it must render something rather than a red error card.
+      expect(() => element.setConfig({ type: 'custom:nina-dwd-card' })).not.toThrow();
+
+      element.hass = hass;
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('ha-card')).not.toBeNull();
+      expect(element.shadowRoot?.querySelector('.no-warnings')?.textContent?.trim()).toBe(
+        'Select at least one NINA warning area or a DWD device in the card configuration.',
       );
     });
   });
@@ -2115,6 +2123,65 @@ describe('NinaDwdCard', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('Home Assistant card API', () => {
+    it('should report a card size that grows with the number of warnings', async () => {
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+      const emptySize = element.getCardSize();
+      expect(emptySize).toBeGreaterThan(0);
+
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor STURM',
+          description: 'Es treten Sturmböen auf.',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+          expires: hoursFromNow(5),
+        },
+      };
+      element.hass = { ...hass };
+      await element.updateComplete;
+
+      expect(element.getCardSize()).toBeGreaterThan(emptySize);
+    });
+
+    it('should report a card size before a configuration is set', () => {
+      expect(element.getCardSize()).toBeGreaterThan(0);
+    });
+
+    it('should report grid options for the sections layout', () => {
+      expect(element.getGridOptions()).toEqual({ columns: 12, min_columns: 6, rows: 'auto' });
+    });
+
+    it('should offer a stub config the card itself accepts', () => {
+      hass.states['binary_sensor.nina_warnung_1'] = { state: 'off', attributes: {} };
+
+      const stub = NinaDwdCard.getStubConfig(hass);
+
+      expect(stub.nina_entity_prefix).toEqual(['binary_sensor.nina_warnung']);
+      expect(() => element.setConfig(stub)).not.toThrow();
+    });
+
+    it('should not write defaults into the stub config', () => {
+      const stub = NinaDwdCard.getStubConfig(hass);
+
+      // Only what the user actually has to configure ends up in their YAML.
+      expect(Object.keys(stub)).toEqual(['type']);
+    });
+
+    it('should detect the NINA prefix from the entity ids the picker offers', () => {
+      const stub = NinaDwdCard.getStubConfig(undefined, [
+        'sensor.something_else',
+        'binary_sensor.warning_berlin_1',
+        'binary_sensor.warning_berlin_2',
+      ]);
+
+      expect(stub.nina_entity_prefix).toEqual(['binary_sensor.warning_berlin']);
     });
   });
 

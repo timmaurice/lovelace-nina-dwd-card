@@ -1,6 +1,13 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
+import type {
+  HomeAssistant,
+  LovelaceCardEditor,
+  LovelaceGridOptions,
+  NinaDwdCardConfig,
+  NinaWarning,
+  DwdWarning,
+} from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import {
   asOptionalString,
@@ -29,6 +36,12 @@ const SEVERITY_COLORS: Record<number, string> = {
   4: '#880e4f' /* Extreme */,
 };
 
+/** Grid rows a single rendered warning takes up, used by `getCardSize`. */
+const CARD_SIZE_PER_WARNING = 3;
+
+/** Grid rows a standalone map takes up, used by `getCardSize`. */
+const CARD_SIZE_MAP = 4;
+
 /** Upper bound for the expiry re-render timer (six hours). */
 const MAX_EXPIRY_TIMER_MS = 6 * 60 * 60 * 1000;
 
@@ -55,29 +68,38 @@ export class NinaDwdCard extends LitElement {
     return document.createElement('nina-dwd-card-editor') as LovelaceCardEditor;
   }
 
-  public static getStubConfig(): NinaDwdCardConfig {
-    return {
-      title: 'Warnings',
-      type: 'custom:nina-dwd-card',
-      nina_entity_prefix: '',
-      max_warnings: 5,
-      dwd_device: '',
-      theme_mode: 'auto',
-      hide_when_no_warnings: false,
-      enable_translation: false,
-      translation_target: 'English',
-    };
+  /**
+   * Builds the configuration the card picker previews.
+   *
+   * It has to be a configuration `setConfig` accepts, so the preview shows the
+   * card and not an error, and it must not write defaults into the user's YAML:
+   * every option the card defaults to internally stays out of the stub.
+   *
+   * @param hass The Home Assistant object, if the picker passes one.
+   * @param entities The entity ids the picker suggests, if any.
+   */
+  public static getStubConfig(hass?: HomeAssistant, entities?: string[]): NinaDwdCardConfig {
+    const config: NinaDwdCardConfig = { type: 'custom:nina-dwd-card' };
+
+    const candidates = entities?.length ? entities : Object.keys(hass?.states ?? {});
+    // The first warning slot of a NINA area. The integration names its entities
+    // after the area, in either language ("binary_sensor.warning_berlin_1",
+    // "binary_sensor.nina_warnung_1"), so the warning word can sit anywhere in
+    // the object id and only the trailing slot number is fixed.
+    const firstSlot = candidates.find(
+      (entityId) =>
+        entityId.startsWith('binary_sensor.') && /(?:warning|warnung)/i.test(entityId) && /(?:^|_)1$/.test(entityId),
+    );
+    if (firstSlot) {
+      config.nina_entity_prefix = [firstSlot.replace(/_?1$/, '')];
+    }
+
+    return config;
   }
 
   public setConfig(config: NinaDwdCardConfig): void {
     if (!config) {
       throw new Error('Invalid configuration');
-    }
-    const hasNina = Array.isArray(config.nina_entity_prefix)
-      ? config.nina_entity_prefix.length > 0
-      : !!config.nina_entity_prefix;
-    if (!hasNina && !config.dwd_device) {
-      throw new Error('You need to define at least one NINA or DWD entity.');
     }
 
     // Reset translations if configuration changes that affects translation
@@ -105,6 +127,57 @@ export class NinaDwdCard extends LitElement {
   public set editMode(editMode: boolean) {
     this._editMode = editMode;
     this.requestUpdate();
+  }
+
+  /**
+   * Whether the configuration names any warning source.
+   *
+   * A configuration without one is not an error - it is the state the card
+   * picker previews and the state a half-finished editor session is in - so it
+   * renders a hint instead of throwing a red error card.
+   */
+  private _hasWarningSource(): boolean {
+    const prefix = this._config.nina_entity_prefix;
+    const hasNina = Array.isArray(prefix) ? prefix.some((entry) => !!entry) : !!prefix;
+    return hasNina || !!this._config.dwd_device;
+  }
+
+  private _renderNotConfigured(modeClass: string): TemplateResult {
+    return html`
+      <ha-card class=${modeClass}>
+        ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
+        <div class="card-content">
+          <div class="no-warnings">${localize(this.hass, 'errors.no_entities_configured')}</div>
+        </div>
+      </ha-card>
+    `;
+  }
+
+  /**
+   * The height the card claims in the masonry layout.
+   *
+   * @returns The number of ~50px rows the card needs.
+   */
+  public getCardSize(): number {
+    if (!this._config || !this.hass) return CARD_SIZE_PER_WARNING;
+
+    const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
+    const count = this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]).length;
+
+    const header = this._config.title ? 1 : 0;
+    const standaloneMap =
+      this._getMapUrl() && (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
+        ? CARD_SIZE_MAP
+        : 0;
+
+    return header + standaloneMap + Math.max(1, count * CARD_SIZE_PER_WARNING);
+  }
+
+  /**
+   * The card's behaviour in the sections layout: full width, height from content.
+   */
+  public getGridOptions(): LovelaceGridOptions {
+    return { columns: 12, min_columns: 6, rows: 'auto' };
   }
 
   private _renderWarnings(warnings: (NinaWarning | DwdWarning)[], mapUrl: string | undefined): TemplateResult {
@@ -285,6 +358,11 @@ export class NinaDwdCard extends LitElement {
     }
 
     const { modeClass } = this._getThemeSettings();
+
+    if (!this._hasWarningSource()) {
+      return this._renderNotConfigured(modeClass);
+    }
+
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
     const mapUrl = this._getMapUrl();
 

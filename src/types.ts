@@ -9,10 +9,20 @@ export interface LovelaceCardConfig {
   [key: string]: any;
 }
 
+export interface LovelaceGridOptions {
+  columns?: number | 'full';
+  min_columns?: number;
+  max_columns?: number;
+  rows?: number | 'auto';
+  min_rows?: number;
+  max_rows?: number;
+}
+
 export interface LovelaceCard extends HTMLElement {
   hass?: HomeAssistant;
   setConfig(config: LovelaceCardConfig): void;
   getCardSize?(): number | Promise<number>;
+  getGridOptions?(): LovelaceGridOptions;
 }
 
 export interface LovelaceCardEditor extends HTMLElement {
