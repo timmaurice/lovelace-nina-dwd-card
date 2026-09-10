@@ -464,7 +464,13 @@ export class NinaDwdCard extends LitElement {
       }
     }
 
-    // Filtered here and not in _processWarnings, so hidden warnings are not translated either.
+    // Filtered here and not in _processWarnings, so hidden warnings are not
+    // translated either. That also puts the filter ahead of the duplicate merge,
+    // which keeps the earliest start and the latest end of a group: an already
+    // ended segment no longer contributes its start, so a merged entry can show
+    // a later start than it did before. That is the intended reading - the
+    // displayed window describes what is still in force, and the start of a
+    // segment that has ended is history.
     const fragments = this._config.hide_headlines_containing;
     const hideExpired = this._config.hide_expired !== false;
     const now = Date.now();

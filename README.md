@@ -118,6 +118,13 @@ You can now add the card to your dashboard.
 | `translation_target`        | string         | `English`    | The language warnings are translated into, selected from the editor dropdown (e.g. `French`, `Bavarian`).                   |
 | `ai_entity_id`              | string         | `(none)`     | The `ai_task` entity used for the translation. Without it Home Assistant's preferred AI Task entity is used.                |
 
+> [!IMPORTANT]
+> **Changed behaviour: expired warnings are hidden.** The card used to show a warning whose end time
+> had passed until the integration polled again. It now drops such warnings, and drops them the
+> moment they expire. Both sources can report an end time that has already passed while the advisory
+> is still the current one - NINA re-broadcasts sometimes carry an `expires` in the past - so if you
+> relied on seeing those entries, set `hide_expired: false` to get the old behaviour back.
+
 > [!NOTE]
 > **Debug Mode**: The `debug_mode` option is not available in the visual editor. It can only be configured via YAML. When enabled, it displays an overlay showing the map padding areas and boundary coordinates, which is useful for fine-tuning map positioning.
 
