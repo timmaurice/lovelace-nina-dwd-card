@@ -99,7 +99,7 @@ export class NinaDwdCard extends LitElement {
 
   public setConfig(config: NinaDwdCardConfig): void {
     if (!config) {
-      throw new Error('Invalid configuration');
+      throw new Error(localize(this.hass, 'errors.invalid_configuration'));
     }
 
     // Reset translations if configuration changes that affects translation
@@ -212,7 +212,7 @@ export class NinaDwdCard extends LitElement {
             this._config.dwd_map_position !== 'below' &&
             this._config.dwd_map_position !== 'none'
               ? html`<div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
-                  <img class="map-image" src=${mapUrl} alt="DWD Warning Map" />
+                  <img class="map-image" src=${mapUrl} alt=${localize(this.hass, 'card.map_alt')} />
                   ${(() => {
                     const pinStyle = this._calculatePinStyle();
                     return pinStyle
@@ -474,33 +474,33 @@ export class NinaDwdCard extends LitElement {
         <div
           class="debug-region"
           style="top: 0; left: 0; right: 0; height: ${padding.top}%;"
-          title="Top Padding: ${padding.top}%"
+          title=${`${localize(this.hass, 'card.debug.top')}: ${padding.top}%`}
         >
-          Top: ${padding.top}%
+          ${localize(this.hass, 'card.debug.top')}: ${padding.top}%
         </div>
         <div
           class="debug-region"
           style="bottom: 0; left: 0; right: 0; height: ${padding.bottom}%;"
-          title="Bottom Padding: ${padding.bottom}%"
+          title=${`${localize(this.hass, 'card.debug.bottom')}: ${padding.bottom}%`}
         >
-          Bottom: ${padding.bottom}%
+          ${localize(this.hass, 'card.debug.bottom')}: ${padding.bottom}%
         </div>
         <div
           class="debug-region"
           style="top: 0; bottom: 0; left: 0; width: ${padding.left}%;"
-          title="Left Padding: ${padding.left}%"
+          title=${`${localize(this.hass, 'card.debug.left')}: ${padding.left}%`}
         >
-          Left: ${padding.left}%
+          ${localize(this.hass, 'card.debug.left')}: ${padding.left}%
         </div>
         <div
           class="debug-region"
           style="top: 0; bottom: 0; right: 0; width: ${padding.right}%;"
-          title="Right Padding: ${padding.right}%"
+          title=${`${localize(this.hass, 'card.debug.right')}: ${padding.right}%`}
         >
-          Right: ${padding.right}%
+          ${localize(this.hass, 'card.debug.right')}: ${padding.right}%
         </div>
         <div class="debug-info">
-          <div><strong>Map Bounds:</strong></div>
+          <div><strong>${localize(this.hass, 'card.debug.map_bounds')}:</strong></div>
           <div>N: ${bounds.maxLat}°</div>
           <div>S: ${bounds.minLat}°</div>
           <div>E: ${bounds.maxLon}°</div>
@@ -562,7 +562,7 @@ export class NinaDwdCard extends LitElement {
 
     return html`
       <div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
-        <img class="map-image-standalone" src=${mapUrl} alt="DWD Warning Map" />
+        <img class="map-image-standalone" src=${mapUrl} alt=${localize(this.hass, 'card.map_alt')} />
         ${
           pinStyle
             ? html`<div class="map-pin" style=${pinStyle}>
@@ -579,7 +579,7 @@ export class NinaDwdCard extends LitElement {
     return html`
       <div class="lightbox ${modeClass}" @click=${() => (this._showLargeMap = false)}>
         <div class="lightbox-content">
-          <img src=${mapUrl} alt="Enlarged DWD Warning Map" />
+          <img src=${mapUrl} alt=${localize(this.hass, 'card.map_alt_large')} />
         </div>
       </div>
     `;
@@ -753,7 +753,7 @@ export class NinaDwdCard extends LitElement {
         }
         <ha-icon-button
           class="info-button"
-          .label=${`More info for ${this._getDisplayHeadline(warning)}`}
+          .label=${localize(this.hass, 'card.more_info', { headline: this._getDisplayHeadline(warning) })}
           @click=${() => this._handleMoreInfo(warning.entity_id)}
           ><ha-icon icon="mdi:information-outline"></ha-icon
         ></ha-icon-button>

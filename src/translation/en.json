@@ -123,11 +123,22 @@
     "official_warning_link": "Official Warning Link",
     "show_more": "Show more",
     "show_less": "Show less",
-    "headline_missing": "Warning"
+    "headline_missing": "Warning",
+    "map_alt": "DWD warning map",
+    "map_alt_large": "Enlarged DWD warning map",
+    "more_info": "More info for {headline}",
+    "debug": {
+      "top": "Top padding",
+      "bottom": "Bottom padding",
+      "left": "Left padding",
+      "right": "Right padding",
+      "map_bounds": "Map bounds"
+    }
   },
   "errors": {
     "ai_translation_config_error": "AI Translation is enabled but no AI agent is configured or selected. Please select an AI translation entity in the card configuration editor.",
     "ai_translation_parse_error": "Failed to parse translation JSON",
-    "no_entities_configured": "Select at least one NINA warning area or a DWD device in the card configuration."
+    "no_entities_configured": "Select at least one NINA warning area or a DWD device in the card configuration.",
+    "invalid_configuration": "Invalid configuration"
   }
 }

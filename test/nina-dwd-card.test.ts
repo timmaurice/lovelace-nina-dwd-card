@@ -2185,6 +2185,64 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  describe('Localization of the rendered card', () => {
+    beforeEach(() => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          headline: 'Amtliche WARNUNG vor STURM',
+          description: 'Es treten Sturmböen auf.',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+          expires: hoursFromNow(5),
+        },
+      };
+    });
+
+    it('should localize the map alt text and the info button label', async () => {
+      hass.language = 'de';
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '2',
+        attributes: {
+          warning_1_headline: 'Amtliche WARNUNG vor FROST',
+          warning_1_description: 'Es tritt Frost auf.',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(-1),
+          warning_1_end: hoursFromNow(5),
+        },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, dwd_map_land: 'de', dwd_map_position: 'above' });
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.map-image-standalone')?.getAttribute('alt')).toBe('DWD-Warnkarte');
+      const infoButton = element.shadowRoot?.querySelector<HTMLElement & { label: string }>('.info-button');
+      expect(infoButton?.label).toContain('Weitere Informationen zu');
+    });
+
+    it('should localize the enlarged map alt text', async () => {
+      hass.language = 'de';
+      element.hass = hass;
+      element.setConfig({
+        ...config,
+        dwd_map_land: 'de',
+        dwd_map_position: 'above',
+        show_map_without_warnings: true,
+      });
+      await element.updateComplete;
+
+      element.shadowRoot?.querySelector<HTMLElement>('.map-container')?.click();
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.lightbox img')?.getAttribute('alt')).toBe('Vergrößerte DWD-Warnkarte');
+    });
+  });
+
   // These assertions are enforced by `tsc --noEmit` as much as by vitest: the
   // warning objects below would not compile if `headline` and `description` were
   // declared as required non-nullable strings again, which is the type hole that
