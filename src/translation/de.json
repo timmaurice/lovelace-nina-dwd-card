@@ -121,7 +121,8 @@
     "source": "Quelle: {sender}",
     "official_warning_link": "Offizielle Warnung anzeigen",
     "show_more": "Mehr anzeigen",
-    "show_less": "Weniger anzeigen"
+    "show_less": "Weniger anzeigen",
+    "headline_missing": "Warnung"
   },
   "errors": {
     "ai_translation_config_error": "Die KI-Übersetzung ist aktiviert, aber es ist keine KI-Entität konfiguriert oder ausgewählt. Bitte wählen Sie eine KI-Übersetzungsentität im Konfigurationseditor der Karte aus.",

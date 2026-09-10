@@ -121,7 +121,8 @@
     "source": "Source: {sender}",
     "official_warning_link": "Official Warning Link",
     "show_more": "Show more",
-    "show_less": "Show less"
+    "show_less": "Show less",
+    "headline_missing": "Warning"
   },
   "errors": {
     "ai_translation_config_error": "AI Translation is enabled but no AI agent is configured or selected. Please select an AI translation entity in the card configuration editor.",

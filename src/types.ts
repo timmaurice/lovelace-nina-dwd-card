@@ -33,8 +33,10 @@ declare global {
 }
 
 export interface NinaWarning {
-  headline: string;
-  description: string;
+  /** NINA does not guarantee a headline; it can be missing or empty. */
+  headline?: string | null;
+  /** NINA does not guarantee a description; it can be missing or empty. */
+  description?: string | null;
   sender: string;
   entity_id: string;
   severity: 'Minor' | 'Moderate' | 'Severe' | 'Extreme' | 'Unknown';
@@ -48,8 +50,10 @@ export interface NinaWarning {
 }
 
 export interface DwdWarning {
-  headline: string;
-  description: string;
+  /** The DWD integration does not guarantee a headline; it can be missing or empty. */
+  headline?: string | null;
+  /** The DWD integration does not guarantee a description; it can be missing or empty. */
+  description?: string | null;
   entity_id: string;
   level: number;
   start: string;

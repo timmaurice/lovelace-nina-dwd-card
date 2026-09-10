@@ -3,12 +3,14 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, NinaWarning, DwdWarning } from './types';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import {
+  asOptionalString,
   fireEvent,
   formatTime,
   getNinaAreaName,
+  getWarningHeadline,
   isHeadlineHidden,
   shortenNinaAreaName,
-  WARNING_PREFIX_REGEX,
+  stripWarningPrefix,
 } from './utils';
 import { localize } from './localize';
 import { sanitizeHtml } from './sanitize';
@@ -105,13 +107,11 @@ export class NinaDwdCard extends LitElement {
     return html`${warnings.map((warning, index) => {
       const key = this._getWarningKey(warning);
       const translation = this._translations[key];
-      let headline = translation?.headline || warning.headline;
-      const description = translation?.description || warning.description;
+      // A warning is not guaranteed to carry a headline or a description, and a
+      // single incomplete one must not throw and take every other warning with it.
+      const description = translation?.description || warning.description || '';
       const instruction = translation?.instruction || warning.instruction;
-
-      if (this._config.suppress_warning_text) {
-        headline = headline.replace(WARNING_PREFIX_REGEX, '');
-      }
+      const headline = this._getDisplayHeadline(warning, description);
 
       let processedDescription = description;
       let isTruncated = false;
@@ -296,7 +296,20 @@ export class NinaDwdCard extends LitElement {
     // Filtered here and not in _processWarnings, so hidden warnings are not translated either.
     const fragments = this._config.hide_headlines_containing;
     const visible = <T extends NinaWarning | DwdWarning>(warnings: T[]): T[] =>
-      fragments?.length ? warnings.filter((warning) => !isHeadlineHidden(warning.headline, fragments)) : warnings;
+      fragments?.length
+        ? warnings.filter(
+            // Matched against the resolved source headline: a warning without a
+            // headline is filtered by the description shown in its place. This is
+            // deliberately not the rendered text in two configurations - with
+            // `suppress_warning_text` the filter still sees the un-stripped
+            // headline ("Amtliche Warnung vor Sturm", not "Sturm"), and with
+            // `enable_translation` it sees the source language while the user
+            // reads the translation. Fragments are therefore written against the
+            // headline as the entity reports it.
+            (warning) =>
+              !isHeadlineHidden(getWarningHeadline(warning.headline, warning.description, this.hass), fragments),
+          )
+        : warnings;
 
     return {
       ninaWarnings: visible(ninaWarnings),
@@ -606,7 +619,7 @@ export class NinaDwdCard extends LitElement {
         }
         <ha-icon-button
           class="info-button"
-          .label=${`More info for ${warning.headline}`}
+          .label=${`More info for ${this._getDisplayHeadline(warning)}`}
           @click=${() => this._handleMoreInfo(warning.entity_id)}
           ><ha-icon icon="mdi:information-outline"></ha-icon
         ></ha-icon-button>
@@ -658,10 +671,20 @@ export class NinaDwdCard extends LitElement {
         const stateObj = this.hass.states[entityId];
 
         if (stateObj && stateObj.state === 'on') {
+          // `hass.states` is untyped, so every attribute has to be narrowed here,
+          // at the boundary where the data enters the card. A headline that is a
+          // number or an array would otherwise reach the render path typed as a
+          // string and throw on the first string operation.
+          const headline = asOptionalString(stateObj.attributes.headline);
+          const description = asOptionalString(stateObj.attributes.description);
+          const instruction =
+            asOptionalString(stateObj.attributes.instruction) ??
+            asOptionalString(stateObj.attributes.recommended_actions);
+
           const warningId =
             stateObj.attributes.id ||
             stateObj.attributes.warning_id ||
-            `${stateObj.attributes.headline || ''}-${stateObj.attributes.start || ''}-${stateObj.attributes.description || ''}`;
+            `${headline || ''}-${stateObj.attributes.start || ''}-${description || ''}`;
 
           const area = getNinaAreaName(stateObj.attributes.friendly_name, prefix);
 
@@ -676,14 +699,14 @@ export class NinaDwdCard extends LitElement {
           }
 
           const warning: NinaWarning = {
-            headline: stateObj.attributes.headline,
-            description: stateObj.attributes.description,
+            headline,
+            description,
             sender: stateObj.attributes.sender,
             entity_id: entityId,
             severity: stateObj.attributes.severity,
             start: stateObj.attributes.start,
             expires: stateObj.attributes.expires,
-            instruction: stateObj.attributes.instruction || stateObj.attributes.recommended_actions,
+            instruction,
             warning_id: stateObj.attributes.id,
             sent: stateObj.attributes.sent,
             areas: area ? [area] : [],
@@ -707,22 +730,26 @@ export class NinaDwdCard extends LitElement {
     // The state of the sensor indicates the highest warning level, not the number of warnings.
     // We iterate until we no longer find warning attributes. Let's assume a max of 20.
     for (let i = 1; i <= 20; i++) {
-      const headline = stateObj.attributes[`warning_${i}_headline`];
-      if (headline) {
-        warnings.push({
-          headline: headline,
-          description: stateObj.attributes[`warning_${i}_description`],
-          entity_id: entityId,
-          level: stateObj.attributes[`warning_${i}_level`],
-          start: stateObj.attributes[`warning_${i}_start`],
-          end: stateObj.attributes[`warning_${i}_end`],
-          instruction: stateObj.attributes[`warning_${i}_instruction`],
-          event: stateObj.attributes[`warning_${i}_type`],
-        });
-      } else {
-        // Stop when we don't find a headline for the current index.
+      const rawHeadline = stateObj.attributes[`warning_${i}_headline`];
+      // An absent or empty headline attribute marks the end of the list. A
+      // headline that is present but not a string does not: the warning exists,
+      // it is just malformed, so it is kept and rendered without a headline.
+      if (rawHeadline === undefined || rawHeadline === null || rawHeadline === '') {
         break;
       }
+
+      // The DWD attributes are as untyped as the NINA ones, so they are narrowed
+      // at the same boundary. Anything that is not a string counts as absent.
+      warnings.push({
+        headline: asOptionalString(rawHeadline),
+        description: asOptionalString(stateObj.attributes[`warning_${i}_description`]),
+        entity_id: entityId,
+        level: stateObj.attributes[`warning_${i}_level`],
+        start: stateObj.attributes[`warning_${i}_start`],
+        end: stateObj.attributes[`warning_${i}_end`],
+        instruction: asOptionalString(stateObj.attributes[`warning_${i}_instruction`]),
+        event: stateObj.attributes[`warning_${i}_type`],
+      });
     }
 
     return warnings;
@@ -733,8 +760,8 @@ export class NinaDwdCard extends LitElement {
 
     const deduplicatedWarnings = new Map<string, (NinaWarning | DwdWarning)[]>();
 
-    const getWarningKey = (headline: string): string => {
-      return headline.replace(WARNING_PREFIX_REGEX, '').toLowerCase().trim();
+    const getWarningKey = (headline: string | undefined | null): string => {
+      return stripWarningPrefix(headline).toLowerCase().trim();
     };
 
     // Group by headline
@@ -769,7 +796,7 @@ export class NinaDwdCard extends LitElement {
         (target as NinaWarning).areas = [...targetAreas, ...sourceAreas.filter((a) => !targetAreas.includes(a))];
       };
 
-      const normalize = (str: string | undefined): string => {
+      const normalize = (str: string | undefined | null): string => {
         return (str || '')
           .replace(/<[^>]*>/g, ' ')
           .replace(/[·•.]/g, '')
@@ -957,14 +984,11 @@ export class NinaDwdCard extends LitElement {
       this._translationInProgress.add(key);
 
       try {
-        let headlineForTranslation = warning.headline;
-        if (this._config.suppress_warning_text) {
-          headlineForTranslation = headlineForTranslation.replace(WARNING_PREFIX_REGEX, '');
-        }
+        const headlineForTranslation = this._getDisplayHeadline(warning);
 
         const prompt = DEFAULT_AI_PROMPT.replace('{{ target_language }}', targetLanguage)
           .replace('{{ headline }}', headlineForTranslation)
-          .replace('{{ description }}', warning.description)
+          .replace('{{ description }}', warning.description || '')
           .replace('{{ instruction }}', warning.instruction || '');
 
         const serviceData: Record<string, unknown> = {
@@ -1020,8 +1044,8 @@ export class NinaDwdCard extends LitElement {
             if (translation) {
               const translationObj = translation as Record<string, string>;
               const result = {
-                headline: translationObj.headline || warning.headline,
-                description: translationObj.description || warning.description,
+                headline: translationObj.headline || warning.headline || '',
+                description: translationObj.description || warning.description || '',
                 instruction: translationObj.instruction || warning.instruction || '',
               };
 
@@ -1040,8 +1064,8 @@ export class NinaDwdCard extends LitElement {
             this._translations = {
               ...this._translations,
               [key]: {
-                headline: warning.headline,
-                description: warning.description,
+                headline: warning.headline || '',
+                description: warning.description || '',
                 instruction: warning.instruction || '',
               },
             };
@@ -1061,8 +1085,8 @@ export class NinaDwdCard extends LitElement {
         this._translations = {
           ...this._translations,
           [key]: {
-            headline: warning.headline,
-            description: warning.description,
+            headline: warning.headline || '',
+            description: warning.description || '',
             instruction: warning.instruction || '',
           },
         };
@@ -1075,9 +1099,29 @@ export class NinaDwdCard extends LitElement {
     }
   }
 
+  /**
+   * Resolves the headline exactly as it is rendered for a warning: translated if a
+   * translation is available, falling back to the description when the warning
+   * carries no headline, and with the "Amtliche Warnung vor" prefix stripped when
+   * `suppress_warning_text` is set.
+   *
+   * Everything that has to agree with the visible headline - the info button's
+   * aria-label, the translation prompt - goes through here.
+   *
+   * @param warning The warning to resolve the headline for.
+   * @param description An already resolved description, if the caller has one.
+   */
+  private _getDisplayHeadline(warning: NinaWarning | DwdWarning, description?: string): string {
+    const translation = this._translations[this._getWarningKey(warning)];
+    const resolvedDescription = description ?? translation?.description ?? warning.description ?? '';
+    const headline = getWarningHeadline(translation?.headline || warning.headline, resolvedDescription, this.hass);
+
+    return this._config?.suppress_warning_text ? stripWarningPrefix(headline) : headline;
+  }
+
   private _getWarningKey(warning: NinaWarning | DwdWarning): string {
     // Use a combination of properties to create a unique key for translation caching
-    return `${warning.headline}|${warning.description}|${warning.instruction || ''}`;
+    return `${warning.headline || ''}|${warning.description || ''}|${warning.instruction || ''}`;
   }
 
   private _getWarningIcon(warning: NinaWarning | DwdWarning): string {

@@ -51,10 +51,13 @@ export function shortenNinaAreaName(area: string): string {
  * Checks whether a headline contains one of the fragments and should therefore be hidden,
  * e.g. "hitze" hides "Amtliche WARNUNG vor extremer HITZE". Blank fragments are ignored.
  *
- * @param headline The headline of the warning.
+ * Tolerates a missing headline for the same reason as {@link stripWarningPrefix}:
+ * callers pass the resolved headline, which is not guaranteed to exist.
+ *
+ * @param headline The headline of the warning, if available.
  * @param fragments The configured headline fragments to hide.
  */
-export function isHeadlineHidden(headline: string, fragments: string[] | undefined): boolean {
+export function isHeadlineHidden(headline: string | undefined | null, fragments: string[] | undefined): boolean {
   if (!fragments?.length) return false;
 
   const haystack = (headline || '').toLowerCase();
@@ -62,6 +65,56 @@ export function isHeadlineHidden(headline: string, fragments: string[] | undefin
     const needle = fragment?.trim().toLowerCase();
     return !!needle && haystack.includes(needle);
   });
+}
+
+/** Longest description snippet used as a stand-in headline. */
+const HEADLINE_FALLBACK_MAX_LENGTH = 80;
+
+/**
+ * Removes the "Amtliche Warnung vor" style prefix from a headline.
+ *
+ * Tolerates a missing headline on purpose: NINA and DWD entities do not
+ * guarantee the attribute, and a single incomplete warning must never be able
+ * to throw and blank the whole card.
+ *
+ * @param headline The headline of the warning, if available.
+ */
+export function stripWarningPrefix(headline: string | undefined | null): string {
+  return (headline || '').replace(WARNING_PREFIX_REGEX, '');
+}
+
+/**
+ * Resolves the text to display as the headline of a warning.
+ *
+ * A warning without a headline is rendered with what it does carry instead of
+ * being dropped: the first line of its description, or a generic label when
+ * even that is missing.
+ *
+ * @param headline The headline of the warning, if available.
+ * @param description The description of the warning, if available.
+ * @param hass The Home Assistant object, used for the generic label. Optional on
+ *   purpose: this function must not throw before `hass` has been set.
+ */
+export function getWarningHeadline(
+  headline: string | undefined | null,
+  description: string | undefined | null,
+  hass: HomeAssistant | undefined,
+): string {
+  const text = (headline || '').trim();
+  if (text) return text;
+
+  // The description is HTML, so tags are stripped before it is used as a title.
+  const fromDescription = (description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (fromDescription) {
+    return fromDescription.length > HEADLINE_FALLBACK_MAX_LENGTH
+      ? `${fromDescription.substring(0, HEADLINE_FALLBACK_MAX_LENGTH).trim()}...`
+      : fromDescription;
+  }
+
+  return localize(hass, 'card.headline_missing');
 }
 
 /**
@@ -138,4 +191,19 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
     console.error('NINA-DWD: Error formatting time', e);
     return localize(hass, 'card.time_invalid');
   }
+}
+
+/**
+ * Narrows an untyped entity attribute to a string.
+ *
+ * `hass.states` is `Record<string, any>`, so every attribute an integration
+ * reports arrives untyped. A malformed warning attribute (a number, an array,
+ * an object) would otherwise be assigned straight into a warning and blow up in
+ * the first string operation that touches it. Anything that is not a string is
+ * therefore treated as absent, exactly like a missing attribute.
+ *
+ * @param value The raw attribute value.
+ */
+export function asOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }
