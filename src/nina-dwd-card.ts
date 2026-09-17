@@ -198,7 +198,7 @@ export class NinaDwdCard extends LitElement {
    * The card's behaviour in the sections layout: full width, height from content.
    */
   public getGridOptions(): LovelaceGridOptions {
-    return { columns: 12, min_columns: 6, rows: 'auto' };
+    return { columns: 'full', min_columns: 6, rows: 'auto' };
   }
 
   private _renderWarnings(warnings: (NinaWarning | DwdWarning)[], mapUrl: string | undefined): TemplateResult {

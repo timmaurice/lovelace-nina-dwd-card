@@ -2264,7 +2264,7 @@ describe('NinaDwdCard', () => {
     });
 
     it('should report grid options for the sections layout', () => {
-      expect(element.getGridOptions()).toEqual({ columns: 12, min_columns: 6, rows: 'auto' });
+      expect(element.getGridOptions()).toEqual({ columns: 'full', min_columns: 6, rows: 'auto' });
     });
 
     it('should offer a stub config the card itself accepts', () => {
