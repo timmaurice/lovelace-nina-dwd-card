@@ -2502,6 +2502,245 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  // The NINA integration deprecated every warning attribute but `id` in 2026.5
+  // and removes them in 2026.11. The text is then only available through the
+  // `nina.get_details` entity action, which arrived in 2026.8. The card still
+  // supports cores from 2026.6, which have the attributes but not the action.
+  describe('NINA details via nina.get_details', () => {
+    const SLOT = 'binary_sensor.nina_warnung_1';
+    const NINA_ONLY: NinaDwdCardConfig = {
+      type: 'custom:nina-dwd-card',
+      nina_entity_prefix: ['binary_sensor.nina_warnung'],
+    };
+
+    /** A slot entity as the integration leaves it from 2026.11 on: `id` and nothing else. */
+    const bareSlot = (id: string, lastUpdated = '2026-09-24T10:00:00+00:00') => ({
+      state: 'on',
+      attributes: { id, friendly_name: 'Warnung 1' },
+      last_updated: lastUpdated,
+    });
+
+    /** A slot entity as a core before 2026.11 reports it, attributes included. */
+    const attributeSlot = (id: string, headline: string) => ({
+      state: 'on',
+      attributes: {
+        id,
+        headline,
+        description: 'Text aus den Attributen.',
+        recommended_actions: 'Empfehlung aus den Attributen.',
+        sender: 'Attribut-Absender',
+        severity: 'Minor',
+        start: hoursFromNow(-1),
+        expires: hoursFromNow(5),
+      },
+      last_updated: '2026-09-24T10:00:00+00:00',
+    });
+
+    /** One slot's `nina.get_details` answer, shaped as `binary_sensor.get_details` builds it. */
+    const details = (overrides: Record<string, string> = {}) => ({
+      headline: 'Amtliche WARNUNG vor STURMBÖEN',
+      description: 'Es treten Sturmböen auf.',
+      sender: 'Deutscher Wetterdienst',
+      severity: 'Severe',
+      recommended_actions: 'Fenster schließen.',
+      affected_areas: 'Kaarst',
+      web: '',
+      id: 'mow.DE-1',
+      sent: hoursFromNow(-2),
+      start: hoursFromNow(-1),
+      expires: hoursFromNow(5),
+      ...overrides,
+    });
+
+    /** An entity action's response: one entry per targeted entity. */
+    const answer = (byEntity: Record<string, unknown>) => ({ context: { id: 'ctx' }, response: byEntity });
+
+    let callService: ReturnType<typeof vi.fn>;
+
+    const detailCalls = () => callService.mock.calls.filter(([domain]) => domain === 'nina');
+
+    /** Lets the action call resolve and the render it causes land. */
+    const settle = async () => {
+      for (let i = 0; i < 3; i++) {
+        await element.updateComplete;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    };
+
+    /** Mounts in Home Assistant's order: `setConfig` first, `hass` afterwards. */
+    const mount = async (cardConfig: NinaDwdCardConfig = NINA_ONLY) => {
+      element.setConfig(cardConfig);
+      element.hass = hass;
+      await settle();
+    };
+
+    const unrelatedUpdate = async (n: number) => {
+      element.hass = {
+        ...element.hass,
+        states: { ...element.hass.states, 'light.kitchen': { state: n % 2 ? 'on' : 'off', attributes: {} } },
+      } as HomeAssistant;
+      await settle();
+    };
+
+    const text = (selector: string) => element.shadowRoot?.querySelector(selector)?.textContent?.trim();
+
+    beforeEach(() => {
+      hass.services = { nina: { get_details: {} } };
+      callService = vi.fn().mockResolvedValue(answer({ [SLOT]: details() }));
+      hass.callService = callService as unknown as HomeAssistant['callService'];
+      hass.states[SLOT] = bareSlot('mow.DE-1');
+    });
+
+    it('should render a warning from nina.get_details when the attributes are gone', async () => {
+      element.setConfig(NINA_ONLY);
+      // `setConfig` runs before Home Assistant assigns `hass`.
+      expect(callService).not.toHaveBeenCalled();
+
+      element.hass = hass;
+      await settle();
+
+      expect(callService).toHaveBeenCalledTimes(1);
+      // No error toast: the card has a fallback for a failed call.
+      expect(callService).toHaveBeenCalledWith('nina', 'get_details', {}, { entity_id: [SLOT] }, false, true);
+      expect(text('.headline')).toBe('Amtliche WARNUNG vor STURMBÖEN');
+      expect(text('.description')).toBe('Es treten Sturmböen auf.');
+      expect(text('.instruction')).toBe('Fenster schließen.');
+      expect(text('.sender')).toBe('Source: Deutscher Wetterdienst');
+      expect(element.shadowRoot?.querySelector('.headline')?.getAttribute('style')).toContain('#e53935');
+      expect(element.shadowRoot?.querySelector('.bund-link')?.getAttribute('href')).toContain('mow.DE-1');
+    });
+
+    it('should prefer the details over the attributes when a core reports both', async () => {
+      hass.states[SLOT] = attributeSlot('mow.DE-1', 'Amtliche WARNUNG vor FROST');
+
+      await mount();
+
+      expect(text('.headline')).toBe('Amtliche WARNUNG vor STURMBÖEN');
+      expect(text('.description')).toBe('Es treten Sturmböen auf.');
+      expect(text('.instruction')).toBe('Fenster schließen.');
+    });
+
+    it('should ask once per warning, not on every hass update', async () => {
+      await mount();
+      for (let n = 0; n < 5; n++) await unrelatedUpdate(n);
+
+      expect(detailCalls()).toHaveLength(1);
+
+      // The slot moves on to another warning. Until its details arrive, the
+      // previous warning's text must not be shown under the new one.
+      let resolveSecond: (value: unknown) => void = () => undefined;
+      callService.mockReturnValueOnce(new Promise((resolve) => (resolveSecond = resolve)));
+      element.hass = {
+        ...element.hass,
+        states: { ...element.hass.states, [SLOT]: bareSlot('mow.DE-2', '2026-09-24T11:00:00+00:00') },
+      } as HomeAssistant;
+      await settle();
+
+      expect(detailCalls()).toHaveLength(2);
+      expect(text('.headline')).not.toContain('STURMBÖEN');
+
+      // An update while that call is in flight must not send a second one.
+      await unrelatedUpdate(5);
+      expect(detailCalls()).toHaveLength(2);
+
+      resolveSecond(answer({ [SLOT]: details({ headline: 'Amtliche WARNUNG vor HOCHWASSER', id: 'mow.DE-2' }) }));
+      await settle();
+
+      expect(text('.headline')).toBe('Amtliche WARNUNG vor HOCHWASSER');
+      expect(detailCalls()).toHaveLength(2);
+    });
+
+    it('should ask for all slots in one call', async () => {
+      hass.states['binary_sensor.nina_warnung_2'] = bareSlot('mow.DE-2');
+      callService.mockResolvedValue(
+        answer({
+          [SLOT]: details(),
+          'binary_sensor.nina_warnung_2': details({ headline: 'Amtliche WARNUNG vor HOCHWASSER', id: 'mow.DE-2' }),
+        }),
+      );
+
+      await mount();
+
+      expect(detailCalls()).toHaveLength(1);
+      expect(detailCalls()[0][3]).toEqual({ entity_id: [SLOT, 'binary_sensor.nina_warnung_2'] });
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(2);
+    });
+
+    it('should read the attributes on a core without the action', async () => {
+      hass.services = {};
+      hass.states[SLOT] = attributeSlot('mow.DE-1', 'Amtliche WARNUNG vor FROST');
+
+      await mount();
+
+      expect(callService).not.toHaveBeenCalled();
+      expect(text('.headline')).toBe('Amtliche WARNUNG vor FROST');
+      expect(text('.description')).toBe('Text aus den Attributen.');
+      expect(text('.instruction')).toBe('Empfehlung aus den Attributen.');
+      expect(text('.sender')).toBe('Source: Attribut-Absender');
+    });
+
+    it('should fall back to the attributes and warn once when the call fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      callService.mockRejectedValue(new Error('Unauthorized'));
+      hass.states[SLOT] = attributeSlot('mow.DE-1', 'Amtliche WARNUNG vor FROST');
+
+      await mount();
+      for (let n = 0; n < 3; n++) await unrelatedUpdate(n);
+
+      expect(text('.headline')).toBe('Amtliche WARNUNG vor FROST');
+      expect(text('.instruction')).toBe('Empfehlung aus den Attributen.');
+      // Not retried on every update, and logged only once.
+      expect(detailCalls()).toHaveLength(1);
+      expect(warn).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+
+    it('should still render the warning when the call fails and the attributes are gone', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      callService.mockRejectedValue(new Error('Connection lost'));
+
+      await mount();
+
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+      expect(text('.headline')).toBe('Warning');
+      expect(element.shadowRoot?.querySelector('.bund-link')?.getAttribute('href')).toContain('mow.DE-1');
+      warn.mockRestore();
+    });
+
+    it('should retry a failed call after the NINA polling interval', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        callService.mockRejectedValueOnce(new Error('Connection lost'));
+
+        await mount();
+        await unrelatedUpdate(0);
+        expect(detailCalls()).toHaveLength(1);
+
+        vi.setSystemTime(Date.now() + 6 * 60 * 1000);
+        await unrelatedUpdate(1);
+
+        expect(detailCalls()).toHaveLength(2);
+        expect(text('.headline')).toBe('Amtliche WARNUNG vor STURMBÖEN');
+      } finally {
+        vi.useRealTimers();
+        warn.mockRestore();
+      }
+    });
+
+    it('should translate a warning only once its details have arrived', async () => {
+      callService.mockImplementation(async (domain: string) =>
+        domain === 'nina' ? answer({ [SLOT]: details() }) : { result: '{}' },
+      );
+
+      await mount({ ...NINA_ONLY, enable_translation: true, translation_target: 'English' });
+
+      const translations = callService.mock.calls.filter(([domain]) => domain === 'ai_task');
+      expect(translations).toHaveLength(1);
+      expect(translations[0][2].instructions).toContain('Es treten Sturmböen auf.');
+    });
+  });
+
   // These assertions are enforced by `tsc --noEmit` as much as by vitest: the
   // warning objects below would not compile if `headline` and `description` were
   // declared as required non-nullable strings again, which is the type hole that

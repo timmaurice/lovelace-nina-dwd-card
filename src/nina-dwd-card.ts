@@ -50,6 +50,37 @@ const CARD_SIZE_MAP = 4;
 /** Upper bound for the expiry re-render timer (six hours). */
 const MAX_EXPIRY_TIMER_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * How long a failed `nina.get_details` call is trusted before the card asks
+ * again for the same warning: the NINA integration's polling interval.
+ */
+const NINA_DETAILS_RETRY_MS = 5 * 60 * 1000;
+
+/**
+ * What `nina.get_details` answered for one warning slot.
+ *
+ * `key` identifies the warning the answer belongs to (see `ninaDetailsKey`), so
+ * a slot that moves on to another warning never shows the previous one's text.
+ * `details` is `null` when the call failed or returned nothing usable; the card
+ * then reads the entity attributes, as it does on cores without the action.
+ */
+interface NinaDetailsEntry {
+  key: string;
+  details: Record<string, unknown> | null;
+  fetchedAt: number;
+}
+
+/**
+ * Identifies the warning a NINA slot entity currently holds.
+ *
+ * `id` is the one attribute the integration keeps after 2026.11. `last_updated`
+ * moves whenever the state or any attribute changes, which covers a slot that
+ * switches off and back on, and a warning whose text changes under the same id
+ * for as long as the integration still publishes that text as attributes.
+ */
+const ninaDetailsKey = (stateObj: { attributes?: Record<string, unknown>; last_updated?: string }): string =>
+  `${String(stateObj.attributes?.id ?? '')}|${stateObj.last_updated ?? ''}`;
+
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
 
@@ -69,6 +100,11 @@ export class NinaDwdCard extends LitElement {
   private _expiryTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set when the expiry timer has to be rescheduled without a `hass` change. */
   private _expiryRefreshPending = false;
+  /** `nina.get_details` answers per slot entity id. Replaced, never mutated, so Lit sees it change. */
+  @state() private _ninaDetails: ReadonlyMap<string, NinaDetailsEntry> = new Map();
+  /** Slot entity id -> warning key of the `nina.get_details` call in flight for it. */
+  private _ninaDetailsPending = new Map<string, string>();
+  private _hasLoggedNinaDetailsWarning = false;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
@@ -319,19 +355,29 @@ export class NinaDwdCard extends LitElement {
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
     if (!this.hass || !this._config) return;
 
-    const dataChanged = changedProperties.has('hass') || changedProperties.has('_config');
-    // Only `hass` and the config can change the warnings, so a render caused by
-    // a lightbox or expansion toggle must not walk them again. The exception is
-    // a render the expiry timer asked for: it left no timer behind, and the next
-    // one is scheduled here.
+    const dataChanged =
+      changedProperties.has('hass') || changedProperties.has('_config') || changedProperties.has('_ninaDetails');
+    // Only `hass`, the config and the NINA details can change the warnings, so a
+    // render caused by a lightbox or expansion toggle must not walk them again.
+    // The exception is a render the expiry timer asked for: it left no timer
+    // behind, and the next one is scheduled here.
     if (!dataChanged && !this._expiryRefreshPending) return;
     this._expiryRefreshPending = false;
+
+    // Here and not in `setConfig`: Home Assistant assigns `hass` only after it.
+    if (dataChanged) {
+      this._refreshNinaDetails();
+    }
 
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
     const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
 
-    if (dataChanged && allWarnings.length > 0) {
-      this._translateWarnings(allWarnings);
+    // A warning whose details are still on their way is translated once they
+    // arrive: the answer re-runs this path, and translating now would send the
+    // AI a warning without its text and cache that result.
+    const translatable = allWarnings.filter((warning) => !this._ninaDetailsPending.has(warning.entity_id));
+    if (dataChanged && translatable.length > 0) {
+      this._translateWarnings(translatable);
     }
 
     this._scheduleExpiryRefresh(allWarnings);
@@ -828,80 +874,165 @@ export class NinaDwdCard extends LitElement {
     }
   }
 
-  private _getNinaWarnings(): NinaWarning[] {
-    const warnings: NinaWarning[] = [];
-    if (!this.hass) return warnings;
+  /**
+   * The NINA slot entities of the configured prefixes that hold a warning.
+   *
+   * Every slot is probed, not just the ones up to the first gap: a user can
+   * disable the NINA slot entities they do not need, and an integration reload
+   * can leave the registry without slot 1 while slot 2 is still there. The total
+   * number of rendered warnings is limited later.
+   */
+  private _getActiveNinaSlots(): { prefix: string; entityId: string; stateObj: HomeAssistant['states'][string] }[] {
+    const slots: { prefix: string; entityId: string; stateObj: HomeAssistant['states'][string] }[] = [];
+    if (!this.hass || !this._config) return slots;
     const prefixes = Array.isArray(this._config.nina_entity_prefix)
       ? this._config.nina_entity_prefix
       : this._config.nina_entity_prefix
         ? [this._config.nina_entity_prefix]
         : [];
 
-    if (prefixes.length === 0) return warnings;
-
-    const warningsById = new Map<string, NinaWarning>();
-
     for (const prefix of prefixes) {
       if (!prefix) continue;
-      // Every slot is probed, not just the ones up to the first gap: a user can
-      // disable the NINA slot entities they do not need, and an integration
-      // reload can leave the registry without slot 1 while slot 2 is still
-      // there. The total number of rendered warnings is limited later.
       for (let i = 1; i <= MAX_WARNING_SLOTS; i++) {
         let entityId = `${prefix}_${i}`;
         if (!this.hass.states[entityId]) {
           entityId = `${prefix}${i}`;
         }
         const stateObj = this.hass.states[entityId];
-
         if (stateObj && stateObj.state === 'on') {
-          // `hass.states` is untyped, so every attribute has to be narrowed here,
-          // at the boundary where the data enters the card. A headline that is a
-          // number or an array would otherwise reach the render path typed as a
-          // string and throw on the first string operation.
-          const headline = asOptionalString(stateObj.attributes.headline);
-          const description = asOptionalString(stateObj.attributes.description);
-          const instruction =
-            asOptionalString(stateObj.attributes.instruction) ??
-            asOptionalString(stateObj.attributes.recommended_actions);
-
-          const warningId =
-            stateObj.attributes.id ||
-            stateObj.attributes.warning_id ||
-            `${headline || ''}-${stateObj.attributes.start || ''}-${description || ''}`;
-
-          const area = getNinaAreaName(stateObj.attributes.friendly_name, prefix);
-
-          const known = warningsById.get(warningId);
-          if (known) {
-            // The same warning can cover several configured areas. Keep one entry
-            // but remember every area it was reported for.
-            if (area && !known.areas!.includes(area)) {
-              known.areas!.push(area);
-            }
-            continue;
-          }
-
-          const warning: NinaWarning = {
-            headline,
-            description,
-            sender: stateObj.attributes.sender,
-            entity_id: entityId,
-            severity: stateObj.attributes.severity,
-            start: stateObj.attributes.start,
-            expires: stateObj.attributes.expires,
-            instruction,
-            warning_id: stateObj.attributes.id,
-            sent: stateObj.attributes.sent,
-            areas: area ? [area] : [],
-          };
-
-          warningsById.set(warningId, warning);
-          warnings.push(warning);
+          slots.push({ prefix, entityId, stateObj });
         }
       }
     }
+    return slots;
+  }
+
+  private _getNinaWarnings(): NinaWarning[] {
+    const warnings: NinaWarning[] = [];
+    const warningsById = new Map<string, NinaWarning>();
+
+    for (const { prefix, entityId, stateObj } of this._getActiveNinaSlots()) {
+      const attributes: Record<string, unknown> = stateObj.attributes ?? {};
+      // `nina.get_details` first, the attributes second: cores before 2026.8 have
+      // no action, and a call that failed leaves no details either. The details
+      // only count while they belong to the warning the slot holds now.
+      const entry = this._ninaDetails.get(entityId);
+      const details = entry?.key === ninaDetailsKey(stateObj) ? entry.details : null;
+      const field = (name: string): unknown => details?.[name] ?? attributes[name];
+
+      // `hass.states` and the action response are untyped, so every field has to
+      // be narrowed here, at the boundary where the data enters the card. A
+      // headline that is a number or an array would otherwise reach the render
+      // path typed as a string and throw on the first string operation.
+      const headline = asOptionalString(field('headline'));
+      const description = asOptionalString(field('description'));
+      const instruction =
+        asOptionalString(details?.recommended_actions) ??
+        asOptionalString(attributes.instruction) ??
+        asOptionalString(attributes.recommended_actions);
+      const start = asOptionalString(field('start'));
+      const id = asOptionalString(attributes.id) ?? asOptionalString(details?.id);
+
+      const warningId =
+        id || asOptionalString(attributes.warning_id) || `${headline || ''}-${start || ''}-${description || ''}`;
+
+      const area = getNinaAreaName(asOptionalString(attributes.friendly_name), prefix);
+
+      const known = warningsById.get(warningId);
+      if (known) {
+        // The same warning can cover several configured areas. Keep one entry
+        // but remember every area it was reported for.
+        if (area && !known.areas!.includes(area)) {
+          known.areas!.push(area);
+        }
+        continue;
+      }
+
+      const warning: NinaWarning = {
+        headline,
+        description,
+        sender: asOptionalString(field('sender')) ?? '',
+        entity_id: entityId,
+        severity: (asOptionalString(field('severity')) ?? 'Unknown') as NinaWarning['severity'],
+        start: start ?? '',
+        expires: asOptionalString(field('expires')) ?? '',
+        instruction,
+        warning_id: id,
+        sent: asOptionalString(field('sent')),
+        areas: area ? [area] : [],
+      };
+
+      warningsById.set(warningId, warning);
+      warnings.push(warning);
+    }
     return warnings;
+  }
+
+  /**
+   * Asks `nina.get_details` for every warning slot whose details are missing or
+   * belong to a warning the slot no longer holds.
+   *
+   * Runs on data changes only, and a slot is asked once per warning: `hass` is
+   * replaced on every state change anywhere in the instance, and a call per
+   * update would put a round trip on each of them. A failed call is retried
+   * after `NINA_DETAILS_RETRY_MS`, not on the next update.
+   */
+  private _refreshNinaDetails(): void {
+    if (!this.hass?.services?.nina?.get_details) return;
+
+    const now = Date.now();
+    const requests: { entityId: string; key: string }[] = [];
+    for (const { entityId, stateObj } of this._getActiveNinaSlots()) {
+      const key = ninaDetailsKey(stateObj);
+      const entry = this._ninaDetails.get(entityId);
+      if (entry?.key === key && (entry.details || now - entry.fetchedAt < NINA_DETAILS_RETRY_MS)) continue;
+      if (this._ninaDetailsPending.get(entityId) === key) continue;
+      requests.push({ entityId, key });
+    }
+    if (requests.length === 0) return;
+
+    for (const { entityId, key } of requests) {
+      this._ninaDetailsPending.set(entityId, key);
+    }
+    void this._fetchNinaDetails(requests);
+  }
+
+  private async _fetchNinaDetails(requests: { entityId: string; key: string }[]): Promise<void> {
+    let response: Record<string, unknown> | undefined;
+    try {
+      // `notifyOnError` is off: the attributes stand in for a failed call, so
+      // the user gains nothing from a toast, and would get one per warning.
+      const result = await this.hass.callService(
+        'nina',
+        'get_details',
+        {},
+        { entity_id: requests.map(({ entityId }) => entityId) },
+        false,
+        true,
+      );
+      const body: unknown = result?.response;
+      response = body && typeof body === 'object' ? (body as Record<string, unknown>) : undefined;
+    } catch (e) {
+      if (!this._hasLoggedNinaDetailsWarning) {
+        console.warn('NINA-DWD: nina.get_details failed, falling back to the entity attributes', e);
+        this._hasLoggedNinaDetailsWarning = true;
+      }
+    }
+
+    const fetchedAt = Date.now();
+    const next = new Map(this._ninaDetails);
+    for (const { entityId, key } of requests) {
+      // A newer request for the same slot supersedes this answer.
+      if (this._ninaDetailsPending.get(entityId) !== key) continue;
+      this._ninaDetailsPending.delete(entityId);
+      const details = response?.[entityId];
+      next.set(entityId, {
+        key,
+        details: details && typeof details === 'object' ? (details as Record<string, unknown>) : null,
+        fetchedAt,
+      });
+    }
+    this._ninaDetails = next;
   }
 
   private _getDwdWarnings(entityId?: string): DwdWarning[] {
