@@ -1466,6 +1466,7 @@ window.customCards.push({
   name: 'NINA and DWD Warnings Card',
   preview: true,
   description: 'A card to display warnings from NINA and DWD.',
+  documentationURL: 'https://github.com/timmaurice/lovelace-nina-dwd-card',
   getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
     // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
     // which the integration does not create - its warning slots are binary
