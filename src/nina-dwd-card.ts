@@ -1,5 +1,5 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type {
   HomeAssistant,
   LovelaceCardEditor,
@@ -84,7 +84,6 @@ const ninaDetailsKey = (stateObj: { attributes?: Record<string, unknown>; last_u
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
 
-@customElement('nina-dwd-card')
 export class NinaDwdCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config!: NinaDwdCardConfig;
@@ -1452,6 +1451,12 @@ export class NinaDwdCard extends LitElement {
   static styles = css`
     ${unsafeCSS(cardStyles)}
   `;
+}
+
+// A duplicate Lovelace resource entry loads this bundle twice. An unguarded define throws and
+// takes the second copy down with it, so register only if nobody registered us before.
+if (!customElements.get('nina-dwd-card')) {
+  customElements.define('nina-dwd-card', NinaDwdCard);
 }
 
 declare global {
