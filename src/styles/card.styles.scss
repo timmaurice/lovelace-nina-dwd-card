@@ -135,7 +135,10 @@
 }
 
 .info-button {
-  --mdc-icon-button-size: 36px;
+  /* ha-icon-button's own size tokens; the --mdc-icon-button-* ones are gone. */
+  --ha-icon-button-size: 36px;
+  /* (36px - 24px icon) / 2, so the icon stays centred as it was under MDC. */
+  --ha-icon-button-padding-inline: 6px;
   color: var(--secondary-text-color);
 
   &:hover {

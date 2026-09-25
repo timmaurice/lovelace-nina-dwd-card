@@ -1,5 +1,5 @@
 import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type {
   HomeAssistant,
   LovelaceCardEditor,
@@ -84,7 +84,6 @@ const ninaDetailsKey = (stateObj: { attributes?: Record<string, unknown>; last_u
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
 
-@customElement('nina-dwd-card')
 export class NinaDwdCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config!: NinaDwdCardConfig;
@@ -1454,6 +1453,12 @@ export class NinaDwdCard extends LitElement {
   `;
 }
 
+// A duplicate Lovelace resource entry loads this bundle twice. An unguarded define throws and
+// takes the second copy down with it, so register only if nobody registered us before.
+if (!customElements.get('nina-dwd-card')) {
+  customElements.define('nina-dwd-card', NinaDwdCard);
+}
+
 declare global {
   interface Window {
     customCards: Array<unknown>;
@@ -1461,37 +1466,41 @@ declare global {
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'nina-dwd-card',
-  name: 'NINA and DWD Warnings Card',
-  preview: true,
-  description: 'A card to display warnings from NINA and DWD.',
-  getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
-    // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
-    // which the integration does not create - its warning slots are binary
-    // sensors - so a NINA entity never produced a suggestion.
-    if (isNinaWarningSlotEntity(entityId)) {
-      return {
-        config: {
-          type: 'custom:nina-dwd-card',
-          nina_entity_prefix: [ninaPrefixFromSlotEntity(entityId)],
-        },
-      };
-    }
-    const entity = hass.entities[entityId];
-    const isDwd =
-      entityId.endsWith('_aktuelle_warnstufe') ||
-      entityId.endsWith('_current_warning_level') ||
-      entityId.endsWith('_vorwarnstufe') ||
-      entityId.endsWith('_advance_warning_level');
-    if (isDwd && entity?.device_id) {
-      return {
-        config: {
-          type: 'custom:nina-dwd-card',
-          dwd_device: entity.device_id,
-        },
-      };
-    }
-    return null;
-  },
-});
+// The same double load would otherwise list the card twice in the picker.
+if (!window.customCards.some((card) => (card as { type?: string }).type === 'nina-dwd-card')) {
+  window.customCards.push({
+    type: 'nina-dwd-card',
+    name: 'NINA and DWD Warnings Card',
+    preview: true,
+    description: 'A card to display warnings from NINA and DWD.',
+    documentationURL: 'https://github.com/timmaurice/lovelace-nina-dwd-card',
+    getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
+      // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
+      // which the integration does not create - its warning slots are binary
+      // sensors - so a NINA entity never produced a suggestion.
+      if (isNinaWarningSlotEntity(entityId)) {
+        return {
+          config: {
+            type: 'custom:nina-dwd-card',
+            nina_entity_prefix: [ninaPrefixFromSlotEntity(entityId)],
+          },
+        };
+      }
+      const entity = hass.entities[entityId];
+      const isDwd =
+        entityId.endsWith('_aktuelle_warnstufe') ||
+        entityId.endsWith('_current_warning_level') ||
+        entityId.endsWith('_vorwarnstufe') ||
+        entityId.endsWith('_advance_warning_level');
+      if (isDwd && entity?.device_id) {
+        return {
+          config: {
+            type: 'custom:nina-dwd-card',
+            dwd_device: entity.device_id,
+          },
+        };
+      }
+      return null;
+    },
+  });
+}
