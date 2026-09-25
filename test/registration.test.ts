@@ -21,4 +21,16 @@ describe('Element registration', () => {
     expect(customElements.get('nina-dwd-card')).toBe(card);
     expect(customElements.get('nina-dwd-card-editor')).toBe(editor);
   });
+
+  it('lists the card in the picker only once when evaluated twice', async () => {
+    const entries = () =>
+      (window.customCards as Array<{ type: string }>).filter((card) => card.type === 'nina-dwd-card');
+
+    await import('../src/nina-dwd-card');
+    expect(entries()).toHaveLength(1);
+
+    vi.resetModules();
+    await import('../src/nina-dwd-card');
+    expect(entries()).toHaveLength(1);
+  });
 });

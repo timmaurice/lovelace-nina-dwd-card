@@ -1466,38 +1466,41 @@ declare global {
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'nina-dwd-card',
-  name: 'NINA and DWD Warnings Card',
-  preview: true,
-  description: 'A card to display warnings from NINA and DWD.',
-  documentationURL: 'https://github.com/timmaurice/lovelace-nina-dwd-card',
-  getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
-    // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
-    // which the integration does not create - its warning slots are binary
-    // sensors - so a NINA entity never produced a suggestion.
-    if (isNinaWarningSlotEntity(entityId)) {
-      return {
-        config: {
-          type: 'custom:nina-dwd-card',
-          nina_entity_prefix: [ninaPrefixFromSlotEntity(entityId)],
-        },
-      };
-    }
-    const entity = hass.entities[entityId];
-    const isDwd =
-      entityId.endsWith('_aktuelle_warnstufe') ||
-      entityId.endsWith('_current_warning_level') ||
-      entityId.endsWith('_vorwarnstufe') ||
-      entityId.endsWith('_advance_warning_level');
-    if (isDwd && entity?.device_id) {
-      return {
-        config: {
-          type: 'custom:nina-dwd-card',
-          dwd_device: entity.device_id,
-        },
-      };
-    }
-    return null;
-  },
-});
+// The same double load would otherwise list the card twice in the picker.
+if (!window.customCards.some((card) => (card as { type?: string }).type === 'nina-dwd-card')) {
+  window.customCards.push({
+    type: 'nina-dwd-card',
+    name: 'NINA and DWD Warnings Card',
+    preview: true,
+    description: 'A card to display warnings from NINA and DWD.',
+    documentationURL: 'https://github.com/timmaurice/lovelace-nina-dwd-card',
+    getEntitySuggestion: (hass: HomeAssistant, entityId: string) => {
+      // The same heuristic `getStubConfig` uses. It matched `sensor.nina_*` here,
+      // which the integration does not create - its warning slots are binary
+      // sensors - so a NINA entity never produced a suggestion.
+      if (isNinaWarningSlotEntity(entityId)) {
+        return {
+          config: {
+            type: 'custom:nina-dwd-card',
+            nina_entity_prefix: [ninaPrefixFromSlotEntity(entityId)],
+          },
+        };
+      }
+      const entity = hass.entities[entityId];
+      const isDwd =
+        entityId.endsWith('_aktuelle_warnstufe') ||
+        entityId.endsWith('_current_warning_level') ||
+        entityId.endsWith('_vorwarnstufe') ||
+        entityId.endsWith('_advance_warning_level');
+      if (isDwd && entity?.device_id) {
+        return {
+          config: {
+            type: 'custom:nina-dwd-card',
+            dwd_device: entity.device_id,
+          },
+        };
+      }
+      return null;
+    },
+  });
+}
