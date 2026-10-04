@@ -6,7 +6,7 @@ updates:
     directory: '/'
     # Check for updates every week
     schedule:
-      interval: 'weekly'
+      interval: 'monthly'
     # Add a label to pull requests
     labels:
       - 'dependencies'
@@ -29,7 +29,7 @@ updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
-      interval: 'weekly'
+      interval: 'monthly'
     groups:
       github-actions:
         patterns:
