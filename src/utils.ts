@@ -197,12 +197,13 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
       minute: 'numeric',
     };
 
-    // The user's 12h/24h preference from their Home Assistant profile. The two
-    // other values HA offers ('language', 'system') deliberately fall through to
-    // whatever the locale implies.
-    if (hass.locale?.time_format === 'am_pm') {
+    // The user's 12h/24h preference from their Home Assistant profile. HA stores
+    // it as '12' or '24' (TimeFormat.am_pm / TimeFormat.twenty_four in the
+    // frontend). The two other values HA offers ('language', 'system')
+    // deliberately fall through to whatever the locale implies.
+    if (hass.locale?.time_format === '12') {
       timeFormat.hour12 = true;
-    } else if (hass.locale?.time_format === 'twenty_four') {
+    } else if (hass.locale?.time_format === '24') {
       timeFormat.hour12 = false;
     }
 
