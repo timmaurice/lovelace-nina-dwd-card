@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatTime, getWarningEndTime, isWarningExpired } from '../src/utils';
 import type { DwdWarning, HomeAssistant, NinaWarning } from '../src/types';
 
-const hass = (language = 'de', time_format = 'twenty_four'): HomeAssistant =>
+const hass = (language = 'de', time_format = '24'): HomeAssistant =>
   ({
     language,
     locale: { language, number_format: 'comma_decimal', time_format },
@@ -134,8 +134,20 @@ describe('formatTime', () => {
     const start = at(2026, 9, 10, 15, 5);
     const warning = ninaWarning({ start: start.toISOString(), expires: undefined as unknown as string });
 
-    expect(formatTime(warning, hass('en', 'twenty_four'))).toContain('15:05');
-    expect(formatTime(warning, hass('en', 'am_pm')).toLowerCase()).toContain('3:05');
+    expect(formatTime(warning, hass('en', '24'))).toContain('15:05');
+    expect(formatTime(warning, hass('en', '12'))).toMatch(/3:05\s?PM/);
+    expect(formatTime(warning, hass('de', '12'))).toMatch(/3:05\s?PM/);
+    expect(formatTime(warning, hass('de', '24'))).toContain('15:05');
+  });
+
+  it('follows the language convention when the profile says language or system', () => {
+    const start = at(2026, 9, 10, 15, 5);
+    const warning = ninaWarning({ start: start.toISOString(), expires: undefined as unknown as string });
+
+    for (const timeFormat of ['language', 'system']) {
+      expect(formatTime(warning, hass('en', timeFormat))).toMatch(/3:05\s?PM/);
+      expect(formatTime(warning, hass('de', timeFormat))).toContain('15:05');
+    }
   });
 
   it('reports an unknown time instead of throwing when no start is given', () => {
