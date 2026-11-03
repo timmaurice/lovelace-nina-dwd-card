@@ -1,6 +1,6 @@
 # NINA and DWD Warnings Card
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![Marketplace / HACS](https://img.shields.io/badge/Marketplace%20%2F%20HACS-Default-41BDF5.svg?style=flat-square)](https://hacs.xyz/docs/marketplace/)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/timmaurice/lovelace-nina-dwd-card?style=flat-square)
 ![GitHub downloads](https://img.shields.io/github/downloads/timmaurice/lovelace-nina-dwd-card/total?style=flat-square)
 ![GitHub last commit](https://img.shields.io/github/last-commit/timmaurice/lovelace-nina-dwd-card.svg?style=flat-square)
@@ -68,11 +68,11 @@ If you would like to contribute a new translation:
 
 ## Installation
 
-### HACS (Recommended)
+### Marketplace or HACS (Recommended)
 
-This card is available in the [Home Assistant Community Store (HACS)](https://hacs.xyz/).
+This card is in the default catalog. From Home Assistant 2026.11, find it under **Settings** → **Marketplace**; on earlier versions, in the [Home Assistant Community Store (HACS)](https://hacs.xyz/). The button opens it in whichever of the two your Home Assistant has:
 
-<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=timmaurice&repository=lovelace-nina-dwd-card&category=plugin" target="_blank" rel="noreferrer noopener"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." /></a>
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=timmaurice&repository=lovelace-nina-dwd-card&category=plugin" target="_blank" rel="noreferrer noopener"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open this repository in the Marketplace or HACS of your Home Assistant instance." /></a>
 
 <details>
 <summary>Manual Installation</summary>
