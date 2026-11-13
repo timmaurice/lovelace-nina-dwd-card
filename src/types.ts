@@ -129,6 +129,8 @@ export interface HomeAssistant {
     language: string;
     number_format: string;
     time_format: string;
+    /** 'local' (browser zone) or 'server' (zone of `config.time_zone`). */
+    time_zone?: string;
   };
   resources: any;
   localize: (key: string, ...args: any[]) => string;

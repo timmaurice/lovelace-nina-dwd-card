@@ -179,6 +179,40 @@ export function isWarningExpired(warning: NinaWarning | DwdWarning, now: number 
 const WEEKDAY_ONLY_MAX_DAY_DISTANCE = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/**
+ * Resolves the IANA time zone the card must format in.
+ *
+ * Follows the Home Assistant frontend: the profile setting `locale.time_zone` is
+ * either 'local' (the browser zone) or 'server' (the zone from `config.time_zone`).
+ * Returns `undefined` for the browser zone, which `Intl` treats as the default.
+ *
+ * @param hass The Home Assistant object.
+ */
+export function resolveTimeZone(hass: HomeAssistant): string | undefined {
+  if (hass.locale?.time_zone !== 'server') return undefined;
+  const serverZone = hass.config?.time_zone;
+  if (typeof serverZone !== 'string' || !serverZone) return undefined;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: serverZone });
+    return serverZone;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Calendar date of a moment as seen in a time zone, as a day number and a year. */
+function getZonedDay(date: Date, timeZone: string | undefined): { dayNumber: number; year: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(date);
+  const get = (type: string): number => Number(parts.find((part) => part.type === type)?.value);
+  const year = get('year');
+  return { dayNumber: Math.round(Date.UTC(year, get('month') - 1, get('day')) / MS_PER_DAY), year };
+}
+
 export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistant): string {
   try {
     let startStr = 'start' in warning ? warning.start : '';
@@ -192,7 +226,10 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
     const start = new Date(startStr);
     const now = new Date();
 
+    const timeZone = resolveTimeZone(hass);
+
     const timeFormat: Intl.DateTimeFormatOptions = {
+      timeZone,
       hour: 'numeric',
       minute: 'numeric',
     };
@@ -207,34 +244,34 @@ export function formatTime(warning: NinaWarning | DwdWarning, hass: HomeAssistan
       timeFormat.hour12 = false;
     }
 
-    const getDayString = (date: Date): string => {
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const checkDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowDay = getZonedDay(now, timeZone);
 
-      if (checkDay.getTime() === today.getTime()) {
+    const getDayString = (date: Date): string => {
+      // Day boundaries are those of the configured zone, not of the browser.
+      const checkDay = getZonedDay(date, timeZone);
+      const dayDistance = checkDay.dayNumber - nowDay.dayNumber;
+
+      if (dayDistance === 0) {
         return localize(hass, 'card.today');
       }
-      if (checkDay.getTime() === yesterday.getTime()) {
+      if (dayDistance === -1) {
         return localize(hass, 'card.yesterday');
       }
-      if (checkDay.getTime() === tomorrow.getTime()) {
+      if (dayDistance === 1) {
         return localize(hass, 'card.tomorrow');
       }
       // A weekday alone only identifies a day inside the current week. Warnings
       // can run for months (African swine fever zones, water shortages), and
       // "Wed, 10:32" for a date in March reads as this week.
-      const dayDistance = Math.round((checkDay.getTime() - today.getTime()) / MS_PER_DAY);
       if (Math.abs(dayDistance) > WEEKDAY_ONLY_MAX_DAY_DISTANCE) {
-        const dateFormat: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'numeric' };
-        if (date.getFullYear() !== now.getFullYear()) {
+        const dateFormat: Intl.DateTimeFormatOptions = { timeZone, weekday: 'short', day: 'numeric', month: 'numeric' };
+        if (checkDay.year !== nowDay.year) {
           dateFormat.year = 'numeric';
         }
         return new Intl.DateTimeFormat(hass.locale.language, dateFormat).format(date);
       }
 
-      return new Intl.DateTimeFormat(hass.locale.language, { weekday: 'short' }).format(date);
+      return new Intl.DateTimeFormat(hass.locale.language, { timeZone, weekday: 'short' }).format(date);
     };
 
     const formattedStartTime = new Intl.DateTimeFormat(hass.locale.language, timeFormat).format(start);

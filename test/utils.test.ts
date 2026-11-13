@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatTime, getWarningEndTime, isWarningExpired } from '../src/utils';
 import type { DwdWarning, HomeAssistant, NinaWarning } from '../src/types';
 
@@ -153,5 +153,80 @@ describe('formatTime', () => {
   it('reports an unknown time instead of throwing when no start is given', () => {
     const warning = ninaWarning({ start: '', sent: undefined, expires: undefined as unknown as string });
     expect(formatTime(warning, hass())).toBe('Zeit unbekannt');
+  });
+});
+
+describe('formatTime time zone', () => {
+  const serverHass = (time_zone: string, serverZone: string): HomeAssistant =>
+    ({
+      language: 'en',
+      locale: { language: 'en', number_format: 'comma_decimal', time_format: '24', time_zone },
+      config: { time_zone: serverZone },
+    }) as unknown as HomeAssistant;
+
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // A zone whose offset to the browser zone is never zero, whatever the host runs in.
+  const farZone = browserZone === 'Pacific/Kiritimati' ? 'Pacific/Pago_Pago' : 'Pacific/Kiritimati';
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('formats times in the server zone when the profile asks for it', () => {
+    const warning = ninaWarning({ start: '2026-03-10T12:00:00Z', expires: undefined as unknown as string });
+    vi.useFakeTimers({ now: new Date('2026-03-10T12:00:00Z') });
+
+    expect(formatTime(warning, serverHass('server', 'Europe/Berlin'))).toContain('13:00');
+    expect(formatTime(warning, serverHass('server', 'America/New_York'))).toContain('08:00');
+  });
+
+  it('keeps the browser zone for time_zone "local" and when unset', () => {
+    const warning = ninaWarning({ start: '2026-03-10T12:00:00Z', expires: undefined as unknown as string });
+    vi.useFakeTimers({ now: new Date('2026-03-10T12:00:00Z') });
+    const expected = new Intl.DateTimeFormat('en', {
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    }).format(new Date('2026-03-10T12:00:00Z'));
+
+    expect(formatTime(warning, serverHass('local', 'Asia/Tokyo'))).toContain(expected);
+    expect(formatTime(warning, hass('en'))).toContain(expected);
+  });
+
+  it('falls back to the browser zone for a missing or invalid server zone', () => {
+    const warning = ninaWarning({ start: '2026-03-10T12:00:00Z', expires: undefined as unknown as string });
+    vi.useFakeTimers({ now: new Date('2026-03-10T12:00:00Z') });
+    const reference = formatTime(warning, hass('en'));
+
+    expect(formatTime(warning, serverHass('server', 'Not/AZone'))).toBe(reference);
+    expect(formatTime(warning, serverHass('server', ''))).toBe(reference);
+  });
+
+  it('decides today and tomorrow by the server zone day boundary', () => {
+    // 23:30 UTC on 10 March: still the 10th in London, already the 11th in Berlin.
+    vi.useFakeTimers({ now: new Date('2026-03-10T23:30:00Z') });
+    const warning = ninaWarning({ start: '2026-03-11T08:00:00Z', expires: undefined as unknown as string });
+
+    // Berlin: now is 11 March 00:30, the warning is 11 March 09:00 -> today.
+    expect(formatTime(warning, serverHass('server', 'Europe/Berlin'))).toMatch(/^Today/);
+    // Kiritimati (UTC+14): now is 11 March 13:30, the warning 11 March 22:00 -> today.
+    expect(formatTime(warning, serverHass('server', 'Pacific/Kiritimati'))).toMatch(/^Today/);
+    // London (UTC+0): now is 10 March 23:30, the warning 11 March 08:00 -> tomorrow.
+    expect(formatTime(warning, serverHass('server', 'Europe/London'))).toMatch(/^Tomorrow/);
+    // Pago Pago (UTC-11): now is 10 March 12:30, the warning 10 March 21:00 -> today.
+    expect(formatTime(warning, serverHass('server', 'Pacific/Pago_Pago'))).toMatch(/^Today/);
+  });
+
+  it('shows a different day label than the browser zone when the zones disagree', () => {
+    // Same instant, two zones 14h-25h apart: the labels must follow the server zone
+    // regardless of what zone this test runs in.
+    vi.useFakeTimers({ now: new Date('2026-03-10T10:00:00Z') });
+    const warning = ninaWarning({ start: '2026-03-10T10:00:00Z', expires: undefined as unknown as string });
+
+    // Both "now" and the start use the same zone, so the label is always today.
+    expect(formatTime(warning, serverHass('server', farZone))).toMatch(/^Today/);
+    // A start 24h later is exactly one day on in any zone.
+    const next = ninaWarning({ start: '2026-03-11T10:00:00Z', expires: undefined as unknown as string });
+    expect(formatTime(next, serverHass('server', farZone))).toMatch(/^Tomorrow/);
   });
 });
