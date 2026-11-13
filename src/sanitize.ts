@@ -10,7 +10,8 @@
  * The sanitizer works on an allow-list: unknown tags are unwrapped (their text
  * is kept), dangerous tags are dropped with their subtree, and only a small set
  * of attributes survives. Event handlers (`on*`), `style`, and non-HTTP(S) URLs
- * are always removed.
+ * are always removed. Remote images are removed too (tracking); only inline
+ * base64 and same-origin images are kept.
  */
 
 /** Tags that are kept, with their attributes filtered. */
@@ -131,6 +132,27 @@ export function isSafeUrl(url: string | undefined | null, allowImageData = false
 }
 
 /**
+ * Checks whether an image `src` may be rendered.
+ *
+ * Only inline base64 images and same-origin URLs are allowed. Remote images
+ * are rejected because loading them lets the feed author track the viewer.
+ *
+ * @param url The image source to check.
+ * @returns True if the image may be rendered.
+ */
+export function isSafeImageSrc(url: string | undefined | null): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (SAFE_IMAGE_DATA_URL.test(trimmed)) return true;
+  try {
+    const parsed = new URL(trimmed, document.baseURI);
+    return SAFE_LINK_PROTOCOLS.has(parsed.protocol) && parsed.origin === new URL(document.baseURI).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Removes every attribute from an element that is not explicitly allowed.
  *
  * @param element The element to clean up in place.
@@ -149,7 +171,8 @@ function sanitizeAttributes(element: Element): void {
       continue;
     }
 
-    if (URL_ATTRIBUTES.has(name) && !isSafeUrl(attribute.value, tag === 'img')) {
+    const isSafe = tag === 'img' && name === 'src' ? isSafeImageSrc(attribute.value) : isSafeUrl(attribute.value);
+    if (URL_ATTRIBUTES.has(name) && !isSafe) {
       element.removeAttribute(attribute.name);
     }
   }

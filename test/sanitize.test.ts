@@ -8,8 +8,8 @@ describe('sanitizeHtml', () => {
   });
 
   it('strips event handler attributes', () => {
-    const result = sanitizeHtml('<img src="https://example.com/a.png" onerror="window.__xss = 1">');
-    expect(result).toBe('<img src="https://example.com/a.png">');
+    const result = sanitizeHtml('<img src="data:image/png;base64,iVBORw0KGgo=" onerror="window.__xss = 1">');
+    expect(result).toBe('<img src="data:image/png;base64,iVBORw0KGgo=">');
     expect(result).not.toContain('onerror');
   });
 
@@ -36,6 +36,13 @@ describe('sanitizeHtml', () => {
   it('drops images with an unsafe source', () => {
     expect(sanitizeHtml('<img src="javascript:alert(1)">')).toBe('');
     expect(sanitizeHtml('<img src="data:text/html,<script>1</script>">')).toBe('');
+  });
+
+  it('drops external images but keeps inline and same-origin ones', () => {
+    expect(sanitizeHtml('<p>a<img src="https://tracker.example.com/p.gif">b</p>')).toBe('<p>ab</p>');
+    expect(sanitizeHtml('<img src="//tracker.example.com/p.gif">')).toBe('');
+    expect(sanitizeHtml('<img src="/local/a.png">')).toBe('<img src="/local/a.png">');
+    expect(sanitizeHtml('<img src="data:image/png;base64,iVBORw0KGgo=">')).toContain('data:image/png');
   });
 
   it('repairs markup that was cut mid-tag', () => {
