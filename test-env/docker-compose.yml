@@ -2,7 +2,7 @@ name: nina-dwd-card-test
 services:
   test-homeassistant:
     container_name: ha-nina-dwd-card-test
-    image: homeassistant/home-assistant:stable
+    image: homeassistant/home-assistant:2026.11.1
     volumes:
       - ./config:/config
       - ../dist:/config/www/dist:ro
