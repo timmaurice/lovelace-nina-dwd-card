@@ -842,6 +842,39 @@ describe('NinaDwdCard', () => {
       expect(renderedHeadlines).not.toContain('Minor Warning');
     });
 
+    it('keeps NINA warnings with unknown or missing severity and accepts lowercase severity', async () => {
+      const base = { state: 'on' };
+      const start = new Date().toISOString();
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        ...base,
+        attributes: { headline: 'Unknown Severity', severity: 'Unknown', start },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        ...base,
+        attributes: { headline: 'Missing Severity', start },
+      };
+      hass.states['binary_sensor.nina_warnung_3'] = {
+        ...base,
+        attributes: { headline: 'Lowercase Severe', severity: 'severe', start },
+      };
+      hass.states['binary_sensor.nina_warnung_4'] = {
+        ...base,
+        attributes: { headline: 'Minor Warning', severity: 'Minor', start },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, hide_on_level_below: 3 });
+      await element.updateComplete;
+
+      const headlines = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map((el) =>
+        el.textContent?.trim(),
+      );
+      expect(headlines).toContain('Unknown Severity');
+      expect(headlines).toContain('Missing Severity');
+      expect(headlines).toContain('Lowercase Severe');
+      expect(headlines).not.toContain('Minor Warning');
+    });
+
     describe('hide_headlines_containing', () => {
       beforeEach(() => {
         hass.states['binary_sensor.nina_warnung_1'] = {

@@ -1202,7 +1202,10 @@ export class NinaDwdCard extends LitElement {
       .sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a))
       .filter((warning) => {
         if (!this._config.hide_on_level_below) return true;
-        return this._getSeverityScore(warning) >= (this._config.hide_on_level_below ?? 0);
+        const score = this._getSeverityScore(warning);
+        // A NINA warning without a recognised severity is never hidden: it is not known to be minor.
+        if (score === 0 && !('level' in warning)) return true;
+        return score >= (this._config.hide_on_level_below ?? 0);
       });
 
     if (this._config.max_warnings) {
@@ -1237,14 +1240,14 @@ export class NinaDwdCard extends LitElement {
   private _getSeverityScore(warning: NinaWarning | DwdWarning): number {
     if ('severity' in warning) {
       // NINA severity
-      switch (warning.severity) {
-        case 'Extreme':
+      switch (String(warning.severity ?? '').toLowerCase()) {
+        case 'extreme':
           return 4;
-        case 'Severe':
+        case 'severe':
           return 3;
-        case 'Moderate':
+        case 'moderate':
           return 2;
-        case 'Minor':
+        case 'minor':
           return 1;
         default:
           return 0; // 'Unknown'
