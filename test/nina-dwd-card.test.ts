@@ -436,6 +436,46 @@ describe('NinaDwdCard', () => {
 
       expect(element.shadowRoot?.querySelector('.lightbox')).toBeNull();
     });
+
+    it('opens the lightbox with Enter or Space on the map and closes it with Escape', async () => {
+      config.dwd_map_land = 'hes';
+      config.dwd_map_position = 'above';
+      hass.entities['sensor.berlin_current_warning_level'] = {
+        entity_id: 'sensor.berlin_current_warning_level',
+        device_id: 'mock-dwd-device',
+      };
+      hass.states['sensor.berlin_current_warning_level'] = {
+        state: '1',
+        attributes: { warning_1_headline: 'DWD Map Test Warning', warning_1_start: new Date().toISOString() },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const key = (el: Element, k: string) =>
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+      const mapContainer = element.shadowRoot!.querySelector('.map-container') as HTMLElement;
+      expect(mapContainer.getAttribute('role')).toBe('button');
+      expect(mapContainer.getAttribute('tabindex')).toBe('0');
+
+      key(mapContainer, 'a');
+      await element.updateComplete;
+      expect(element.shadowRoot!.querySelector('.lightbox')).toBeNull();
+
+      key(mapContainer, 'Enter');
+      await element.updateComplete;
+      const lightbox = element.shadowRoot!.querySelector('.lightbox') as HTMLElement;
+      expect(lightbox.getAttribute('role')).toBe('dialog');
+      expect(element.shadowRoot!.activeElement).toBe(lightbox);
+
+      key(lightbox, 'Escape');
+      await element.updateComplete;
+      expect(element.shadowRoot!.querySelector('.lightbox')).toBeNull();
+
+      key(element.shadowRoot!.querySelector('.map-container')!, ' ');
+      await element.updateComplete;
+      expect(element.shadowRoot!.querySelector('.lightbox')).not.toBeNull();
+    });
   });
 
   describe('Incomplete Warnings', () => {
@@ -1563,6 +1603,9 @@ describe('NinaDwdCard', () => {
       const description = element.shadowRoot?.querySelector('.description');
       const expandButton = description?.querySelector('.expand-button') as HTMLElement;
       expect(expandButton).not.toBeNull();
+      // A real button, so Tab reaches it and Enter/Space activate it natively.
+      expect(expandButton.tagName).toBe('BUTTON');
+      expect(expandButton.getAttribute('aria-expanded')).toBe('false');
       expect(expandButton.textContent?.trim()).toBe('Show more');
       expect(description?.textContent).toContain('This is a very long descriptio...');
 
@@ -1571,6 +1614,7 @@ describe('NinaDwdCard', () => {
       await element.updateComplete;
 
       expect(expandButton.textContent?.trim()).toBe('Show less');
+      expect(expandButton.getAttribute('aria-expanded')).toBe('true');
       expect(description?.textContent).toContain(longDescription);
       expect(description?.textContent).not.toContain('...');
 

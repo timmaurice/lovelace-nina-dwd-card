@@ -110,13 +110,23 @@
 }
 
 .expand-button {
+  background: none;
+  border: 0;
   color: var(--primary-color);
   cursor: pointer;
   display: inline-block;
+  font-family: inherit;
   font-size: 0.9em;
   font-weight: bold;
   margin-left: 4px;
+  padding: 0;
   text-decoration: none;
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
 
   &:hover {
     text-decoration: underline;
@@ -260,6 +270,15 @@ hr {
   border: none;
   border-top: 1px solid var(--divider-color);
   margin: 8px 0;
+}
+
+.map-container:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.lightbox:focus {
+  outline: none;
 }
 
 .map-container {
