@@ -280,7 +280,15 @@ export class NinaDwdCard extends LitElement {
             this._config.dwd_map_position !== 'above' &&
             this._config.dwd_map_position !== 'below' &&
             this._config.dwd_map_position !== 'none'
-              ? html`<div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
+              ? html`<div
+                  class="map-container"
+                  role="button"
+                  tabindex="0"
+                  aria-label=${localize(this.hass, 'card.map_alt_large')}
+                  style="cursor: pointer;"
+                  @click=${this._openLargeMap}
+                  @keydown=${this._handleMapKeydown}
+                >
                   <img class="map-image" src=${mapUrl} alt=${localize(this.hass, 'card.map_alt')} />
                   ${(() => {
                     const pinStyle = this._calculatePinStyle();
@@ -303,13 +311,18 @@ export class NinaDwdCard extends LitElement {
             ${
               isTruncated
                 ? html`
-                    <a class="expand-button" @click=${() => this._toggleExpand(key)}>
+                    <button
+                      type="button"
+                      class="expand-button"
+                      aria-expanded=${this._expandedWarnings.has(key) ? 'true' : 'false'}
+                      @click=${() => this._toggleExpand(key)}
+                    >
                       ${
                         this._expandedWarnings.has(key)
                           ? localize(this.hass, 'card.show_less')
                           : localize(this.hass, 'card.show_more')
                       }
-                    </a>
+                    </button>
                   `
                 : ''
             }
@@ -365,6 +378,14 @@ export class NinaDwdCard extends LitElement {
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
+    if (changedProperties.has('_showLargeMap')) {
+      // Move focus into the lightbox so Escape works, and back to the map when it closes.
+      if (this._showLargeMap) {
+        this.renderRoot.querySelector<HTMLElement>('.lightbox')?.focus();
+      } else if (changedProperties.get('_showLargeMap') === true) {
+        this.renderRoot.querySelector<HTMLElement>('.map-container')?.focus();
+      }
+    }
     if (!this.hass || !this._config) return;
 
     const dataChanged =
@@ -666,7 +687,15 @@ export class NinaDwdCard extends LitElement {
     const pinStyle = this._calculatePinStyle();
 
     return html`
-      <div class="map-container" @click=${() => (this._showLargeMap = true)} style="cursor: pointer;">
+      <div
+        class="map-container"
+        role="button"
+        tabindex="0"
+        aria-label=${localize(this.hass, 'card.map_alt_large')}
+        style="cursor: pointer;"
+        @click=${this._openLargeMap}
+        @keydown=${this._handleMapKeydown}
+      >
         <img class="map-image-standalone" src=${mapUrl} alt=${localize(this.hass, 'card.map_alt')} />
         ${
           pinStyle
@@ -682,13 +711,41 @@ export class NinaDwdCard extends LitElement {
 
   private _renderLightbox(mapUrl: string, modeClass: string): TemplateResult {
     return html`
-      <div class="lightbox ${modeClass}" @click=${() => (this._showLargeMap = false)}>
+      <div
+        class="lightbox ${modeClass}"
+        role="dialog"
+        aria-modal="true"
+        aria-label=${localize(this.hass, 'card.map_alt_large')}
+        tabindex="-1"
+        @click=${this._closeLargeMap}
+        @keydown=${this._handleLightboxKeydown}
+      >
         <div class="lightbox-content">
           <img src=${mapUrl} alt=${localize(this.hass, 'card.map_alt_large')} />
         </div>
       </div>
     `;
   }
+
+  private _openLargeMap = (): void => {
+    this._showLargeMap = true;
+  };
+
+  private _closeLargeMap = (): void => {
+    this._showLargeMap = false;
+  };
+
+  private _handleMapKeydown = (e: KeyboardEvent): void => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    this._openLargeMap();
+  };
+
+  private _handleLightboxKeydown = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape' && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    this._closeLargeMap();
+  };
 
   private _handleDialogClick(e: Event) {
     // Close on backdrop click (dialog element itself)
