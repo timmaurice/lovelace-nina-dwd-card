@@ -3,6 +3,7 @@ import {
   BASE_URL,
   PASSWORD,
   USERNAME,
+  ensureOnboarded,
   ensureRunning,
   saveTokens,
   waitForCoreRunning,
@@ -18,6 +19,7 @@ import {
 export default async function globalSetup(): Promise<void> {
   ensureRunning();
   await waitForFrontend();
+  await ensureOnboarded();
 
   const browser = await chromium.launch();
   const page = await browser.newPage();

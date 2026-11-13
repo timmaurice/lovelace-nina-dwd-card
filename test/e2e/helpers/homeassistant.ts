@@ -46,6 +46,60 @@ export function ensureRunning(): void {
   execFileSync('docker', ['compose', 'up', '-d'], { cwd: COMPOSE_DIR, stdio: 'inherit' });
 }
 
+/**
+ * Creates the test user on a Home Assistant that has never been onboarded, so a
+ * fresh clone (or CI) needs no `.storage` from anybody's machine. On an instance
+ * that is already onboarded the endpoint answers 404 and this does nothing.
+ */
+export async function ensureOnboarded(): Promise<void> {
+  const status = await fetch(`${BASE_URL}/api/onboarding`);
+  if (!status.ok) return;
+  const steps = (await status.json()) as { step: string; done: boolean }[];
+  if (steps.every((step) => step.done)) return;
+
+  const clientId = `${BASE_URL}/`;
+  const json = { 'Content-Type': 'application/json' };
+  if (!steps.find((step) => step.step === 'user')?.done) {
+    const created = await fetch(`${BASE_URL}/api/onboarding/users`, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({
+        client_id: clientId,
+        name: 'Admin',
+        username: USERNAME,
+        password: PASSWORD,
+        language: 'en',
+      }),
+    });
+    if (!created.ok) throw new Error(`onboarding user failed: ${created.status}`);
+    const { auth_code: code } = (await created.json()) as { auth_code: string };
+    const token = await fetch(`${BASE_URL}/auth/token`, {
+      method: 'POST',
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: clientId,
+      }),
+    });
+    if (!token.ok) throw new Error(`onboarding token exchange failed: ${token.status}`);
+    const { access_token: accessToken } = (await token.json()) as { access_token: string };
+    const authed = { ...json, Authorization: `Bearer ${accessToken}` };
+    // The frontend redirects to the onboarding wizard until every step is done.
+    for (const [step, body] of [
+      ['core_config', {}],
+      ['analytics', {}],
+      ['integration', { client_id: clientId, redirect_uri: `${clientId}?auth_callback=1` }],
+    ] as const) {
+      const res = await fetch(`${BASE_URL}/api/onboarding/${step}`, {
+        method: 'POST',
+        headers: authed,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`onboarding step ${step} failed: ${res.status}`);
+    }
+  }
+}
+
 export async function waitForFrontend(timeoutMs = 180_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
