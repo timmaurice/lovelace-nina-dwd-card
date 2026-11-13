@@ -24,3 +24,7 @@ playwright-report/
 
 # Local machine compose override (corporate CA, local paths)
 test-env/docker-compose.override.yml
+
+# Local Claude Code files
+.claude/
+CLAUDE.md
