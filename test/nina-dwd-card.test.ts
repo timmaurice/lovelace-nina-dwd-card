@@ -511,6 +511,29 @@ describe('NinaDwdCard', () => {
       expect(headlines).toContain('Valid Warning');
     });
 
+    it('should draw Unknown and missing severity in neutral grey, not the no-warnings green', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { headline: 'Unknown severity', sender: 'S', severity: 'Unknown', start: new Date().toISOString() },
+      };
+      hass.states['binary_sensor.nina_warnung_2'] = {
+        state: 'on',
+        attributes: { headline: 'Missing severity', sender: 'S', start: new Date().toISOString() },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const styles = Array.from(element.shadowRoot?.querySelectorAll('.headline') || []).map(
+        (el) => (el as HTMLElement).getAttribute('style') || '',
+      );
+      expect(styles).toHaveLength(2);
+      for (const style of styles) {
+        expect(style).toContain('#5f6368');
+        expect(style).not.toContain('#2e7d32');
+      }
+    });
+
     it('should still render valid warnings when a NINA headline is a number', async () => {
       hass.states['binary_sensor.nina_warnung_1'] = {
         state: 'on',

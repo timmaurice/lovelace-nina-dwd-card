@@ -43,6 +43,14 @@ const SEVERITY_COLORS_LIGHT: Record<number, string> = {
   4: '#880e4f' /* Extreme */,
 };
 
+/**
+ * Neutral grey for a NINA warning whose severity is `Unknown` or missing. It
+ * must not borrow the green of "no warnings". Contrast against the card
+ * background: 6.05:1 (light, #fff) and 6.45:1 (dark, #1c1c1c).
+ */
+const UNKNOWN_SEVERITY_COLOR_LIGHT = '#5f6368';
+const UNKNOWN_SEVERITY_COLOR_DARK = '#9aa0a6';
+
 const SEVERITY_COLORS_DARK: Record<number, string> = {
   0: '#c5e566' /* No Warning */,
   1: '#ffeb3b' /* Minor */,
@@ -931,6 +939,12 @@ export class NinaDwdCard extends LitElement {
     const overrides = this._config.color_overrides || {};
     const score = this._getSeverityScore(warning);
     const SEVERITY_COLORS = this._getSeverityPalette();
+
+    // A NINA warning without a known severity is still a warning: draw it grey,
+    // not in the green of "no warnings".
+    if (score === 0 && 'severity' in warning) {
+      return this._getThemeSettings().isDarkMode ? UNKNOWN_SEVERITY_COLOR_DARK : UNKNOWN_SEVERITY_COLOR_LIGHT;
+    }
 
     switch (score) {
       case 4:
