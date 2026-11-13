@@ -1396,6 +1396,56 @@ describe('NinaDwdCard', () => {
       expect(headline?.getAttribute('style')).toContain('color: #00ff00');
     });
 
+    describe('theme-aware severity colours', () => {
+      const luminance = (hex: string) => {
+        const [r, g, b] = [1, 3, 5]
+          .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+          .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const contrast = (a: string, b: string) => {
+        const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m);
+        return (x + 0.05) / (y + 0.05);
+      };
+      const levels = ['Minor', 'Moderate', 'Severe', 'Extreme'];
+
+      const headlineColors = async (themeMode: 'light' | 'dark') => {
+        const colors: string[] = [];
+        for (const severity of levels) {
+          hass.states['binary_sensor.nina_warnung_1'] = {
+            state: 'on',
+            attributes: { headline: severity, severity, start: new Date().toISOString() },
+          };
+          element.hass = hass;
+          element.setConfig({ ...config, theme_mode: themeMode });
+          await element.updateComplete;
+          const style = element.shadowRoot?.querySelector<HTMLElement>('.headline')?.getAttribute('style') || '';
+          colors.push(/color:\s*(#[0-9a-f]{6})/i.exec(style)![1]);
+        }
+        return colors;
+      };
+
+      it('uses a palette readable on a white card in light mode', async () => {
+        const colors = await headlineColors('light');
+        for (const c of colors) expect(contrast(c, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('uses a palette readable on a dark card in dark mode', async () => {
+        const colors = await headlineColors('dark');
+        for (const c of colors) expect(contrast(c, '#1c1c1c')).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('follows hass.themes.darkMode in auto mode', async () => {
+        hass.themes = { ...(hass.themes || {}), darkMode: true };
+        const dark = await headlineColors('dark');
+        element.hass = hass;
+        element.setConfig({ ...config });
+        await element.updateComplete;
+        const style = element.shadowRoot?.querySelector<HTMLElement>('.headline')?.getAttribute('style') || '';
+        expect(style).toContain(dark[3]);
+      });
+    });
+
     it('should separate advance warnings when configured', async () => {
       // Current warning (DWD level)
       hass.entities['sensor.berlin_current_warning_level'] = {
@@ -2695,7 +2745,7 @@ describe('NinaDwdCard', () => {
       expect(text('.description')).toBe('Es treten Sturmböen auf.');
       expect(text('.instruction')).toBe('Fenster schließen.');
       expect(text('.sender')).toBe('Source: Deutscher Wetterdienst');
-      expect(element.shadowRoot?.querySelector('.headline')?.getAttribute('style')).toContain('#e53935');
+      expect(element.shadowRoot?.querySelector('.headline')?.getAttribute('style')).toContain('#c62828');
       expect(element.shadowRoot?.querySelector('.bund-link')?.getAttribute('href')).toContain('mow.DE-1');
     });
 
