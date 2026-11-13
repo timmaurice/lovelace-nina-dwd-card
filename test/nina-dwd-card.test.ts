@@ -956,6 +956,51 @@ describe('NinaDwdCard', () => {
       // but count check verifies basic deduplication.
     });
 
+    it('should show the later end time when NINA and DWD warnings are merged', async () => {
+      const text = 'Amtliche WARNUNG vor FROST';
+      const desc = 'Frost in der Nacht.';
+      const start = hoursFromNow(1);
+      const ninaEnd = hoursFromNow(5);
+      const dwdEnd = hoursFromNow(6);
+      const fmt = (iso: string) =>
+        new Date(iso).toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      const setup = (nina: string, dwd: string) => {
+        hass.states['binary_sensor.nina_warnung_1'] = {
+          state: 'on',
+          attributes: { headline: text, description: desc, sender: 'DWD', severity: 'Severe', start, expires: nina },
+        };
+        hass.entities['sensor.berlin_current_warning_level'] = {
+          entity_id: 'sensor.berlin_current_warning_level',
+          device_id: 'mock-dwd-device',
+        };
+        hass.states['sensor.berlin_current_warning_level'] = {
+          state: '1',
+          attributes: {
+            warning_1_headline: text,
+            warning_1_description: desc,
+            warning_1_level: 2,
+            warning_1_start: start,
+            warning_1_end: dwd,
+            warning_1_type: 1,
+          },
+        };
+        element.hass = hass;
+        element.setConfig(config);
+      };
+
+      setup(ninaEnd, dwdEnd);
+      await element.updateComplete;
+      let time = element.shadowRoot?.querySelector('.warning .time')?.textContent ?? '';
+      expect(element.shadowRoot?.querySelectorAll('.warning').length).toBe(1);
+      expect(time).toContain(fmt(dwdEnd));
+
+      setup(dwdEnd, ninaEnd);
+      await element.updateComplete;
+      time = element.shadowRoot?.querySelector('.warning .time')?.textContent ?? '';
+      expect(time).toContain(fmt(dwdEnd));
+    });
+
     it('should NOT merge warnings with same headline but different description', async () => {
       // Warning 1
       hass.states['binary_sensor.nina_warnung_1'] = {

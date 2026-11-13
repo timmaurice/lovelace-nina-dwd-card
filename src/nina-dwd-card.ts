@@ -1113,6 +1113,19 @@ export class NinaDwdCard extends LitElement {
         (target as NinaWarning).areas = [...targetAreas, ...sourceAreas.filter((a) => !targetAreas.includes(a))];
       };
 
+      const getEndValue = (w: NinaWarning | DwdWarning): string | undefined =>
+        'expires' in w ? w.expires : (w as DwdWarning).end;
+      const getEndTime = (w: NinaWarning | DwdWarning): number => {
+        const value = getEndValue(w);
+        return value ? new Date(value).getTime() : 0;
+      };
+      // A merged object can carry both `expires` (NINA) and `end` (DWD); keep them in sync.
+      const setEnd = (target: NinaWarning | DwdWarning, value: string | undefined): void => {
+        if (!value) return;
+        if ('expires' in target) (target as NinaWarning).expires = value;
+        if ('end' in target || !('expires' in target)) (target as DwdWarning).end = value;
+      };
+
       const normalize = (str: string | undefined | null): string => {
         return (str || '')
           .replace(/<[^>]*>/g, ' ')
@@ -1152,22 +1165,11 @@ export class NinaDwdCard extends LitElement {
                 existing.start = tempStart;
               }
 
-              const getEndTime = (w: NinaWarning | DwdWarning) => {
-                if ('expires' in w) return w.expires ? new Date(w.expires).getTime() : 0;
-                if ('end' in w) return w.end ? new Date(w.end).getTime() : 0;
-                return 0;
-              };
-
-              // We already assigned warning to existing, so existing now has DWD end time.
-              // Check if the original NINA end time was later
-              const originalEndMs = tempEnd ? new Date(tempEnd).getTime() : 0;
+              // Object.assign left the NINA `expires` next to the DWD `end`, and formatTime
+              // prefers `expires`. Write the latest end time to every end field.
               const newEndMs = getEndTime(warning);
-
-              if (originalEndMs > newEndMs && tempEnd) {
-                if ('expires' in existing) (existing as NinaWarning).expires = tempEnd;
-                // DWD uses 'end', we just converted it to DWD type effectively, so use 'end'
-                else (existing as DwdWarning).end = tempEnd;
-              }
+              const originalEndMs = tempEnd ? new Date(tempEnd).getTime() : 0;
+              setEnd(existing, originalEndMs > newEndMs && tempEnd ? tempEnd : getEndValue(warning));
             } else {
               // Normal merge (existing is base)
               // Update start time to be the earliest
@@ -1178,21 +1180,8 @@ export class NinaDwdCard extends LitElement {
               }
 
               // Update end/expires time to be the latest
-              const getEndTime = (w: NinaWarning | DwdWarning) => {
-                if ('expires' in w) return w.expires ? new Date(w.expires).getTime() : 0;
-                if ('end' in w) return w.end ? new Date(w.end).getTime() : 0;
-                return 0;
-              };
-
-              const existingEnd = getEndTime(existing);
-              const newEnd = getEndTime(warning);
-
-              if (newEnd > existingEnd) {
-                if ('expires' in existing && 'expires' in warning) {
-                  (existing as NinaWarning).expires = (warning as NinaWarning).expires;
-                } else if ('end' in existing && 'end' in warning) {
-                  (existing as DwdWarning).end = (warning as DwdWarning).end;
-                }
+              if (getEndTime(warning) > getEndTime(existing)) {
+                setEnd(existing, getEndValue(warning));
               }
             }
 
