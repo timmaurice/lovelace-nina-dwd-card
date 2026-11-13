@@ -2589,6 +2589,17 @@ describe('NinaDwdCard', () => {
       callService = vi.fn().mockResolvedValue(answer({ [SLOT]: details() }));
       hass.callService = callService as unknown as HomeAssistant['callService'];
       hass.states[SLOT] = bareSlot('mow.DE-1');
+      for (const id of [SLOT, 'binary_sensor.nina_warnung_2']) hass.entities[id] = { platform: 'nina' };
+    });
+
+    it('should only ask about entities of the nina platform', async () => {
+      hass.states['binary_sensor.nina_warnung_2'] = bareSlot('foreign-2');
+      hass.entities['binary_sensor.nina_warnung_2'] = { platform: 'template' };
+
+      await mount();
+
+      expect(detailCalls()).toHaveLength(1);
+      expect(detailCalls()[0][3]).toEqual({ entity_id: [SLOT] });
     });
 
     it('should render a warning from nina.get_details when the attributes are gone', async () => {

@@ -982,6 +982,9 @@ export class NinaDwdCard extends LitElement {
     const now = Date.now();
     const requests: { entityId: string; key: string }[] = [];
     for (const { entityId, stateObj } of this._getActiveNinaSlots()) {
+      // A prefix can match entities of other integrations. `nina.get_details`
+      // rejects those and Home Assistant logs an error for each one.
+      if (this.hass.entities?.[entityId]?.platform !== 'nina') continue;
       const key = ninaDetailsKey(stateObj);
       const entry = this._ninaDetails.get(entityId);
       if (entry?.key === key && (entry.details || now - entry.fetchedAt < NINA_DETAILS_RETRY_MS)) continue;
