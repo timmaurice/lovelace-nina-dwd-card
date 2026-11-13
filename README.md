@@ -186,6 +186,18 @@ color_overrides:
 
 4.  In your Home Assistant instance, you will need to configure Lovelace to use the local development version of the card from `dist/nina-dwd-card.js`.
 
+5.  **Run the end-to-end tests** (needs Docker). From a fresh clone:
+
+    ```bash
+    npm ci
+    npx playwright install chromium
+    npm run build
+    npm run test:e2e
+    ```
+
+    The suite starts the Home Assistant in `test-env/` (port 8135), creates the `admin` / `password`
+    test user on first start and runs the Playwright specs. The same steps run in CI (`e2e` job).
+
 </details>
 
 ---
