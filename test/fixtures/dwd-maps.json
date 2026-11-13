@@ -1,0 +1,116 @@
+{
+  "state": {
+    "de": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "baw": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "bay": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "bbb": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "hes": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "mvp": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "nib": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "nrw": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "rps": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "sac": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "saa": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "shh": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    },
+    "thu": {
+      "type": "image/png",
+      "width": 500,
+      "height": 625
+    }
+  },
+  "region": {
+    "SchilderSU": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderMS": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderPD": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderOF": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderHA": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderEM": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderLZ": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderBodensee": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    },
+    "SchilderD": {
+      "type": "image/jpeg",
+      "width": 1366,
+      "height": 768
+    }
+  }
+}
