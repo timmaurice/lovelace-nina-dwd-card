@@ -1,5 +1,8 @@
 :host ::slotted(.card-content),
 .card-content {
+  // Lets the rules at the end of the file react to the width the card was given
+  // rather than to the viewport.
+  container: nina-dwd-card / inline-size;
   padding: 16px;
 }
 
@@ -355,6 +358,22 @@ hr {
 
     div {
       font-family: monospace;
+    }
+  }
+}
+
+// A card squeezed into a narrow sections slot (min_columns 4 is roughly 120px).
+// Wider than ~270px nothing here applies. Below it the map that floats beside a
+// DWD warning (40% wide, never narrower than 120px) leaves the headline a few
+// letters of room, so the map moves above the text and takes the card's width.
+@container nina-dwd-card (max-width: 240px) {
+  .map-container {
+    .warning & {
+      float: none;
+      margin-left: 0;
+      max-width: 100%;
+      min-width: 0;
+      width: 100%;
     }
   }
 }
