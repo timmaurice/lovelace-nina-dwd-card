@@ -274,7 +274,10 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
 
       return ((langTranslations.editor as TranslationObject)[key] as Record<string, string>) || {};
     };
-    const langOptions = getLangOptions(lang, langOptionsKey) || getLangOptions('en', langOptionsKey);
+    let langOptions = getLangOptions(lang, langOptionsKey);
+    if (Object.keys(langOptions).length === 0) {
+      langOptions = getLangOptions('en', langOptionsKey);
+    }
 
     const hideLevelOptions = [
       {
