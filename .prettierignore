@@ -9,3 +9,6 @@ package-lock.json
 # Playwright's captured session (generated, gitignored)
 test/e2e/.auth.json
 test/e2e/.storage-state.json
+
+# Recorded verbatim from home-assistant/core (scripts/refresh_fixtures.mjs)
+test/fixtures/core/

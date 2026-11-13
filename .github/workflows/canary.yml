@@ -1,0 +1,65 @@
+name: Canary
+
+# The unit tests run on entities and URLs the tests make up, so they stay green
+# when Home Assistant's `nina` or `dwd_weather_warnings` integration renames an
+# attribute or when the DWD moves a warning map. This job reads core's current
+# source and the DWD's maps once a week and fails when something the card reads
+# is gone, or a map's proportions (which the overlay is tuned to) have changed.
+# See scripts/canary.mjs; when it fails because core or the DWD moved, fix the
+# card and run scripts/refresh_fixtures.mjs.
+
+on:
+  schedule:
+    - cron: '53 6 * * 1' # Mondays, off the hour
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: Live seam canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      # No `npm ci`: the canary uses Node's own modules only.
+      - name: Check core's integrations and the DWD's maps
+        run: |
+          set +e
+          node scripts/canary.mjs 2>&1 | tee canary_output.txt
+          code=${PIPESTATUS[0]}
+          set -e
+
+          {
+            echo "### Live seam canary"
+            if [ "$code" -eq 0 ]; then
+              echo "> [!NOTE]"
+              echo "> The card still fits what core and the DWD serve."
+            elif [ "$code" -eq 1 ]; then
+              echo "> [!CAUTION]"
+              echo "> **Core's integrations or the DWD's maps have most likely changed.** Fix the card, then run \`node scripts/refresh_fixtures.mjs\`."
+            else
+              echo "> [!WARNING]"
+              echo "> A server could not be reached, so nothing is known about what it serves."
+            fi
+            echo ""
+            echo '```'
+            cat canary_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$code"
