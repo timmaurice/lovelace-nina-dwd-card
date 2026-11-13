@@ -72,6 +72,8 @@
   font-weight: bold;
   gap: 8px;
   margin-bottom: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 
   ha-icon {
     flex-shrink: 0;
