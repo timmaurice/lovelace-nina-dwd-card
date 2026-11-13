@@ -30,12 +30,25 @@ import cardStyles from './styles/card.styles.scss';
 import { EVENT_CODE_ICONS } from './icons';
 import { TranslationCache } from './translation-cache';
 
-const SEVERITY_COLORS: Record<number, string> = {
+/**
+ * Severity colours per theme. The light palette is tuned for a white card
+ * background and the dark palette for a near-black one; every entry reaches at
+ * least 4.5:1 contrast against its background (WCAG AA for text).
+ */
+const SEVERITY_COLORS_LIGHT: Record<number, string> = {
+  0: '#2e7d32' /* No Warning */,
+  1: '#8a6d00' /* Minor */,
+  2: '#b45309' /* Moderate */,
+  3: '#c62828' /* Severe */,
+  4: '#880e4f' /* Extreme */,
+};
+
+const SEVERITY_COLORS_DARK: Record<number, string> = {
   0: '#c5e566' /* No Warning */,
   1: '#ffeb3b' /* Minor */,
   2: '#fb8c00' /* Moderate */,
-  3: '#e53935' /* Severe */,
-  4: '#880e4f' /* Extreme */,
+  3: '#ff5252' /* Severe */,
+  4: '#ff80ab' /* Extreme */,
 };
 
 /** Number of warning slots probed per NINA prefix and per DWD sensor. */
@@ -808,7 +821,7 @@ export class NinaDwdCard extends LitElement {
   private _renderNoWarnings(): TemplateResult {
     return html`<div
       class="no-warnings"
-      style="color: ${this._config.color_overrides?.no_warning || SEVERITY_COLORS[0]}"
+      style="color: ${this._config.color_overrides?.no_warning || this._getSeverityPalette()[0]}"
     >
       ${localize(this.hass, 'card.no_warnings')}
     </div>`;
@@ -853,9 +866,14 @@ export class NinaDwdCard extends LitElement {
     </div>`;
   }
 
+  private _getSeverityPalette(): Record<number, string> {
+    return this._getThemeSettings().isDarkMode ? SEVERITY_COLORS_DARK : SEVERITY_COLORS_LIGHT;
+  }
+
   private _getWarningColor(warning: NinaWarning | DwdWarning): string {
     const overrides = this._config.color_overrides || {};
     const score = this._getSeverityScore(warning);
+    const SEVERITY_COLORS = this._getSeverityPalette();
 
     switch (score) {
       case 4:
