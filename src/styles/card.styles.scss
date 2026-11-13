@@ -385,7 +385,15 @@ hr {
 // Wider than ~270px nothing here applies. Below it the map that floats beside a
 // DWD warning (40% wide, never narrower than 120px) leaves the headline a few
 // letters of room, so the map moves above the text and takes the card's width.
+// The headline gets a smaller font and hyphenation so a word such as
+// "Amtliche" is hyphenated instead of being cut mid-word.
 @container nina-dwd-card (max-width: 240px) {
+  .headline {
+    font-size: 0.95em;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
+
   .map-container {
     .warning & {
       float: none;
