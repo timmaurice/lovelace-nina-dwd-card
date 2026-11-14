@@ -18,6 +18,8 @@ venv/
 test-env/config/*
 !test-env/config/configuration.yaml
 !test-env/config/ui-lovelace.yaml
+!test-env/config/python_scripts/
+!test-env/config/python_scripts/mock_dwd.py
 # Playwright
 test-results/
 playwright-report/
