@@ -87,3 +87,6 @@ export class TranslationCache {
     localStorage.removeItem(CACHE_KEY);
   }
 }
+
+/** Shared by every card: each instance writes its whole copy, so two would drop each other's entries. */
+export const translationCache = new TranslationCache();

@@ -28,7 +28,7 @@ import { sanitizeHtml } from './sanitize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
 import { EVENT_CODE_ICONS } from './icons';
-import { TranslationCache } from './translation-cache';
+import { translationCache } from './translation-cache';
 
 /**
  * Severity colours per theme. The light palette is tuned for a white card
@@ -127,7 +127,7 @@ export class NinaDwdCard extends LitElement {
   @state() private _expandedWarnings: Set<string> = new Set();
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
-  private _cache = new TranslationCache();
+  private _cache = translationCache;
   private _hasLoggedTranslationWarning = false;
   private _expiryTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set when the expiry timer has to be rescheduled without a `hass` change. */
