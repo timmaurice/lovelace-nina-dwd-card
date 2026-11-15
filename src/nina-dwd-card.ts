@@ -102,6 +102,18 @@ interface NinaDetailsEntry {
 const ninaDetailsKey = (stateObj: { attributes?: Record<string, unknown>; last_updated?: string }): string =>
   `${String(stateObj.attributes?.id ?? '')}|${stateObj.last_updated ?? ''}`;
 
+/**
+ * Which DWD warning sensor an entity is. The registry's translation_key survives a rename of the
+ * entity id; the id suffix (English or German, per HA's language at creation) is the fallback.
+ */
+const dwdSensorKind = (entityId: string, entity?: { translation_key?: string }): 'current' | 'advance' | undefined => {
+  if (entity?.translation_key === 'current_warning_level') return 'current';
+  if (entity?.translation_key === 'advance_warning_level') return 'advance';
+  if (entityId.endsWith('_aktuelle_warnstufe') || entityId.endsWith('_current_warning_level')) return 'current';
+  if (entityId.endsWith('_vorwarnstufe') || entityId.endsWith('_advance_warning_level')) return 'advance';
+  return undefined;
+};
+
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
 
@@ -1311,11 +1323,8 @@ export class NinaDwdCard extends LitElement {
     for (const entityId in this.hass.entities) {
       const entity = this.hass.entities[entityId];
       if (entity.device_id === deviceId) {
-        if (entityId.endsWith('_aktuelle_warnstufe') || entityId.endsWith('_current_warning_level')) {
-          entities.current = entityId;
-        } else if (entityId.endsWith('_vorwarnstufe') || entityId.endsWith('_advance_warning_level')) {
-          entities.advance = entityId;
-        }
+        const kind = dwdSensorKind(entityId, entity);
+        if (kind) entities[kind] = entityId;
       }
     }
 
@@ -1571,12 +1580,7 @@ if (!window.customCards.some((card) => (card as { type?: string }).type === 'nin
         };
       }
       const entity = hass.entities[entityId];
-      const isDwd =
-        entityId.endsWith('_aktuelle_warnstufe') ||
-        entityId.endsWith('_current_warning_level') ||
-        entityId.endsWith('_vorwarnstufe') ||
-        entityId.endsWith('_advance_warning_level');
-      if (isDwd && entity?.device_id) {
+      if (dwdSensorKind(entityId, entity) && entity?.device_id) {
         return {
           config: {
             type: 'custom:nina-dwd-card',

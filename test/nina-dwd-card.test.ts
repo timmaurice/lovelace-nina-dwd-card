@@ -176,6 +176,45 @@ describe('NinaDwdCard', () => {
       expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('Source: Deutscher Wetterdienst');
     });
 
+    // The entity id is the user's to rename; the registry's translation_key is not.
+    it('should find renamed DWD sensors by their translation_key', async () => {
+      hass.entities['sensor.dwd_home_current'] = {
+        entity_id: 'sensor.dwd_home_current',
+        device_id: 'mock-dwd-device',
+        translation_key: 'current_warning_level',
+      };
+      hass.states['sensor.dwd_home_current'] = {
+        state: '3',
+        attributes: {
+          warning_count: 1,
+          warning_1_headline: 'Renamed Current Warning',
+          warning_1_level: 3,
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      hass.entities['sensor.dwd_home_advance'] = {
+        entity_id: 'sensor.dwd_home_advance',
+        device_id: 'mock-dwd-device',
+        translation_key: 'advance_warning_level',
+      };
+      hass.states['sensor.dwd_home_advance'] = {
+        state: '2',
+        attributes: {
+          warning_count: 1,
+          warning_1_headline: 'Renamed Advance Warning',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(24),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+      const headlines = [...(element.shadowRoot?.querySelectorAll('.warning .headline') ?? [])].map((h) =>
+        h.textContent?.trim(),
+      );
+      expect(headlines).toEqual(['Renamed Current Warning', 'Renamed Advance Warning']);
+    });
+
     it('should render a NINA warning without a start date', async () => {
       hass.states['binary_sensor.nina_warnung_1'] = {
         state: 'on',
@@ -2501,6 +2540,28 @@ describe('NinaDwdCard', () => {
         'binary_sensor.warning_berlin',
       ]);
       expect(registration?.getEntitySuggestion?.(hass, 'sensor.something_else')).toBeNull();
+    });
+
+    it('should suggest a config for a renamed DWD sensor by its translation_key', () => {
+      const registration = (
+        window.customCards as Array<{
+          type: string;
+          getEntitySuggestion?: (
+            hass: HomeAssistant,
+            entityId: string,
+          ) => { config: NinaDwdCardConfig } | null | undefined;
+        }>
+      ).find((card) => card.type === 'nina-dwd-card');
+      hass.entities['sensor.dwd_home_current'] = {
+        entity_id: 'sensor.dwd_home_current',
+        device_id: 'dwd-device',
+        translation_key: 'current_warning_level',
+      };
+
+      expect(registration?.getEntitySuggestion?.(hass, 'sensor.dwd_home_current')?.config).toEqual({
+        type: 'custom:nina-dwd-card',
+        dwd_device: 'dwd-device',
+      });
     });
 
     it('should reject an empty configuration in English, before hass is set', () => {
