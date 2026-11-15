@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../src/nina-dwd-card';
 import { NinaDwdCard } from '../src/nina-dwd-card';
+import { translationCache } from '../src/translation-cache';
 import { DwdWarning, HomeAssistant, NinaDwdCardConfig, HaCard, NinaWarning } from '../src/types';
 import { getWarningHeadline, isHeadlineHidden, stripWarningPrefix } from '../src/utils';
 
@@ -66,7 +67,7 @@ describe('NinaDwdCard', () => {
   afterEach(() => {
     document.body.removeChild(element);
     vi.clearAllMocks();
-    localStorage.clear();
+    translationCache.clear();
   });
 
   describe('Initialization and Configuration', () => {
@@ -174,6 +175,45 @@ describe('NinaDwdCard', () => {
       expect(warning).not.toBeNull();
       expect(warning?.querySelector('.headline')?.textContent?.trim()).toBe('DWD Test Warning');
       expect(warning?.querySelector('.sender')?.textContent?.trim()).toBe('Source: Deutscher Wetterdienst');
+    });
+
+    // The entity id is the user's to rename; the registry's translation_key is not.
+    it('should find renamed DWD sensors by their translation_key', async () => {
+      hass.entities['sensor.dwd_home_current'] = {
+        entity_id: 'sensor.dwd_home_current',
+        device_id: 'mock-dwd-device',
+        translation_key: 'current_warning_level',
+      };
+      hass.states['sensor.dwd_home_current'] = {
+        state: '3',
+        attributes: {
+          warning_count: 1,
+          warning_1_headline: 'Renamed Current Warning',
+          warning_1_level: 3,
+          warning_1_start: new Date().toISOString(),
+        },
+      };
+      hass.entities['sensor.dwd_home_advance'] = {
+        entity_id: 'sensor.dwd_home_advance',
+        device_id: 'mock-dwd-device',
+        translation_key: 'advance_warning_level',
+      };
+      hass.states['sensor.dwd_home_advance'] = {
+        state: '2',
+        attributes: {
+          warning_count: 1,
+          warning_1_headline: 'Renamed Advance Warning',
+          warning_1_level: 2,
+          warning_1_start: hoursFromNow(24),
+        },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+      const headlines = [...(element.shadowRoot?.querySelectorAll('.warning .headline') ?? [])].map((h) =>
+        h.textContent?.trim(),
+      );
+      expect(headlines).toEqual(['Renamed Current Warning', 'Renamed Advance Warning']);
     });
 
     it('should render a NINA warning without a start date', async () => {
@@ -1847,6 +1887,64 @@ describe('NinaDwdCard', () => {
       const warning = element.shadowRoot?.querySelector('.warning');
       expect(warning?.innerHTML).toContain('Nested Translated Headline');
     });
+
+    // Each call is a paid AI request, so a warning the card does not render must not cost one.
+    it('should translate only the warnings the card renders', async () => {
+      const warn = (headline: string, severity: string) => ({
+        state: 'on',
+        attributes: { headline, description: `${headline} text`, sender: 'S', severity, start: hoursFromNow(-1) },
+      });
+      hass.states['binary_sensor.nina_warnung_1'] = warn('Sturm', 'Severe');
+      hass.states['binary_sensor.nina_warnung_2'] = warn('Hochwasser', 'Severe');
+      hass.states['binary_sensor.nina_warnung_3'] = warn('Glätte', 'Minor');
+      hass.states['binary_sensor.nina_warnung_4'] = warn('Nebel', 'Minor');
+
+      const callServiceMock = vi.fn().mockResolvedValue({ response: { data: { headline: 'T', description: 'T' } } });
+      hass.callService = callServiceMock as unknown as HomeAssistant['callService'];
+
+      element.hass = hass;
+      element.setConfig({ ...config, enable_translation: true, hide_on_level_below: 3, max_warnings: 1 });
+      await element.updateComplete;
+      // The calls run one after another, each racing its own timeout timer.
+      await vi.runAllTimersAsync();
+
+      const translated = callServiceMock.mock.calls.filter(([domain]) => domain === 'ai_task');
+      expect(translated).toHaveLength(1);
+      expect(element.shadowRoot?.querySelectorAll('.warning')).toHaveLength(1);
+    });
+
+    // Each card used to keep its own copy and write it whole, so the last write dropped the other card's.
+    it('should keep the cached translations of two cards on one page', async () => {
+      const warn = (headline: string) => ({
+        state: 'on',
+        attributes: {
+          headline,
+          description: `${headline} text`,
+          sender: 'S',
+          severity: 'Severe',
+          start: hoursFromNow(-1),
+        },
+      });
+      hass.states['binary_sensor.nina_warnung_1'] = warn('Sturm');
+      hass.states['binary_sensor.nina_zwei_1'] = warn('Hochwasser');
+      hass.callService = vi.fn().mockResolvedValue({
+        response: { data: { headline: 'T', description: 'T' } },
+      }) as unknown as HomeAssistant['callService'];
+
+      const second = document.createElement('nina-dwd-card') as NinaDwdCard;
+      document.body.appendChild(second);
+      element.hass = hass;
+      second.hass = hass;
+      element.setConfig({ ...config, enable_translation: true });
+      second.setConfig({ ...config, nina_entity_prefix: 'binary_sensor.nina_zwei', enable_translation: true });
+      await element.updateComplete;
+      await second.updateComplete;
+      await vi.runAllTimersAsync();
+      document.body.removeChild(second);
+
+      const stored = JSON.parse(localStorage.getItem('nina_dwd_translations') || '{}');
+      expect(Object.keys(stored.English ?? {})).toHaveLength(2);
+    });
   });
 
   describe('Theme Modes', () => {
@@ -2501,6 +2599,28 @@ describe('NinaDwdCard', () => {
         'binary_sensor.warning_berlin',
       ]);
       expect(registration?.getEntitySuggestion?.(hass, 'sensor.something_else')).toBeNull();
+    });
+
+    it('should suggest a config for a renamed DWD sensor by its translation_key', () => {
+      const registration = (
+        window.customCards as Array<{
+          type: string;
+          getEntitySuggestion?: (
+            hass: HomeAssistant,
+            entityId: string,
+          ) => { config: NinaDwdCardConfig } | null | undefined;
+        }>
+      ).find((card) => card.type === 'nina-dwd-card');
+      hass.entities['sensor.dwd_home_current'] = {
+        entity_id: 'sensor.dwd_home_current',
+        device_id: 'dwd-device',
+        translation_key: 'current_warning_level',
+      };
+
+      expect(registration?.getEntitySuggestion?.(hass, 'sensor.dwd_home_current')?.config).toEqual({
+        type: 'custom:nina-dwd-card',
+        dwd_device: 'dwd-device',
+      });
     });
 
     it('should reject an empty configuration in English, before hass is set', () => {

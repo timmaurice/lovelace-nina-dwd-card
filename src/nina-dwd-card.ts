@@ -28,7 +28,7 @@ import { sanitizeHtml } from './sanitize';
 import { MAP_DATA, MapData } from './map-data';
 import cardStyles from './styles/card.styles.scss';
 import { EVENT_CODE_ICONS } from './icons';
-import { TranslationCache } from './translation-cache';
+import { translationCache } from './translation-cache';
 
 /**
  * Severity colours per theme. The light palette is tuned for a white card
@@ -102,6 +102,18 @@ interface NinaDetailsEntry {
 const ninaDetailsKey = (stateObj: { attributes?: Record<string, unknown>; last_updated?: string }): string =>
   `${String(stateObj.attributes?.id ?? '')}|${stateObj.last_updated ?? ''}`;
 
+/**
+ * Which DWD warning sensor an entity is. The registry's translation_key survives a rename of the
+ * entity id; the id suffix (English or German, per HA's language at creation) is the fallback.
+ */
+const dwdSensorKind = (entityId: string, entity?: { translation_key?: string }): 'current' | 'advance' | undefined => {
+  if (entity?.translation_key === 'current_warning_level') return 'current';
+  if (entity?.translation_key === 'advance_warning_level') return 'advance';
+  if (entityId.endsWith('_aktuelle_warnstufe') || entityId.endsWith('_current_warning_level')) return 'current';
+  if (entityId.endsWith('_vorwarnstufe') || entityId.endsWith('_advance_warning_level')) return 'advance';
+  return undefined;
+};
+
 const DEFAULT_AI_PROMPT = `Translate the following warning details to {{ target_language }}. Return ONLY a JSON object with keys: headline, description, instruction (if present). 
 Headline: {{ headline }} Description: {{ description }} Instruction: {{ instruction }}`;
 
@@ -115,7 +127,7 @@ export class NinaDwdCard extends LitElement {
   @state() private _expandedWarnings: Set<string> = new Set();
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
-  private _cache = new TranslationCache();
+  private _cache = translationCache;
   private _hasLoggedTranslationWarning = false;
   private _expiryTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set when the expiry timer has to be rescheduled without a `hass` change. */
@@ -214,6 +226,25 @@ export class NinaDwdCard extends LitElement {
   }
 
   /**
+   * The warnings the card renders. Mirrors the render path: the separate view
+   * processes the current and the advance list on their own, so each is capped
+   * at `max_warnings` and the card can render up to twice as many warnings as
+   * the combined view.
+   */
+  private _displayedWarnings(
+    ninaWarnings: NinaWarning[],
+    dwdCurrentWarnings: DwdWarning[],
+    dwdAdvanceWarnings: DwdWarning[],
+  ): (NinaWarning | DwdWarning)[] {
+    return this._config.separate_advance_warnings
+      ? [
+          ...this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings]),
+          ...this._processWarnings([...dwdAdvanceWarnings]),
+        ]
+      : this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]);
+  }
+
+  /**
    * The height the card claims in the masonry layout.
    *
    * @returns The number of ~50px rows the card needs.
@@ -222,13 +253,7 @@ export class NinaDwdCard extends LitElement {
     if (!this._config || !this.hass) return CARD_SIZE_PER_WARNING;
 
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
-    // Mirrors the render path: the separate view processes the current and the
-    // advance list on their own, so each is capped at `max_warnings` and the
-    // card can render up to twice as many warnings as the combined view.
-    const count = this._config.separate_advance_warnings
-      ? this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings]).length +
-        this._processWarnings([...dwdAdvanceWarnings]).length
-      : this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]).length;
+    const count = this._displayedWarnings(ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings).length;
 
     const standaloneMap =
       this._getMapUrl() && (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
@@ -413,10 +438,13 @@ export class NinaDwdCard extends LitElement {
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
     const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
 
-    // A warning whose details are still on their way is translated once they
+    // Only what is rendered is translated: each call is a paid AI request. A
+    // warning whose details are still on their way is translated once they
     // arrive: the answer re-runs this path, and translating now would send the
     // AI a warning without its text and cache that result.
-    const translatable = allWarnings.filter((warning) => !this._ninaDetailsPending.has(warning.entity_id));
+    const translatable = this._displayedWarnings(ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings).filter(
+      (warning) => !this._ninaDetailsPending.has(warning.entity_id),
+    );
     if (dataChanged && translatable.length > 0) {
       this._translateWarnings(translatable);
     }
@@ -1311,11 +1339,8 @@ export class NinaDwdCard extends LitElement {
     for (const entityId in this.hass.entities) {
       const entity = this.hass.entities[entityId];
       if (entity.device_id === deviceId) {
-        if (entityId.endsWith('_aktuelle_warnstufe') || entityId.endsWith('_current_warning_level')) {
-          entities.current = entityId;
-        } else if (entityId.endsWith('_vorwarnstufe') || entityId.endsWith('_advance_warning_level')) {
-          entities.advance = entityId;
-        }
+        const kind = dwdSensorKind(entityId, entity);
+        if (kind) entities[kind] = entityId;
       }
     }
 
@@ -1571,12 +1596,7 @@ if (!window.customCards.some((card) => (card as { type?: string }).type === 'nin
         };
       }
       const entity = hass.entities[entityId];
-      const isDwd =
-        entityId.endsWith('_aktuelle_warnstufe') ||
-        entityId.endsWith('_current_warning_level') ||
-        entityId.endsWith('_vorwarnstufe') ||
-        entityId.endsWith('_advance_warning_level');
-      if (isDwd && entity?.device_id) {
+      if (dwdSensorKind(entityId, entity) && entity?.device_id) {
         return {
           config: {
             type: 'custom:nina-dwd-card',
