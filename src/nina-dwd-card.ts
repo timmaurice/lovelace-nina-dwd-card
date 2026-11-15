@@ -226,6 +226,25 @@ export class NinaDwdCard extends LitElement {
   }
 
   /**
+   * The warnings the card renders. Mirrors the render path: the separate view
+   * processes the current and the advance list on their own, so each is capped
+   * at `max_warnings` and the card can render up to twice as many warnings as
+   * the combined view.
+   */
+  private _displayedWarnings(
+    ninaWarnings: NinaWarning[],
+    dwdCurrentWarnings: DwdWarning[],
+    dwdAdvanceWarnings: DwdWarning[],
+  ): (NinaWarning | DwdWarning)[] {
+    return this._config.separate_advance_warnings
+      ? [
+          ...this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings]),
+          ...this._processWarnings([...dwdAdvanceWarnings]),
+        ]
+      : this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]);
+  }
+
+  /**
    * The height the card claims in the masonry layout.
    *
    * @returns The number of ~50px rows the card needs.
@@ -234,13 +253,7 @@ export class NinaDwdCard extends LitElement {
     if (!this._config || !this.hass) return CARD_SIZE_PER_WARNING;
 
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
-    // Mirrors the render path: the separate view processes the current and the
-    // advance list on their own, so each is capped at `max_warnings` and the
-    // card can render up to twice as many warnings as the combined view.
-    const count = this._config.separate_advance_warnings
-      ? this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings]).length +
-        this._processWarnings([...dwdAdvanceWarnings]).length
-      : this._processWarnings([...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings]).length;
+    const count = this._displayedWarnings(ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings).length;
 
     const standaloneMap =
       this._getMapUrl() && (this._config.dwd_map_position === 'above' || this._config.dwd_map_position === 'below')
@@ -425,10 +438,13 @@ export class NinaDwdCard extends LitElement {
     const { ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings } = this._collectWarnings();
     const allWarnings = [...ninaWarnings, ...dwdCurrentWarnings, ...dwdAdvanceWarnings];
 
-    // A warning whose details are still on their way is translated once they
+    // Only what is rendered is translated: each call is a paid AI request. A
+    // warning whose details are still on their way is translated once they
     // arrive: the answer re-runs this path, and translating now would send the
     // AI a warning without its text and cache that result.
-    const translatable = allWarnings.filter((warning) => !this._ninaDetailsPending.has(warning.entity_id));
+    const translatable = this._displayedWarnings(ninaWarnings, dwdCurrentWarnings, dwdAdvanceWarnings).filter(
+      (warning) => !this._ninaDetailsPending.has(warning.entity_id),
+    );
     if (dataChanged && translatable.length > 0) {
       this._translateWarnings(translatable);
     }

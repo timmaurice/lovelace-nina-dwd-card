@@ -1886,6 +1886,31 @@ describe('NinaDwdCard', () => {
       const warning = element.shadowRoot?.querySelector('.warning');
       expect(warning?.innerHTML).toContain('Nested Translated Headline');
     });
+
+    // Each call is a paid AI request, so a warning the card does not render must not cost one.
+    it('should translate only the warnings the card renders', async () => {
+      const warn = (headline: string, severity: string) => ({
+        state: 'on',
+        attributes: { headline, description: `${headline} text`, sender: 'S', severity, start: hoursFromNow(-1) },
+      });
+      hass.states['binary_sensor.nina_warnung_1'] = warn('Sturm', 'Severe');
+      hass.states['binary_sensor.nina_warnung_2'] = warn('Hochwasser', 'Severe');
+      hass.states['binary_sensor.nina_warnung_3'] = warn('Glätte', 'Minor');
+      hass.states['binary_sensor.nina_warnung_4'] = warn('Nebel', 'Minor');
+
+      const callServiceMock = vi.fn().mockResolvedValue({ response: { data: { headline: 'T', description: 'T' } } });
+      hass.callService = callServiceMock as unknown as HomeAssistant['callService'];
+
+      element.hass = hass;
+      element.setConfig({ ...config, enable_translation: true, hide_on_level_below: 3, max_warnings: 1 });
+      await element.updateComplete;
+      // The calls run one after another, each racing its own timeout timer.
+      await vi.runAllTimersAsync();
+
+      const translated = callServiceMock.mock.calls.filter(([domain]) => domain === 'ai_task');
+      expect(translated).toHaveLength(1);
+      expect(element.shadowRoot?.querySelectorAll('.warning')).toHaveLength(1);
+    });
   });
 
   describe('Theme Modes', () => {
