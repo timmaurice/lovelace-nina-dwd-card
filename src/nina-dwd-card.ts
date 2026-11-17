@@ -13,7 +13,7 @@ import {
   asOptionalString,
   fireEvent,
   formatTime,
-  getNinaAreaName,
+  getNinaAreaNameForEntity,
   getWarningEndTime,
   getWarningHeadline,
   isHeadlineHidden,
@@ -1052,7 +1052,7 @@ export class NinaDwdCard extends LitElement {
       const warningId =
         id || asOptionalString(attributes.warning_id) || `${headline || ''}-${start || ''}-${description || ''}`;
 
-      const area = getNinaAreaName(asOptionalString(attributes.friendly_name), prefix);
+      const area = getNinaAreaNameForEntity(this.hass, entityId, prefix);
 
       const known = warningsById.get(warningId);
       if (known) {

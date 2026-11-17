@@ -2264,6 +2264,36 @@ describe('NinaDwdCard', () => {
       expect(chip?.getAttribute('title')).toBe('Battenberg (Eder), Stadt (Waldeck-Frankenberg - Hessen)');
     });
 
+    it('should take the area from the device name, whatever the server language', async () => {
+      // A Dutch install names the slot "Waarschuwing 1", which no suffix list knows.
+      const prefix = 'binary_sensor.aachen_stadt_aachen_stadteregion_nordrhein_westfalen_waarschuwing';
+      hass.states[`${prefix}_1`] = {
+        state: 'on',
+        attributes: {
+          id: 'warning-1',
+          friendly_name: 'Aachen, Stadt (Aachen, Städteregion - Nordrhein-Westfalen) Waarschuwing 1',
+          headline: 'Amtliche WARNUNG vor STURMBÖEN',
+          description: 'Es treten Sturmböen auf.',
+          sender: 'Deutscher Wetterdienst',
+          severity: 'Moderate',
+          start: new Date().toISOString(),
+        },
+      };
+      hass.entities = { ...hass.entities, [`${prefix}_1`]: { platform: 'nina', device_id: 'aachen' } };
+      hass.devices = {
+        ...hass.devices,
+        aachen: { name: 'Aachen, Stadt (Aachen, Städteregion - Nordrhein-Westfalen)' },
+      };
+
+      element.hass = hass;
+      element.setConfig({ ...config, nina_entity_prefix: prefix, show_nina_area: true });
+      await element.updateComplete;
+
+      const chip = element.shadowRoot?.querySelector('.area-chip');
+      expect(chip?.textContent?.trim()).toBe('Aachen, Stadt');
+      expect(chip?.getAttribute('title')).toBe('Aachen, Stadt (Aachen, Städteregion - Nordrhein-Westfalen)');
+    });
+
     it('should fall back to the prefix when the entity has no friendly name', async () => {
       const prefixConfig = {
         ...config,
