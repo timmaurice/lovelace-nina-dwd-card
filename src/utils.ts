@@ -3,6 +3,23 @@ import { localize } from './localize';
 
 export const WARNING_PREFIX_REGEX = /^(Amtliche (Unwetter)?warnung vor |VORABINFORMATION UNWETTER vor )/i;
 
+/**
+ * The NINA area a warning slot entity belongs to.
+ *
+ * NINA names each area's device after the area and only the slot entity after
+ * the warning, in the server language ("Waarschuwing 1" on a Dutch install).
+ * The device name therefore needs no language-specific stripping; the friendly
+ * name is only the fallback for an entity without a device.
+ */
+export function getNinaAreaNameForEntity(hass: HomeAssistant, entityId: string, entityPrefix: string): string {
+  const deviceId = hass.entities?.[entityId]?.device_id;
+  const device = deviceId ? hass.devices?.[deviceId] : undefined;
+  const deviceName = device?.name_by_user || device?.name;
+  if (typeof deviceName === 'string' && deviceName.trim()) return deviceName.trim();
+  const friendlyName = hass.states?.[entityId]?.attributes?.friendly_name;
+  return getNinaAreaName(typeof friendlyName === 'string' ? friendlyName : undefined, entityPrefix);
+}
+
 // Trailing "Warning 1" / "Warnung 3" / bare slot number of a NINA entity name.
 const NINA_SLOT_SUFFIX_REGEX = /(?:\s(?:Warning|Warnung))?\s*\d*$/;
 

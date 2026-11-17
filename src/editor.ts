@@ -2,7 +2,7 @@ import { LitElement, html, TemplateResult, css, unsafeCSS } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCardEditor, NinaDwdCardConfig, TranslationObject } from './types';
 import { localize, translations } from './localize';
-import { fireEvent } from './utils';
+import { fireEvent, getNinaAreaNameForEntity } from './utils';
 import editorStyles from './styles/editor.styles.scss';
 
 // Schema organized into logical sections
@@ -252,9 +252,7 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
     ninaEntities.forEach((eid) => {
       const prefix = eid.replace(/_?\d+$/, '');
       if (!ninaPrefixesMap.has(prefix)) {
-        const friendlyName = this.hass.states[eid]?.attributes.friendly_name || prefix;
-        const label = friendlyName.replace(/(?:\s(?:Warning|Warnung))?\s*\d*$/, '').trim();
-        ninaPrefixesMap.set(prefix, { label, value: prefix });
+        ninaPrefixesMap.set(prefix, { label: getNinaAreaNameForEntity(this.hass, eid, prefix), value: prefix });
       }
     });
 
