@@ -395,9 +395,21 @@ export class NinaDwdCard extends LitElement {
 
     // Each area gets its own chip: NINA area names contain commas, so a joined
     // text line would be ambiguous. The full name stays available as a tooltip.
+    // Only admins can open a device page, so only they get a link.
+    const devices = this.hass.user?.is_admin ? ((warning as NinaWarning).areaDevices ?? {}) : {};
     return html`<div class="areas">
       <ha-icon icon="mdi:map-marker"></ha-icon>
-      ${areas.map((area) => html`<span class="area-chip" title=${area}>${shortenNinaAreaName(area)}</span>`)}
+      ${areas.map((area) =>
+        devices[area]
+          ? html`<a
+              class="area-chip"
+              href="/config/devices/device/${devices[area]}"
+              title=${area}
+              @click=${this._navigate}
+              >${shortenNinaAreaName(area)}</a
+            >`
+          : html`<span class="area-chip" title=${area}>${shortenNinaAreaName(area)}</span>`,
+      )}
     </div>`;
   }
 
@@ -1053,6 +1065,8 @@ export class NinaDwdCard extends LitElement {
         id || asOptionalString(attributes.warning_id) || `${headline || ''}-${start || ''}-${description || ''}`;
 
       const area = getNinaAreaNameForEntity(this.hass, entityId, prefix);
+      const deviceId: unknown = this.hass.entities?.[entityId]?.device_id;
+      const areaDevice = area && typeof deviceId === 'string' ? { [area]: deviceId } : {};
 
       const known = warningsById.get(warningId);
       if (known) {
@@ -1061,6 +1075,7 @@ export class NinaDwdCard extends LitElement {
         if (area && !known.areas!.includes(area)) {
           known.areas!.push(area);
         }
+        known.areaDevices = { ...areaDevice, ...known.areaDevices };
         continue;
       }
 
@@ -1076,6 +1091,7 @@ export class NinaDwdCard extends LitElement {
         warning_id: id,
         sent: asOptionalString(field('sent')),
         areas: area ? [area] : [],
+        areaDevices: areaDevice,
       };
 
       warningsById.set(warningId, warning);
@@ -1228,6 +1244,10 @@ export class NinaDwdCard extends LitElement {
         if (!sourceAreas?.length) return;
         const targetAreas = ('areas' in target ? target.areas : undefined) || [];
         (target as NinaWarning).areas = [...targetAreas, ...sourceAreas.filter((a) => !targetAreas.includes(a))];
+        (target as NinaWarning).areaDevices = {
+          ...(source as NinaWarning).areaDevices,
+          ...(target as NinaWarning).areaDevices,
+        };
       };
 
       const getEndValue = (w: NinaWarning | DwdWarning): string | undefined =>
@@ -1346,6 +1366,14 @@ export class NinaDwdCard extends LitElement {
 
     return entities;
   }
+
+  /** Opens a link inside the frontend, the way HA's own links do, instead of reloading the page. */
+  private _navigate = (ev: MouseEvent): void => {
+    if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button !== 0) return;
+    ev.preventDefault();
+    history.pushState(null, '', (ev.currentTarget as HTMLAnchorElement).getAttribute('href'));
+    fireEvent(window, 'location-changed', { replace: false });
+  };
 
   private _handleMoreInfo(entityId: string): void {
     fireEvent(this, 'hass-more-info', { entityId });

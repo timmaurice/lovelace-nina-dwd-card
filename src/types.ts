@@ -57,6 +57,8 @@ export interface NinaWarning {
   sent?: string;
   /** Names of the NINA warning areas this warning was reported for. */
   areas?: string[];
+  /** The NINA device behind each area name, for linking the area chip. */
+  areaDevices?: Record<string, string>;
 }
 
 export interface DwdWarning {
