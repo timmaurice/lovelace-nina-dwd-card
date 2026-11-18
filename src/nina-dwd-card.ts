@@ -818,6 +818,7 @@ export class NinaDwdCard extends LitElement {
     const cardStyle = `
       ${isHidden && editMode ? 'opacity: 0.5;' : ''}
       ${this._config.font_size ? `font-size: ${this._config.font_size}px;` : ''}
+      ${this._hasTapAction() ? 'cursor: pointer;' : ''}
     `;
 
     if (isHidden && !editMode) {
@@ -825,7 +826,7 @@ export class NinaDwdCard extends LitElement {
     }
 
     return html`
-      <ha-card class=${modeClass} style=${cardStyle}>
+      <ha-card class=${modeClass} style=${cardStyle} @click=${this._handleCardTap}>
         ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
         <div class="card-content">
           ${renderMap('above')}
@@ -884,12 +885,13 @@ export class NinaDwdCard extends LitElement {
     const cardStyle = `
       ${isHidden && editMode ? 'opacity: 0.5;' : ''}
       ${this._config.font_size ? `font-size: ${this._config.font_size}px;` : ''}
+      ${this._hasTapAction() ? 'cursor: pointer;' : ''}
     `;
 
     if (isHidden && !editMode) return html``;
 
     return html`
-      <ha-card class=${modeClass} style=${cardStyle}>
+      <ha-card class=${modeClass} style=${cardStyle} @click=${this._handleCardTap}>
         ${this._config.title ? html`<div class="card-header">${this._config.title}</div>` : ''}
         <div class="card-content">
           ${renderMap('above')}
@@ -1346,6 +1348,21 @@ export class NinaDwdCard extends LitElement {
 
     return entities;
   }
+
+  private _hasTapAction(): boolean {
+    const action = this._config.tap_action?.action;
+    return !!action && action !== 'none';
+  }
+
+  private _handleCardTap = (ev: Event): void => {
+    if (!this._hasTapAction()) return;
+    // Links, buttons, the map and the lightbox keep their own click.
+    const own = ev
+      .composedPath()
+      .some((el) => el instanceof HTMLElement && el.matches('a, button, ha-icon-button, .map-container, .lightbox'));
+    if (own) return;
+    fireEvent(this, 'hass-action', { config: { tap_action: this._config.tap_action }, action: 'tap' });
+  };
 
   private _handleMoreInfo(entityId: string): void {
     fireEvent(this, 'hass-more-info', { entityId });

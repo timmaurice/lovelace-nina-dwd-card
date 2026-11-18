@@ -104,6 +104,11 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   ai_entity_id?: string;
   description_max_length?: number;
   font_size?: number;
+  /**
+   * Runs when the card is tapped outside its own links and buttons. The frontend
+   * performs it (navigate, more-info, perform-action, ...), the card never interprets it.
+   */
+  tap_action?: { action: string; [key: string]: unknown };
 }
 
 export interface HomeAssistant {

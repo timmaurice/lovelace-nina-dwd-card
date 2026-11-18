@@ -91,6 +91,46 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  describe('tap_action', () => {
+    const tap = { action: 'navigate', navigation_path: '#warning-popup' };
+
+    const renderWarning = async (tapAction?: NinaDwdCardConfig['tap_action']) => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { headline: 'NINA Test Warning', severity: 'Minor', start: new Date().toISOString() },
+      };
+      element.hass = hass;
+      element.setConfig({ ...config, tap_action: tapAction });
+      await element.updateComplete;
+      const actions: unknown[] = [];
+      element.addEventListener('hass-action', (ev) => actions.push((ev as CustomEvent).detail));
+      return actions;
+    };
+
+    it('hands the configured action to the frontend when the card is tapped', async () => {
+      const actions = await renderWarning(tap);
+      element.shadowRoot!.querySelector<HTMLElement>('.headline')!.click();
+      expect(actions).toEqual([{ config: { tap_action: tap }, action: 'tap' }]);
+      expect(element.shadowRoot!.querySelector<HTMLElement>('ha-card')!.style.cursor).toBe('pointer');
+    });
+
+    it('leaves the buttons of the card to their own click', async () => {
+      const actions = await renderWarning(tap);
+      const moreInfo = vi.fn();
+      element.addEventListener('hass-more-info', moreInfo);
+      element.shadowRoot!.querySelector<HTMLElement>('.info-button')!.click();
+      expect(moreInfo).toHaveBeenCalledOnce();
+      expect(actions).toEqual([]);
+    });
+
+    it('does nothing without a tap_action or with action none', async () => {
+      const actions = await renderWarning({ action: 'none' });
+      element.shadowRoot!.querySelector<HTMLElement>('.headline')!.click();
+      expect(actions).toEqual([]);
+      expect(element.shadowRoot!.querySelector<HTMLElement>('ha-card')!.style.cursor).toBe('');
+    });
+  });
+
   describe('Rendering', () => {
     it('should render a title if provided', async () => {
       config.title = 'Current Warnings';

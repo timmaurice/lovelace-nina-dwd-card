@@ -31,6 +31,7 @@
     "suppress_warning_text": "'Amtliche Warnung vor' und 'Vorabinformation Unwetter vor' entfernen",
     "description_max_length": "Maximale Länge der Beschreibung",
     "font_size": "Schriftgröße",
+    "tap_action": "Tipp-Aktion",
     "hide_on_level_below": "Warnungen ausblenden, deren Warnstufe niedriger ist als",
     "hide_headlines_containing": "Warnungen ausblenden, deren Titel Folgendes enthält",
     "show_nina_area": "NINA-Warngebiet pro Warnung anzeigen",
