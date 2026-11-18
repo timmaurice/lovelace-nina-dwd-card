@@ -413,6 +413,14 @@ export class NinaDwdCard extends LitElement {
     </div>`;
   }
 
+  /** Opens a link inside the frontend, the way HA's own links do, instead of reloading the page. */
+  private _navigate = (ev: MouseEvent): void => {
+    if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button !== 0) return;
+    ev.preventDefault();
+    history.pushState(null, '', (ev.currentTarget as HTMLAnchorElement).getAttribute('href'));
+    fireEvent(window, 'location-changed', { replace: false });
+  };
+
   private _toggleExpand(key: string): void {
     if (this._expandedWarnings.has(key)) {
       this._expandedWarnings.delete(key);
@@ -1366,14 +1374,6 @@ export class NinaDwdCard extends LitElement {
 
     return entities;
   }
-
-  /** Opens a link inside the frontend, the way HA's own links do, instead of reloading the page. */
-  private _navigate = (ev: MouseEvent): void => {
-    if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button !== 0) return;
-    ev.preventDefault();
-    history.pushState(null, '', (ev.currentTarget as HTMLAnchorElement).getAttribute('href'));
-    fireEvent(window, 'location-changed', { replace: false });
-  };
 
   private _handleMoreInfo(entityId: string): void {
     fireEvent(this, 'hass-more-info', { entityId });
