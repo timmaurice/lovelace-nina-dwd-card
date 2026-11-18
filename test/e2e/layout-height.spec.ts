@@ -65,8 +65,10 @@ test('a height from the Layout tab keeps the card in its cell and lets it scroll
     clientHeight: el.clientHeight,
   }));
   expect(scrollHeight).toBeGreaterThan(clientHeight);
-  // The title stays put while the warnings scroll.
-  await content.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  // The title stays put while the warnings scroll with the mouse wheel.
+  await content.hover();
+  await page.mouse.wheel(0, 2000);
+  await expect.poll(() => content.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
   await expect(card.locator('.card-header')).toBeInViewport();
   await expect(card.locator('.info-button').last()).toBeInViewport();
 });
