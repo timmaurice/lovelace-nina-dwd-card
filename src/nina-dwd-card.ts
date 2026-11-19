@@ -434,21 +434,6 @@ export class NinaDwdCard extends LitElement {
     </div>`;
   }
 
-  /** Folds a warning to one line, or unfolds it, and remembers that on this device. */
-  private _toggleSeen(key: string): void {
-    // Read again: another card on this device may have changed the list.
-    const seen = readSeen();
-    if (seen.has(key)) seen.delete(key);
-    else seen.add(key);
-    const kept = [...seen].slice(-MAX_SEEN_KEYS);
-    try {
-      localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(kept));
-    } catch {
-      // Storage full or blocked: the warning still folds until the next reload.
-    }
-    this._seen = new Set(kept);
-  }
-
   private _toggleExpand(key: string): void {
     if (this._expandedWarnings.has(key)) {
       this._expandedWarnings.delete(key);
@@ -966,6 +951,21 @@ export class NinaDwdCard extends LitElement {
     >
       ${localize(this.hass, 'card.no_warnings')}
     </div>`;
+  }
+
+  /** Folds a warning to one line, or unfolds it, and remembers that on this device. */
+  private _toggleSeen(key: string): void {
+    // Read again: another card on this device may have changed the list.
+    const seen = readSeen();
+    if (seen.has(key)) seen.delete(key);
+    else seen.add(key);
+    const kept = [...seen].slice(-MAX_SEEN_KEYS);
+    try {
+      localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(kept));
+    } catch {
+      // Storage full or blocked: the warning still folds until the next reload.
+    }
+    this._seen = new Set(kept);
   }
 
   private _renderFooter(warning: NinaWarning | DwdWarning): TemplateResult {
