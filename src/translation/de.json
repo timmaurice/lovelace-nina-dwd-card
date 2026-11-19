@@ -77,6 +77,11 @@
       "moderate": "Moderat",
       "severe": "Schwer"
     },
+    "sort_by": "Warnungen sortieren nach",
+    "sort_by_options": {
+      "severity": "Warnstufe",
+      "newest": "Neueste zuerst"
+    },
     "theme_mode": "Design Modus",
     "theme_mode_options": {
       "auto": "Automatisch",

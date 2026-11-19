@@ -91,6 +91,36 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  describe('sort_by', () => {
+    // The example from issue #108: a long storm warning, then a short thunderstorm inside it.
+    const render = async (sortBy?: NinaDwdCardConfig['sort_by']) => {
+      const warnings = [
+        ['STURMBÖEN', 'Moderate', -20],
+        ['STARKEM GEWITTER', 'Moderate', -1],
+        ['FROST', 'Minor', 0],
+        ['ORKANBÖEN', 'Severe', -30],
+      ] as const;
+      for (const [i, [headline, severity, startHours]] of warnings.entries()) {
+        hass.states[`binary_sensor.nina_warnung_${i + 1}`] = {
+          state: 'on',
+          attributes: { id: `w${i}`, headline, severity, start: hoursFromNow(startHours) },
+        };
+      }
+      element.hass = hass;
+      element.setConfig({ ...config, sort_by: sortBy });
+      await element.updateComplete;
+      return Array.from(element.shadowRoot!.querySelectorAll('.headline')).map((h) => h.textContent?.trim());
+    };
+
+    it('puts the most severe warning first by default', async () => {
+      expect(await render()).toEqual(['ORKANBÖEN', 'STURMBÖEN', 'STARKEM GEWITTER', 'FROST']);
+    });
+
+    it('puts the warning that started last first with newest', async () => {
+      expect(await render('newest')).toEqual(['FROST', 'STARKEM GEWITTER', 'STURMBÖEN', 'ORKANBÖEN']);
+    });
+  });
+
   describe('Rendering', () => {
     it('should render a title if provided', async () => {
       config.title = 'Current Warnings';

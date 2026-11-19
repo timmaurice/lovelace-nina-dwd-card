@@ -1315,8 +1315,11 @@ export class NinaDwdCard extends LitElement {
       processedWarnings.push(...mergedInGroup);
     }
 
+    const bySeverity = (a: NinaWarning | DwdWarning, b: NinaWarning | DwdWarning): number =>
+      this._getSeverityScore(b) - this._getSeverityScore(a);
+    const startOf = (w: NinaWarning | DwdWarning): number => new Date(w.start).getTime() || 0;
     let processed = processedWarnings
-      .sort((a, b) => this._getSeverityScore(b) - this._getSeverityScore(a))
+      .sort(this._config.sort_by === 'newest' ? (a, b) => startOf(b) - startOf(a) || bySeverity(a, b) : bySeverity)
       .filter((warning) => {
         if (!this._config.hide_on_level_below) return true;
         const score = this._getSeverityScore(warning);

@@ -77,6 +77,11 @@
       "moderate": "Moderate",
       "severe": "Severe"
     },
+    "sort_by": "Sort warnings by",
+    "sort_by_options": {
+      "severity": "Severity",
+      "newest": "Newest first"
+    },
     "theme_mode": "Theme Mode",
     "theme_mode_options": {
       "auto": "Auto",

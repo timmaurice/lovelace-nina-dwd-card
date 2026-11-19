@@ -88,6 +88,8 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   show_nina_area?: boolean;
   separate_advance_warnings?: boolean;
   hide_on_level_below?: number;
+  /** `severity` (default) puts the most severe warning first, `newest` the one that started last. */
+  sort_by?: 'severity' | 'newest';
   hide_headlines_containing?: string[];
   /** Hides warnings whose end time has passed. Defaults to true. */
   hide_expired?: boolean;

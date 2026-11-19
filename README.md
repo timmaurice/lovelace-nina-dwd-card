@@ -112,6 +112,7 @@ You can now add the card to your dashboard.
 | `font_size`                 | number         | `(none)`     | The font size for the card content in pixels.                                                                               |
 | `hide_when_no_warnings`     | boolean        | `false`      | Hides the entire card when there are no active warnings. The card remains visible in edit mode.                             |
 | `hide_expired`              | boolean        | `true`       | Hides warnings whose end time has passed, and drops them the moment they expire instead of waiting for the next poll.       |
+| `sort_by`                   | string         | `severity`   | Order of the warnings: `severity` (most severe first) or `newest` (latest start first).                                     |
 | `theme_mode`                | string         | `auto`       | Overrides the card's theme mode. Options: `auto`, `light`, `dark`.                                                          |
 | `color_overrides`           | object         | `(none)`     | Overrides the default severity colors. Keys: `no_warning`, `minor`, `moderate`, `severe`, `extreme`.                        |
 | `enable_translation`        | boolean        | `false`      | Translates headline, description and recommended actions with an AI Task entity. See [AI Translation](#ai-translation).     |
@@ -153,6 +154,7 @@ hide_footer: false
 separate_advance_warnings: true
 hide_when_no_warnings: true
 hide_expired: true # Drops warnings that have already ended (default)
+sort_by: severity # or newest: the warning that started last comes first
 theme_mode: auto
 color_overrides:
   severe: '#ff0000'
