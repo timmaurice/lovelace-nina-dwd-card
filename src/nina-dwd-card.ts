@@ -62,6 +62,21 @@ const SEVERITY_COLORS_DARK: Record<number, string> = {
 /** Number of warning slots probed per NINA prefix and per DWD sensor. */
 const MAX_WARNING_SLOTS = 20;
 
+/** Where the keys of warnings marked as seen live, per device. */
+const SEEN_STORAGE_KEY = 'nina-dwd-card-seen';
+// shortcut: keeps the 100 most recent keys instead of tracking which warnings ended; enough unless a device sees >100 at once.
+const MAX_SEEN_KEYS = 100;
+
+/** The warnings marked as seen on this device. Storage can be unavailable or hold junk, which reads as none. */
+const readSeen = (): Set<string> => {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(SEEN_STORAGE_KEY) ?? '[]');
+    return new Set(Array.isArray(raw) ? raw.filter((key): key is string => typeof key === 'string') : []);
+  } catch {
+    return new Set();
+  }
+};
+
 /** Grid rows a single rendered warning takes up, used by `getCardSize`. */
 const CARD_SIZE_PER_WARNING = 3;
 
@@ -125,6 +140,7 @@ export class NinaDwdCard extends LitElement {
   @state() private _showLargeMap = false;
   @state() private _translations: Record<string, { headline: string; description: string; instruction: string }> = {};
   @state() private _expandedWarnings: Set<string> = new Set();
+  @state() private _seen: Set<string> = readSeen();
   private _translationInProgress = new Set<string>();
   private _error: string | undefined;
   private _cache = translationCache;
@@ -303,6 +319,23 @@ export class NinaDwdCard extends LitElement {
         }
       }
 
+      if (this._seen.has(key)) {
+        return html`
+          ${index > 0 ? html`<hr />` : ''}
+          <button
+            type="button"
+            class="seen-line"
+            style="color: ${this._getWarningColor(warning)}"
+            aria-label=${localize(this.hass, 'card.show_again', { headline })}
+            @click=${() => this._toggleSeen(key)}
+          >
+            <ha-icon icon=${this._getWarningIcon(warning)}></ha-icon>
+            <span class="seen-headline">${headline}</span>
+            <span class="seen-time">${formatTime(warning, this.hass)}</span>
+          </button>
+        `;
+      }
+
       return html`
         ${index > 0 ? html`<hr />` : ''}
         <div class="warning">
@@ -399,6 +432,21 @@ export class NinaDwdCard extends LitElement {
       <ha-icon icon="mdi:map-marker"></ha-icon>
       ${areas.map((area) => html`<span class="area-chip" title=${area}>${shortenNinaAreaName(area)}</span>`)}
     </div>`;
+  }
+
+  /** Folds a warning to one line, or unfolds it, and remembers that on this device. */
+  private _toggleSeen(key: string): void {
+    // Read again: another card on this device may have changed the list.
+    const seen = readSeen();
+    if (seen.has(key)) seen.delete(key);
+    else seen.add(key);
+    const kept = [...seen].slice(-MAX_SEEN_KEYS);
+    try {
+      localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(kept));
+    } catch {
+      // Storage full or blocked: the warning still folds until the next reload.
+    }
+    this._seen = new Set(kept);
   }
 
   private _toggleExpand(key: string): void {
@@ -949,6 +997,12 @@ export class NinaDwdCard extends LitElement {
               </a>`
             : ''
         }
+        <ha-icon-button
+          class="seen-button"
+          .label=${localize(this.hass, 'card.mark_seen', { headline: this._getDisplayHeadline(warning) })}
+          @click=${() => this._toggleSeen(this._getWarningKey(warning))}
+          ><ha-icon icon="mdi:eye-check-outline"></ha-icon
+        ></ha-icon-button>
         <ha-icon-button
           class="info-button"
           .label=${localize(this.hass, 'card.more_info', { headline: this._getDisplayHeadline(warning) })}

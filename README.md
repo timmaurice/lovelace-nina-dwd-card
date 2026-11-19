@@ -23,6 +23,7 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Hides warnings that have already ended, without waiting for the next integration poll.
 - Shows a "No Warnings" message when no active warnings are present.
 - Displays sender information and a direct link to the official warning page on BUND.DE for NINA warnings.
+- Lets you fold a warning you have read to a single line with the eye icon in its footer. A tap on the line unfolds it again. Each device remembers this on its own, and a new warning always shows in full.
 - Designed to be fully customizable through the visual editor.
 
 ## AI Translation
