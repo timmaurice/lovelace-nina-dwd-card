@@ -2017,6 +2017,60 @@ describe('NinaDwdCard', () => {
     });
   });
 
+  describe('mark as seen', () => {
+    afterEach(() => localStorage.clear());
+
+    const render = async (card: NinaDwdCard) => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: {
+          id: 'w1',
+          headline: 'Sturmböen',
+          description: 'Es treten Sturmböen auf.',
+          severity: 'Moderate',
+          start: hoursFromNow(-1),
+        },
+      };
+      card.hass = hass;
+      card.setConfig(config);
+      await card.updateComplete;
+      return card.shadowRoot!;
+    };
+
+    it('folds a warning to one line and keeps it folded after a reload', async () => {
+      const root = await render(element);
+      root.querySelector<HTMLElement>('.seen-button')!.click();
+      await element.updateComplete;
+      expect(root.querySelector('.warning')).toBeNull();
+      expect(root.querySelector('.seen-line .seen-headline')?.textContent?.trim()).toBe('Sturmböen');
+
+      const reloaded = document.createElement('nina-dwd-card') as NinaDwdCard;
+      document.body.appendChild(reloaded);
+      const reloadedRoot = await render(reloaded);
+      expect(reloadedRoot.querySelector('.seen-line')).not.toBeNull();
+      reloaded.remove();
+    });
+
+    it('unfolds the warning when the line is tapped', async () => {
+      const root = await render(element);
+      root.querySelector<HTMLElement>('.seen-button')!.click();
+      await element.updateComplete;
+      root.querySelector<HTMLElement>('.seen-line')!.click();
+      await element.updateComplete;
+      expect(root.querySelector('.warning .description')?.textContent).toContain('Es treten Sturmböen auf.');
+      expect(JSON.parse(localStorage.getItem('nina-dwd-card-seen')!)).toEqual([]);
+    });
+
+    it('ignores storage it cannot read', async () => {
+      localStorage.setItem('nina-dwd-card-seen', '{broken');
+      const fresh = document.createElement('nina-dwd-card') as NinaDwdCard;
+      document.body.appendChild(fresh);
+      const root = await render(fresh);
+      expect(root.querySelector('.warning')).not.toBeNull();
+      fresh.remove();
+    });
+  });
+
   describe('Theme Modes', () => {
     it('should apply .mode-light class when theme_mode is light', async () => {
       element.hass = hass;

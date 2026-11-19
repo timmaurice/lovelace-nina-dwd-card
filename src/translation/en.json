@@ -133,6 +133,8 @@
     "map_alt": "DWD warning map",
     "map_alt_large": "Enlarged DWD warning map",
     "more_info": "More info for {headline}",
+    "mark_seen": "Mark {headline} as seen",
+    "show_again": "Show {headline} again",
     "debug": {
       "top": "Top padding",
       "bottom": "Bottom padding",

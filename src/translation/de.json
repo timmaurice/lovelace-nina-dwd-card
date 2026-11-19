@@ -133,6 +133,8 @@
     "map_alt": "DWD-Warnkarte",
     "map_alt_large": "Vergrößerte DWD-Warnkarte",
     "more_info": "Weitere Informationen zu {headline}",
+    "mark_seen": "{headline} als gesehen einklappen",
+    "show_again": "{headline} wieder aufklappen",
     "debug": {
       "top": "Abstand oben",
       "bottom": "Abstand unten",

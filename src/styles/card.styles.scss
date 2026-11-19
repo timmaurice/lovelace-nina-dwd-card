@@ -171,7 +171,8 @@ ha-card {
   margin-top: 8px;
 }
 
-.info-button {
+.info-button,
+.seen-button {
   /* ha-icon-button's own size tokens; the --mdc-icon-button-* ones are gone. */
   --ha-icon-button-size: 36px;
   /* (36px - 24px icon) / 2, so the icon stays centred as it was under MDC. */
@@ -287,7 +288,8 @@ ha-expansion-panel {
   width: 100%;
 }
 
-.info-button ha-icon {
+.info-button ha-icon,
+.seen-button ha-icon {
   transform: translateY(-4px);
 }
 
@@ -424,5 +426,38 @@ hr {
       min-width: 0;
       width: 100%;
     }
+  }
+}
+
+// A warning marked as seen: one line, tap to unfold it again.
+.seen-line {
+  align-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  padding: 4px 0;
+  text-align: start;
+  width: 100%;
+
+  ha-icon {
+    flex-shrink: 0;
+  }
+
+  .seen-headline {
+    flex: 1;
+    font-weight: bold;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .seen-time {
+    color: var(--secondary-text-color);
+    font-size: 0.9em;
+    white-space: nowrap;
   }
 }
