@@ -68,6 +68,10 @@ const SCHEMA = [
         selector: { select: { mode: 'dropdown' } },
       },
       {
+        name: 'sort_by',
+        selector: { select: { mode: 'dropdown' } },
+      },
+      {
         name: 'hide_headlines_containing',
         selector: { text: { multiple: true } },
       },
@@ -366,6 +370,16 @@ export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor 
               select: {
                 mode: 'dropdown',
                 options: hideLevelOptions,
+              },
+            };
+          } else if (newItem.name === 'sort_by') {
+            newItem.selector = {
+              select: {
+                mode: 'dropdown',
+                options: ['severity', 'newest'].map((key) => ({
+                  value: key,
+                  label: localize(this.hass, `editor.sort_by_options.${key}`),
+                })),
               },
             };
           } else if (newItem.name === 'theme_mode') {
