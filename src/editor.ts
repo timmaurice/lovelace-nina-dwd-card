@@ -149,6 +149,7 @@ const SCHEMA = [
       },
     ],
   },
+  { name: 'tap_action', selector: { ui_action: { default_action: 'none' } } },
 ];
 
 export class NinaDwdCardEditor extends LitElement implements LovelaceCardEditor {

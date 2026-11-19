@@ -117,6 +117,7 @@ You can now add the card to your dashboard.
 | `enable_translation`        | boolean        | `false`      | Translates headline, description and recommended actions with an AI Task entity. See [AI Translation](#ai-translation).     |
 | `translation_target`        | string         | `English`    | The language warnings are translated into, selected from the editor dropdown (e.g. `French`, `Bavarian`).                   |
 | `ai_entity_id`              | string         | `(none)`     | The `ai_task` entity used for the translation. Without it Home Assistant's preferred AI Task entity is used.                |
+| `tap_action`                | object         | `(none)`     | Runs a Home Assistant action when the card is tapped. See [Tap action](#tap-action).                                        |
 
 > [!IMPORTANT]
 > **Changed behaviour: expired warnings are hidden.** The card used to show a warning whose end time
@@ -157,6 +158,20 @@ theme_mode: auto
 color_overrides:
   severe: '#ff0000'
   extreme: '#880e4f'
+```
+
+### Tap action
+
+`tap_action` runs when you tap the card anywhere outside its own buttons and links. The map, the
+BUND.DE link, "show more" and the info icon keep their own function. The example opens a
+[Bubble Card](https://github.com/Clooos/Bubble-Card) popup, which shows the full warning text:
+
+```yaml
+type: custom:nina-dwd-card
+nina_entity_prefix: binary_sensor.warning_berlin
+tap_action:
+  action: navigate
+  navigation_path: '#warning-popup'
 ```
 
 ## Development
