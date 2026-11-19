@@ -70,27 +70,6 @@ describe('NinaDwdCard', () => {
     translationCache.clear();
   });
 
-  describe('Initialization and Configuration', () => {
-    it('should create the component instance', () => {
-      expect(element).toBeInstanceOf(HTMLElement);
-      expect(element.tagName.toLowerCase()).toBe('nina-dwd-card');
-    });
-
-    it('should render a configuration hint instead of throwing when no entities are provided', async () => {
-      // A configuration without a warning source is what the card picker
-      // previews, so it must render something rather than a red error card.
-      expect(() => element.setConfig({ type: 'custom:nina-dwd-card' })).not.toThrow();
-
-      element.hass = hass;
-      await element.updateComplete;
-
-      expect(element.shadowRoot?.querySelector('ha-card')).not.toBeNull();
-      expect(element.shadowRoot?.querySelector('.no-warnings')?.textContent?.trim()).toBe(
-        'Select at least one NINA warning area or a DWD device in the card configuration.',
-      );
-    });
-  });
-
   describe('sort_by', () => {
     // The example from issue #108: a long storm warning, then a short thunderstorm inside it.
     const render = async (sortBy?: NinaDwdCardConfig['sort_by']) => {
@@ -118,6 +97,27 @@ describe('NinaDwdCard', () => {
 
     it('puts the warning that started last first with newest', async () => {
       expect(await render('newest')).toEqual(['FROST', 'STARKEM GEWITTER', 'STURMBÖEN', 'ORKANBÖEN']);
+    });
+  });
+
+  describe('Initialization and Configuration', () => {
+    it('should create the component instance', () => {
+      expect(element).toBeInstanceOf(HTMLElement);
+      expect(element.tagName.toLowerCase()).toBe('nina-dwd-card');
+    });
+
+    it('should render a configuration hint instead of throwing when no entities are provided', async () => {
+      // A configuration without a warning source is what the card picker
+      // previews, so it must render something rather than a red error card.
+      expect(() => element.setConfig({ type: 'custom:nina-dwd-card' })).not.toThrow();
+
+      element.hass = hass;
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('ha-card')).not.toBeNull();
+      expect(element.shadowRoot?.querySelector('.no-warnings')?.textContent?.trim()).toBe(
+        'Select at least one NINA warning area or a DWD device in the card configuration.',
+      );
     });
   });
 
