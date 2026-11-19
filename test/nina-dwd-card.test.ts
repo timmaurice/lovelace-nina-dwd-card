@@ -2275,6 +2275,60 @@ describe('NinaDwdCard', () => {
       expect(chips).toEqual(['Karlsruhe', 'Baden-Baden']);
     });
 
+    describe('area chips as device links', () => {
+      const renderShared = async (isAdmin: boolean) => {
+        for (const [n, town] of [
+          [1, 'Karlsruhe'],
+          [2, 'Baden-Baden'],
+        ] as const) {
+          hass.states[`binary_sensor.nina_warnung_${n}_1`] = {
+            state: 'on',
+            attributes: {
+              id: 'warning-shared',
+              friendly_name: `${town} Warnung 1`,
+              headline: 'Shared Warning',
+              severity: 'Minor',
+              start: new Date().toISOString(),
+            },
+          };
+          hass.entities[`binary_sensor.nina_warnung_${n}_1`] = { platform: 'nina', device_id: `device-${n}` };
+        }
+        (hass as unknown as { user: unknown }).user = { is_admin: isAdmin };
+        element.hass = hass;
+        element.setConfig({
+          ...config,
+          nina_entity_prefix: ['binary_sensor.nina_warnung_1', 'binary_sensor.nina_warnung_2'],
+          show_nina_area: true,
+        });
+        await element.updateComplete;
+        return Array.from(element.shadowRoot!.querySelectorAll<HTMLElement>('.area-chip'));
+      };
+
+      it('links every area of a merged warning to its own device for admins', async () => {
+        const chips = await renderShared(true);
+        expect(chips.map((c) => [c.tagName, c.textContent?.trim(), c.getAttribute('href')])).toEqual([
+          ['A', 'Karlsruhe', '/config/devices/device/device-1'],
+          ['A', 'Baden-Baden', '/config/devices/device/device-2'],
+        ]);
+      });
+
+      it('opens the device page inside the frontend', async () => {
+        const chips = await renderShared(true);
+        const changed = vi.fn();
+        window.addEventListener('location-changed', changed);
+        chips[1].click();
+        window.removeEventListener('location-changed', changed);
+        expect(window.location.pathname).toBe('/config/devices/device/device-2');
+        expect(changed).toHaveBeenCalledOnce();
+        history.replaceState(null, '', '/');
+      });
+
+      it('keeps plain chips for users who cannot open a device page', async () => {
+        const chips = await renderShared(false);
+        expect(chips.map((c) => c.tagName)).toEqual(['SPAN', 'SPAN']);
+      });
+    });
+
     it('should shorten the district and state suffix but keep it in the tooltip', async () => {
       const prefixConfig = {
         ...config,

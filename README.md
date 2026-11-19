@@ -24,6 +24,7 @@ A custom Lovelace card for Home Assistant to display warnings from NINA (Notfall
 - Shows a "No Warnings" message when no active warnings are present.
 - Displays sender information and a direct link to the official warning page on BUND.DE for NINA warnings.
 - Designed to be fully customizable through the visual editor.
+- Keeps the height set in the Layout tab of a sections view: the warnings scroll inside the card instead of running over the cards below.
 
 ## AI Translation
 
@@ -103,7 +104,7 @@ You can now add the card to your dashboard.
 | `show_map_without_warnings` | boolean        | `false`      | Shows the map even when there are no warnings. Only works when `dwd_map_position` is `above` or `below`.                    |
 | `hide_on_level_below`       | number         | `(none)`     | Filters out warnings that are below the selected severity threshold (e.g., 2 for Moderate).                                 |
 | `hide_headlines_containing` | list           | `(none)`     | Hides warnings whose headline contains one of these fragments (case-insensitive), e.g. `Hitze`.                             |
-| `show_nina_area`            | boolean        | `false`      | Shows the NINA warning area(s) a warning was reported for, so multiple areas can share one card.                            |
+| `show_nina_area`            | boolean        | `false`      | Shows the NINA warning area(s) of a warning. For admins each area links to its NINA device.                                 |
 | `hide_instructions`         | boolean        | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
 | `hide_footer`               | boolean        | `false`      | Hides the footer containing the source and info icon.                                                                       |
 | `separate_advance_warnings` | boolean        | `false`      | Displays current warnings and advance warnings in separate sections.                                                        |

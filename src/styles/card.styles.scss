@@ -1,8 +1,19 @@
+// A height from the sections Layout tab is kept: the warnings scroll inside
+// it instead of running over the cards below. Without one, nothing changes.
+ha-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 :host ::slotted(.card-content),
 .card-content {
   // Lets the rules at the end of the file react to the width the card was given
   // rather than to the viewport.
   container: nina-dwd-card / inline-size;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 16px;
 }
 
@@ -103,6 +114,17 @@
     line-height: 1.7;
     overflow-wrap: anywhere;
     padding: 0 8px;
+  }
+
+  a.area-chip {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      background-color: var(--secondary-background-color);
+      color: var(--primary-text-color);
+    }
   }
 }
 
