@@ -10,6 +10,7 @@ test.beforeAll(async () => {
     friendly_name: 'E2E Tap (E2E District - Testland) Warning 1',
     headline: 'Amtliche WARNUNG vor STURMBÖEN',
     description: 'Es treten Sturmböen um 70 km/h auf.',
+    instruction: 'Achten Sie auf herabstürzende Äste.',
     sender: 'Deutscher Wetterdienst',
     severity: 'Moderate',
     id: 'mow.de.e2e.tap.0001',
@@ -26,6 +27,7 @@ test.beforeAll(async () => {
           {
             type: 'custom:nina-dwd-card',
             nina_entity_prefix: 'binary_sensor.e2e_tap_warning',
+            expand_instructions: true,
             tap_action: { action: 'navigate', navigation_path: '#warning-popup' },
           },
         ],
@@ -56,6 +58,18 @@ test.describe('tap_action', () => {
 
     await card.locator('.info-button').click();
     await expect(page.locator('ha-more-info-dialog')).toBeAttached();
+    expect(page.url()).not.toContain('#warning-popup');
+  });
+
+  // Follow-up in #108: inside a pop-up, unfolding the panel ran the action and closed it.
+  test('the recommended actions start open and fold without running the action', async ({ page }) => {
+    await page.goto(`/${urlPath}/0`);
+    const panel = page.locator('nina-dwd-card ha-expansion-panel');
+    await expect(panel).toHaveAttribute('expanded', '', { timeout: 60_000 });
+    await expect(panel.locator('.instruction')).toContainText('Äste');
+
+    await panel.locator('[slot="header"]').click();
+    await expect(panel).not.toHaveAttribute('expanded');
     expect(page.url()).not.toContain('#warning-popup');
   });
 });
