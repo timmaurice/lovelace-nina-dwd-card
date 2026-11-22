@@ -86,6 +86,7 @@ export interface NinaDwdCardConfig extends LovelaceCardConfig {
   show_map_without_warnings?: boolean;
   hide_when_no_warnings?: boolean;
   hide_instructions?: boolean;
+  expand_instructions?: boolean;
   hide_footer?: boolean;
   show_nina_area?: boolean;
   separate_advance_warnings?: boolean;

@@ -36,6 +36,7 @@
     "hide_headlines_containing": "Hide warnings whose headline contains",
     "show_nina_area": "Show NINA warning area per warning",
     "hide_instructions": "Hide recommended actions",
+    "expand_instructions": "Show recommended actions expanded",
     "hide_footer": "Hide footer with source and info icon",
     "separate_advance_warnings": "Separate current and advance warnings",
     "dwd_map_type_options": {
