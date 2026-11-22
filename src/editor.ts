@@ -105,6 +105,10 @@ const SCHEMA = [
         selector: { boolean: {} },
       },
       {
+        name: 'expand_instructions',
+        selector: { boolean: {} },
+      },
+      {
         name: 'hide_footer',
         selector: { boolean: {} },
       },

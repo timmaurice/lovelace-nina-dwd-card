@@ -404,7 +404,7 @@ export class NinaDwdCard extends LitElement {
           }
           ${
             !this._config.hide_instructions && instruction
-              ? html` <ha-expansion-panel outlined>
+              ? html` <ha-expansion-panel outlined .expanded=${this._config.expand_instructions === true}>
                   <div slot="header">${localize(this.hass, 'card.recommended_actions')}</div>
                   <div class="instruction">${unsafeHTML(sanitizeHtml(instruction))}</div>
                 </ha-expansion-panel>`
@@ -1441,10 +1441,14 @@ export class NinaDwdCard extends LitElement {
 
   private _handleCardTap = (ev: Event): void => {
     if (!this._hasTapAction()) return;
-    // Links, buttons, the map and the lightbox keep their own click.
+    // Links, buttons, the instructions panel, the map and the lightbox keep their own click.
     const own = ev
       .composedPath()
-      .some((el) => el instanceof HTMLElement && el.matches('a, button, ha-icon-button, .map-container, .lightbox'));
+      .some(
+        (el) =>
+          el instanceof HTMLElement &&
+          el.matches('a, button, ha-icon-button, ha-expansion-panel, .map-container, .lightbox'),
+      );
     if (own) return;
     fireEvent(this, 'hass-action', { config: { tap_action: this._config.tap_action }, action: 'tap' });
   };

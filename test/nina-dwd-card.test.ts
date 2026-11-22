@@ -153,6 +153,20 @@ describe('NinaDwdCard', () => {
       expect(actions).toEqual([]);
     });
 
+    it('lets the recommended actions panel open without running the action', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { headline: 'NINA Test Warning', instruction: 'Stay inside.', start: new Date().toISOString() },
+      };
+      element.hass = hass;
+      element.setConfig({ ...config, tap_action: tap });
+      await element.updateComplete;
+      const actions: unknown[] = [];
+      element.addEventListener('hass-action', (ev) => actions.push((ev as CustomEvent).detail));
+      element.shadowRoot!.querySelector<HTMLElement>('ha-expansion-panel [slot="header"]')!.click();
+      expect(actions).toEqual([]);
+    });
+
     it('does nothing without a tap_action or with action none', async () => {
       const actions = await renderWarning({ action: 'none' });
       element.shadowRoot!.querySelector<HTMLElement>('.headline')!.click();
@@ -455,6 +469,23 @@ describe('NinaDwdCard', () => {
       const expansionPanel = element.shadowRoot?.querySelector('ha-expansion-panel');
       expect(expansionPanel).not.toBeNull();
       expect(expansionPanel?.textContent).toContain('Stay inside.');
+    });
+
+    it('starts the recommended actions collapsed unless expand_instructions is set', async () => {
+      hass.states['binary_sensor.nina_warnung_1'] = {
+        state: 'on',
+        attributes: { headline: 'NINA Test Warning', instruction: 'Stay inside.', start: new Date().toISOString() },
+      };
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+      const panel = () =>
+        element.shadowRoot!.querySelector('ha-expansion-panel') as HTMLElement & { expanded: boolean };
+      expect(panel().expanded).toBe(false);
+
+      element.setConfig({ ...config, expand_instructions: true });
+      await element.updateComplete;
+      expect(panel().expanded).toBe(true);
     });
 
     it('should render instruction accordion with HTML elements unescaped', async () => {

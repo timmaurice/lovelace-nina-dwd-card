@@ -107,6 +107,7 @@ You can now add the card to your dashboard.
 | `hide_headlines_containing` | list           | `(none)`     | Hides warnings whose headline contains one of these fragments (case-insensitive), e.g. `Hitze`.                             |
 | `show_nina_area`            | boolean        | `false`      | Shows the NINA warning area(s) of a warning. For admins each area links to its NINA device.                                 |
 | `hide_instructions`         | boolean        | `false`      | Hides the recommended actions ("Handlungsempfehlungen") for each warning.                                                   |
+| `expand_instructions`       | boolean        | `false`      | Shows the recommended actions unfolded instead of collapsed.                                                                |
 | `hide_footer`               | boolean        | `false`      | Hides the footer containing the source and info icon.                                                                       |
 | `separate_advance_warnings` | boolean        | `false`      | Displays current warnings and advance warnings in separate sections.                                                        |
 | `suppress_warning_text`     | boolean        | `false`      | Removes \"Amtliche (Unwetter)warnung vor\" and \"VORABINFORMATION UNWETTER vor\" from the headline.                         |
@@ -153,6 +154,7 @@ hide_headlines_containing: # Hides warnings whose headline contains one of these
   - Frost
 show_nina_area: true # Shows which NINA area each warning belongs to
 hide_instructions: false
+expand_instructions: true # Recommended actions start unfolded
 hide_footer: false
 separate_advance_warnings: true
 hide_when_no_warnings: true

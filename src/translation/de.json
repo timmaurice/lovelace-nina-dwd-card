@@ -36,6 +36,7 @@
     "hide_headlines_containing": "Warnungen ausblenden, deren Titel Folgendes enthält",
     "show_nina_area": "NINA-Warngebiet pro Warnung anzeigen",
     "hide_instructions": "Handlungsempfehlungen ausblenden",
+    "expand_instructions": "Handlungsempfehlungen ausgeklappt anzeigen",
     "hide_footer": "Fußzeile mit Quelle und Info-Icon ausblenden",
     "separate_advance_warnings": "Aktuelle und Vorab-Warnungen trennen",
     "dwd_map_type_options": {
