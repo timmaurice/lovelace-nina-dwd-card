@@ -66,7 +66,7 @@ If you would like to contribute a new translation:
 
 </details>
 
-![NINA and DWD Warnings Card Screenshot](https://raw.githubusercontent.com/timmaurice/lovelace-nina-dwd-card/main/image.png)
+<img src="https://raw.githubusercontent.com/timmaurice/lovelace-nina-dwd-card/main/image.png" alt="NINA and DWD Warnings Card Screenshot" width="500">
 
 ## Installation
 
