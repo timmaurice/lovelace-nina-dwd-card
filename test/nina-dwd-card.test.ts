@@ -3272,6 +3272,65 @@ describe('NinaDwdCard', () => {
       warn.mockRestore();
     });
 
+    /**
+     * The sensors HA 2026.11 puts next to a slot: one per field, on the slot's
+     * device, numbered like the slot. A read-only user may read them.
+     */
+    const slotSensors = (device: string, slot: number, values: Record<string, string>) => {
+      for (const [key, state] of Object.entries(values)) {
+        const id = `sensor.nina_${device}_${key}_${slot}`;
+        hass.entities[id] = { platform: 'nina', device_id: device, translation_key: key };
+        hass.states[id] = { state, attributes: {} } as HomeAssistant['states'][string];
+      }
+    };
+
+    it('should take headline, sender, severity and time from the slot sensors when the call is refused', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      // What a user in the read-only group gets: the action is refused.
+      callService.mockRejectedValue(new Error('Unauthorized'));
+      hass.entities[SLOT] = { platform: 'nina', device_id: 'kuenzelsau', translation_key: 'warning' };
+      slotSensors('kuenzelsau', 1, {
+        headline: 'Kontamination des Trinkwasserspeichers',
+        sender: 'Stadt Künzelsau',
+        severity: 'severe',
+        start: hoursFromNow(-1),
+        affected_areas: 'Stadtgebiet Künzelsau',
+      });
+      // Another slot of the same device, and slot 1 of another device, must not leak in.
+      slotSensors('kuenzelsau', 2, { headline: 'Andere Warnung' });
+      slotSensors('elsewhere', 1, { headline: 'Fremde Warnung', sender: 'Fremder Absender' });
+      hass.states['sensor.nina_kuenzelsau_expires_1'] = {
+        state: 'unavailable',
+        attributes: {},
+      } as HomeAssistant['states'][string];
+      hass.entities['sensor.nina_kuenzelsau_expires_1'] = {
+        platform: 'nina',
+        device_id: 'kuenzelsau',
+        translation_key: 'expires',
+      };
+
+      await mount();
+
+      expect(text('.headline')).toBe('Kontamination des Trinkwasserspeichers');
+      expect(text('.sender')).toContain('Stadt Künzelsau');
+      expect(text('.time')?.toLowerCase()).not.toContain('unknown');
+      const [warning] = (element as unknown as { _getNinaWarnings(): NinaWarning[] })._getNinaWarnings();
+      expect(warning.severity).toBe('Severe');
+      expect(warning.expires).toBe('');
+      warn.mockRestore();
+    });
+
+    it('should prefer nina.get_details over the slot sensors', async () => {
+      hass.entities[SLOT] = { platform: 'nina', device_id: 'kaarst', translation_key: 'warning' };
+      slotSensors('kaarst', 1, { headline: 'Kurzfassung aus dem Sensor', severity: 'minor' });
+
+      await mount();
+
+      expect(text('.headline')).toBe('Amtliche WARNUNG vor STURMBÖEN');
+      const [warning] = (element as unknown as { _getNinaWarnings(): NinaWarning[] })._getNinaWarnings();
+      expect(warning.severity).toBe('Severe');
+    });
+
     it('should retry a failed call after the NINA polling interval', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       vi.useFakeTimers({ toFake: ['Date'] });

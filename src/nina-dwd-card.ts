@@ -114,6 +114,11 @@ interface NinaDetailsEntry {
  * switches off and back on, and a warning whose text changes under the same id
  * for as long as the integration still publishes that text as attributes.
  */
+/** Translation keys of the NINA slot sensors the card reads; each matches the warning field of the same name. */
+const NINA_SLOT_SENSOR_FIELDS = new Set(['headline', 'sender', 'severity', 'sent', 'start', 'expires']);
+
+const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+
 const ninaDetailsKey = (stateObj: { attributes?: Record<string, unknown>; last_updated?: string }): string =>
   `${String(stateObj.attributes?.id ?? '')}|${stateObj.last_updated ?? ''}`;
 
@@ -1099,6 +1104,26 @@ export class NinaDwdCard extends LitElement {
     return slots;
   }
 
+  /**
+   * The states of the sensors HA 2026.11 creates next to a NINA slot: same device,
+   * same slot number at the end of the entity id, told apart by translation key.
+   */
+  private _getNinaSlotSensors(entityId: string): Record<string, string> {
+    const entities = this.hass.entities;
+    const deviceId: unknown = entities?.[entityId]?.device_id;
+    const slot = /(\d+)$/.exec(entityId)?.[1];
+    const values: Record<string, string> = {};
+    if (!entities || typeof deviceId !== 'string' || !slot) return values;
+    for (const [id, entity] of Object.entries(entities)) {
+      const key: unknown = entity?.translation_key;
+      if (entity?.device_id !== deviceId || entity.platform !== 'nina' || typeof key !== 'string') continue;
+      if (!NINA_SLOT_SENSOR_FIELDS.has(key) || /(\d+)$/.exec(id)?.[1] !== slot) continue;
+      const state = this.hass.states[id]?.state;
+      if (state && state !== 'unavailable' && state !== 'unknown') values[key] = state;
+    }
+    return values;
+  }
+
   private _getNinaWarnings(): NinaWarning[] {
     const warnings: NinaWarning[] = [];
     const warningsById = new Map<string, NinaWarning>();
@@ -1108,9 +1133,12 @@ export class NinaDwdCard extends LitElement {
       // `nina.get_details` first, the attributes second: cores before 2026.8 have
       // no action, and a call that failed leaves no details either. The details
       // only count while they belong to the warning the slot holds now.
+      // The slot's own sensors come last: since 2026.11 they are all a read-only
+      // user gets, who may not call the action.
       const entry = this._ninaDetails.get(entityId);
       const details = entry?.key === ninaDetailsKey(stateObj) ? entry.details : null;
-      const field = (name: string): unknown => details?.[name] ?? attributes[name];
+      const sensors = details ? {} : this._getNinaSlotSensors(entityId);
+      const field = (name: string): unknown => details?.[name] ?? attributes[name] ?? sensors[name];
 
       // `hass.states` and the action response are untyped, so every field has to
       // be narrowed here, at the boundary where the data enters the card. A
@@ -1148,7 +1176,8 @@ export class NinaDwdCard extends LitElement {
         description,
         sender: asOptionalString(field('sender')) ?? '',
         entity_id: entityId,
-        severity: (asOptionalString(field('severity')) ?? 'Unknown') as NinaWarning['severity'],
+        // The severity sensor reports `minor`, the action and attributes `Minor`.
+        severity: capitalize(asOptionalString(field('severity')) ?? 'Unknown') as NinaWarning['severity'],
         start: start ?? '',
         expires: asOptionalString(field('expires')) ?? '',
         instruction,
