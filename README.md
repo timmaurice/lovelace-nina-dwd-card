@@ -133,6 +133,9 @@ You can now add the card to your dashboard.
 > [!NOTE]
 > **Debug Mode**: The `debug_mode` option is not available in the visual editor. It can only be configured via YAML. When enabled, it displays an overlay showing the map padding areas and boundary coordinates, which is useful for fine-tuning map positioning.
 
+> [!NOTE]
+> **Read-only users**: The card loads a NINA warning's text through the `nina.get_details` action, which users in Home Assistant's read-only group may not call. For them the card reads the sensors the NINA integration creates next to each warning slot instead: headline, sender, severity and times, but no description or recommended actions. Home Assistant creates the _Sent_, _Start_ and _Expires_ sensors disabled; enable them if read-only users should see when a warning was issued.
+
 ### Examples
 
 ```yaml
